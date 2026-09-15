@@ -1,0 +1,53 @@
+@keyframes sawFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sawFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sawModalIn {
+  from { opacity: 0; transform: scale(.96) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes sawPopIn {
+  0% { opacity: 0; transform: scale(.7); }
+  70% { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes sawPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
+}
+@keyframes sawShimmer {
+  0% { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
+}
+@keyframes sawCheck {
+  from { stroke-dashoffset: 60; }
+  to { stroke-dashoffset: 0; }
+}
+
+.saw-page-enter { animation: sawFadeUp .55s ease both; }
+.saw-card-enter { animation: sawFadeUp .55s ease both; }
+.saw-card-interactive { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+.saw-card-interactive:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(0,0,0,.22); }
+.saw-car-image { transition: transform .35s ease; }
+.saw-card-interactive:hover .saw-car-image { transform: scale(1.035); }
+.saw-button { transition: transform .16s ease, filter .16s ease, box-shadow .16s ease; }
+.saw-button:hover { filter: brightness(1.05); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
+.saw-button:active { transform: scale(.97); }
+.saw-modal-panel-upgraded { animation: sawModalIn .25s cubic-bezier(.2,.8,.2,1) both; }
+.saw-success-icon { animation: sawPopIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.saw-live-dot { animation: sawPulse 1.8s ease-in-out infinite; }
+.saw-stat-card { transition: transform .2s ease, box-shadow .2s ease; }
+.saw-stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.16); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
