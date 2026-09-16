@@ -1,470 +1,674 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Car,
   MapPin,
-  Phone,
-  User,
+  Fuel,
+  Users,
+  Settings2,
+  CalendarDays,
+  IndianRupee,
+  ShieldCheck,
+  Search,
   Plus,
   Trash2,
-  X,
-  Fuel,
-  Settings2,
-  LayoutDashboard,
-  KeyRound,
+  Power,
   LogOut,
-  Clock3,
-  Search,
-  ShieldCheck,
-  ArrowRight,
-  RotateCcw,
-  ImagePlus,
+  Lock,
+  X,
+  CheckCircle2,
   Camera,
+  Upload,
+  Image as ImageIcon,
+  Pencil,
+  Menu,
 } from "lucide-react";
 
+/* =========================================================
+   SAWARIYA RENTALS
+   Complete App.jsx
+   ========================================================= */
+
 const C = {
-  ink: "#14161C",
-  inkSoft: "#1E212A",
-  highway: "#E3A73B",
-  highwayDeep: "#C88F2A",
-  dusk: "#3A6B6B",
-  paper: "#F2EDE1",
-  rust: "#B3452D",
-  steel: "#8A8F98",
-  moss: "#5C7A5E",
-  line: "#2B2E38",
+  dark: "#111827",
+  dark2: "#1f2937",
+  orange: "#f97316",
+  orangeDark: "#ea580c",
+  light: "#f8fafc",
+  white: "#ffffff",
+  gray: "#64748b",
+  gray2: "#94a3b8",
+  border: "#e2e8f0",
+  green: "#16a34a",
+  red: "#dc2626",
+  yellow: "#ca8a04",
 };
 
-const ADMIN_PASSCODE = "sawariya123";
+const ADMIN_PASSCODE = "1234";
+
+/* =========================================================
+   SEED DATA
+   ========================================================= */
 
 const seedCars = [
   {
     id: "car-1",
     name: "Maruti Swift",
-    city: "Indore",
+    city: "Bhopal",
     type: "Hatchback",
-    price: 1400,
+    price: 1499,
     fuel: "Petrol",
     transmission: "Manual",
     seats: 5,
     status: "available",
+    image: "",
   },
   {
     id: "car-2",
-    name: "Hyundai i20",
-    city: "Indore",
-    type: "Hatchback",
-    price: 1600,
-    fuel: "Petrol",
-    transmission: "Manual",
-    seats: 5,
-    status: "available",
-  },
-  {
-    id: "car-3",
-    name: "Mahindra Thar",
-    city: "Indore",
+    name: "Hyundai Creta",
+    city: "Bhopal",
     type: "SUV",
-    price: 3200,
-    fuel: "Diesel",
-    transmission: "Manual",
-    seats: 4,
-    status: "rented",
-  },
-  {
-    id: "car-4",
-    name: "Kia Seltos",
-    city: "Ujjain",
-    type: "SUV",
-    price: 2800,
+    price: 2499,
     fuel: "Petrol",
     transmission: "Automatic",
     seats: 5,
     status: "available",
+    image: "",
   },
   {
-    id: "car-5",
-    name: "Toyota Innova Crysta",
+    id: "car-3",
+    name: "Maruti Ertiga",
     city: "Indore",
-    type: "MUV",
-    price: 3600,
+    type: "MPV",
+    price: 2299,
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 7,
+    status: "available",
+    image: "",
+  },
+  {
+    id: "car-4",
+    name: "Toyota Innova Crysta",
+    city: "Bhopal",
+    type: "SUV",
+    price: 3499,
     fuel: "Diesel",
     transmission: "Manual",
     seats: 7,
     status: "available",
+    image: "",
   },
   {
-    id: "car-6",
-    name: "Renault Kwid",
-    city: "Ujjain",
+    id: "car-5",
+    name: "Hyundai i20",
+    city: "Indore",
     type: "Hatchback",
-    price: 1100,
+    price: 1699,
     fuel: "Petrol",
     transmission: "Manual",
     seats: 5,
     status: "available",
+    image: "",
+  },
+  {
+    id: "car-6",
+    name: "Mahindra Scorpio",
+    city: "Bhopal",
+    type: "SUV",
+    price: 2999,
+    fuel: "Diesel",
+    transmission: "Manual",
+    seats: 7,
+    status: "available",
+    image: "",
   },
 ];
 
-const seedCities = ["Indore", "Ujjain"];
+const seedCities = ["Bhopal", "Indore", "Jabalpur", "Ujjain"];
 
-const uid = (prefix = "id") =>
-  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
-const fmtINR = (n) =>
-  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+function uid(prefix = "id") {
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+function fmtINR(value) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+}
 
-const addDaysISO = (date, days) => {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
+function todayISO() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60000)
+    .toISOString()
+    .slice(0, 10);
+}
 
-const daysBetween = (a, b) =>
-  Math.max(
-    1,
-    Math.ceil(
-      (new Date(`${b}T00:00:00`) -
-        new Date(`${a}T00:00:00`)) /
-        86400000
-    )
-  );
+function addDaysISO(dateString, days) {
+  const d = new Date(`${dateString}T00:00:00`);
+  d.setDate(d.getDate() + Number(days || 0));
+
+  const offset = d.getTimezoneOffset();
+
+  return new Date(d.getTime() - offset * 60000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function daysBetween(start, end) {
+  if (!start || !end) return 0;
+
+  const a = new Date(`${start}T00:00:00`);
+  const b = new Date(`${end}T00:00:00`);
+
+  const diff = Math.round((b - a) / 86400000);
+
+  return Math.max(1, diff);
+}
+
+/* =========================================================
+   STORAGE
+   ========================================================= */
 
 async function loadShared(key, fallback) {
   try {
-    if (window.storage?.get) {
-      const result = await window.storage.get(key, true);
+    if (typeof window !== "undefined" && window.storage) {
+      const result = await window.storage.get(key);
 
-      if (result?.value) {
+      if (result && result.value) {
         return JSON.parse(result.value);
       }
     }
-  } catch {}
+  } catch (error) {
+    console.warn("Shared storage unavailable:", error);
+  }
 
   try {
-    const raw = localStorage.getItem(`sawariya:${key}`);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
+    const local = localStorage.getItem(key);
+
+    if (local) {
+      return JSON.parse(local);
+    }
+  } catch (error) {
+    console.warn("Local storage unavailable:", error);
   }
+
+  return fallback;
 }
 
 async function saveShared(key, value) {
-  try {
-    if (window.storage?.set) {
-      await window.storage.set(
-        key,
-        JSON.stringify(value),
-        true
-      );
-      return;
-    }
-  } catch {}
+  const stringValue = JSON.stringify(value);
 
   try {
-    localStorage.setItem(
-      `sawariya:${key}`,
-      JSON.stringify(value)
-    );
-  } catch {}
+    if (typeof window !== "undefined" && window.storage) {
+      await window.storage.set(key, stringValue);
+      return true;
+    }
+  } catch (error) {
+    console.warn("Shared storage save failed:", error);
+  }
+
+  try {
+    localStorage.setItem(key, stringValue);
+    return true;
+  } catch (error) {
+    console.error("Local storage save failed:", error);
+    return false;
+  }
 }
 
-/* =========================
-   BADGE
-========================= */
+/* =========================================================
+   IMAGE COMPRESSION
+   ========================================================= */
 
-function Badge({ children, tone = "gold" }) {
-  const styles = {
-    gold: {
-      background: "#3A2D16",
-      color: C.highway,
+function compressImage(file, maxSize = 1000, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error("No image selected."));
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please select an image file."));
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        let width = image.width;
+        let height = image.height;
+
+        const largestSide = Math.max(width, height);
+
+        if (largestSide > maxSize) {
+          const scale = maxSize / largestSide;
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          reject(new Error("Could not process image."));
+          return;
+        }
+
+        ctx.drawImage(image, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Could not compress image."));
+              return;
+            }
+
+            const blobReader = new FileReader();
+
+            blobReader.onloadend = () => {
+              resolve(blobReader.result);
+            };
+
+            blobReader.onerror = () => {
+              reject(new Error("Could not read compressed image."));
+            };
+
+            blobReader.readAsDataURL(blob);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+
+      image.onerror = () => {
+        reject(new Error("Could not load this image."));
+      };
+
+      image.src = reader.result;
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Could not read selected image."));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+/* =========================================================
+   SMALL UI COMPONENTS
+   ========================================================= */
+
+function Badge({ children, tone = "gray" }) {
+  const tones = {
+    gray: {
+      bg: "#f1f5f9",
+      color: "#475569",
     },
     green: {
-      background: "#213126",
-      color: "#A9D0AE",
+      bg: "#dcfce7",
+      color: "#166534",
     },
     red: {
-      background: "#3A201B",
-      color: "#F1A28F",
+      bg: "#fee2e2",
+      color: "#991b1b",
     },
-    gray: {
-      background: "#292C34",
-      color: "#C9CBD0",
+    orange: {
+      bg: "#ffedd5",
+      color: "#9a3412",
+    },
+    blue: {
+      bg: "#dbeafe",
+      color: "#1d4ed8",
     },
   };
 
+  const t = tones[tone] || tones.gray;
+
   return (
     <span
-      className="rounded-full px-2.5 py-1 text-xs font-semibold"
-      style={styles[tone]}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 9px",
+        borderRadius: 999,
+        background: t.bg,
+        color: t.color,
+        fontSize: 12,
+        fontWeight: 700,
+      }}
     >
       {children}
     </span>
   );
 }
 
-/* =========================
-   CAR IMAGE
-========================= */
-
-function CarThumb({ car }) {
-  const gradients = {
-    SUV: "from-[#30353F] to-[#15171C]",
-    MUV: "from-[#3B3530] to-[#17191D]",
-    Hatchback: "from-[#343C3C] to-[#17191D]",
-    Sedan: "from-[#30353F] to-[#15171C]",
-  };
+function CarThumb({ car, height = 190 }) {
+  if (car.image) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height,
+          borderRadius: 18,
+          overflow: "hidden",
+          background: "#e2e8f0",
+        }}
+      >
+        <img
+          src={car.image}
+          alt={car.name}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`relative h-44 overflow-hidden rounded-2xl bg-gradient-to-br ${
-        gradients[car.type] || gradients.SUV
-      }`}
+      style={{
+        width: "100%",
+        height,
+        borderRadius: 18,
+        overflow: "hidden",
+        background:
+          "linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)",
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      {car.image ? (
-        <>
-          <img
-            src={car.image}
-            alt={car.name}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+      <Car size={95} strokeWidth={1.25} color="#475569" />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-
-          <div className="absolute bottom-3 left-4 text-[10px] font-bold tracking-[.24em] text-white">
-            SAWARIYA • {car.type.toUpperCase()}
-          </div>
-        </>
-      ) : (
-        <>
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              background:
-                "radial-gradient(circle at 70% 30%, #E3A73B 0, transparent 34%)",
-            }}
-          />
-
-          <div className="absolute bottom-8 left-1/2 w-[78%] -translate-x-1/2">
-            <div className="relative h-14 rounded-[45%] bg-[#0D0F13] shadow-[0_14px_30px_rgba(0,0,0,.55)]">
-              <div className="absolute left-[18%] top-[-22px] h-12 w-[52%] rounded-t-[70%] border border-[#4B505B] bg-[#20242C]">
-                <div className="absolute left-2 top-2 h-7 w-[45%] rounded-tl-[70%] bg-[#66717B]/50" />
-                <div className="absolute right-2 top-2 h-7 w-[45%] rounded-tr-[70%] bg-[#66717B]/50" />
-              </div>
-
-              <div className="absolute left-[8%] top-4 h-3 w-7 rounded-full bg-[#E3A73B]" />
-              <div className="absolute right-[8%] top-4 h-3 w-7 rounded-full bg-[#B3452D]" />
-
-              <div className="absolute -bottom-3 left-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
-              <div className="absolute -bottom-3 right-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
-            </div>
-          </div>
-
-          <div className="absolute bottom-3 left-4 text-[10px] font-bold tracking-[.24em] text-[#C9CBD0]">
-            SAWARIYA • {car.type.toUpperCase()}
-          </div>
-        </>
-      )}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          left: 12,
+          right: 12,
+          background: "rgba(255,255,255,.88)",
+          borderRadius: 10,
+          padding: "7px 10px",
+          fontWeight: 800,
+          fontSize: 13,
+          color: C.dark,
+          textAlign: "center",
+        }}
+      >
+        {car.name}
+      </div>
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    CAR CARD
-========================= */
+   ========================================================= */
 
-function CarCard({ car, onBook, index }) {
+function CarCard({ car, onBook }) {
   return (
-    <article
-      className="saw-card-enter saw-card-interactive overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]"
+    <div
       style={{
-        animationDelay: `${index * 70}ms`,
+        background: C.white,
+        border: `1px solid ${C.border}`,
+        borderRadius: 20,
+        overflow: "hidden",
+        boxShadow: "0 8px 30px rgba(15,23,42,.06)",
       }}
     >
       <CarThumb car={car} />
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
+      <div style={{ padding: 18 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+          }}
+        >
           <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h3 className="font-display text-2xl tracking-wide text-[#F2EDE1]">
-                {car.name}
-              </h3>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 19,
+                fontWeight: 900,
+                color: C.dark,
+              }}
+            >
+              {car.name}
+            </h3>
 
-              <Badge
-                tone={
-                  car.status === "available"
-                    ? "green"
-                    : "red"
-                }
-              >
-                {car.status === "available"
-                  ? "AVAILABLE"
-                  : "RENTED"}
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-1 text-sm text-[#9FA4AE]">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                marginTop: 5,
+                color: C.gray,
+                fontSize: 13,
+              }}
+            >
               <MapPin size={14} />
               {car.city}
             </div>
           </div>
 
-          <div className="text-right">
-            <div className="font-display text-2xl text-[#E3A73B]">
-              {fmtINR(car.price)}
-            </div>
-
-            <div className="text-xs text-[#8A8F98]">
-              per day
-            </div>
-          </div>
+          <Badge tone={car.status === "available" ? "green" : "red"}>
+            {car.status === "available" ? "Available" : "Rented"}
+          </Badge>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2 border-y border-[#2B2E38] py-4 text-xs text-[#B9BDC5]">
-          <div className="flex items-center gap-1.5">
-            <Fuel size={14} />
-            {car.fuel}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <Settings2 size={14} />
-            {car.transmission}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <User size={14} />
-            {car.seats} seats
-          </div>
-        </div>
-
-        <button
-          disabled={car.status !== "available"}
-          onClick={() => onBook(car)}
-          className="saw-button mt-5 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 font-bold disabled:cursor-not-allowed disabled:opacity-40"
+        <div
           style={{
-            background:
-              car.status === "available"
-                ? C.highway
-                : C.line,
-            color: C.ink,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 9,
+            marginTop: 16,
           }}
         >
-          {car.status === "available" ? (
-            <>
-              Book this car
-              <ArrowRight size={17} />
-            </>
-          ) : (
-            "Currently rented"
-          )}
-        </button>
+          <Badge>
+            <Car size={13} />
+            {car.type}
+          </Badge>
+
+          <Badge>
+            <Fuel size={13} />
+            {car.fuel}
+          </Badge>
+
+          <Badge>
+            <Settings2 size={13} />
+            {car.transmission}
+          </Badge>
+
+          <Badge>
+            <Users size={13} />
+            {car.seats} seats
+          </Badge>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginTop: 18,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: C.gray,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              Starting from
+            </div>
+
+            <div
+              style={{
+                color: C.dark,
+                fontSize: 22,
+                fontWeight: 900,
+              }}
+            >
+              {fmtINR(car.price)}
+              <span
+                style={{
+                  fontSize: 12,
+                  color: C.gray,
+                  fontWeight: 700,
+                }}
+              >
+                {" "}
+                / day
+              </span>
+            </div>
+          </div>
+
+          <button
+            disabled={car.status !== "available"}
+            onClick={() => onBook(car)}
+            style={{
+              border: 0,
+              borderRadius: 12,
+              padding: "11px 15px",
+              background:
+                car.status === "available"
+                  ? C.orange
+                  : "#cbd5e1",
+              color: C.white,
+              fontWeight: 900,
+              cursor:
+                car.status === "available"
+                  ? "pointer"
+                  : "not-allowed",
+            }}
+          >
+            {car.status === "available" ? "Book Now" : "Unavailable"}
+          </button>
+        </div>
       </div>
-    </article>
+    </div>
   );
 }
 
-/* =========================
+/* =========================================================
    BOOKING MODAL
-========================= */
+   ========================================================= */
 
-function BookingModal({
-  car,
-  onClose,
-  onConfirm,
-}) {
-  const [step, setStep] = useState(1);
-  const [startDate, setStartDate] = useState(
-    todayISO()
-  );
+function BookingModal({ car, onClose, onConfirm }) {
+  const [customer, setCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+  });
+
+  const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(
     addDaysISO(todayISO(), 1)
   );
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [done, setDone] = useState(false);
-  const [paying, setPaying] = useState(false);
 
-  const totalDays = daysBetween(
-    startDate,
-    endDate
-  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const total = totalDays * car.price;
+  const days = daysBetween(startDate, endDate);
+  const total = days * Number(car.price || 0);
 
-  const next = () => {
-    if (step === 1) {
-      if (
-        new Date(endDate) <
-        new Date(startDate)
-      ) {
-        alert(
-          "End date cannot be before start date."
-        );
-        return;
-      }
+  function updateCustomer(e) {
+    const { name, value } = e.target;
+
+    setCustomer((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  async function loadRazorpay() {
+    if (window.Razorpay) {
+      return true;
     }
 
-    if (step === 2) {
-      const cleanPhone =
-        phone.replace(/\D/g, "");
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
 
-      if (!name.trim()) {
-        alert("Please enter your name.");
-        return;
-      }
+      script.src =
+        "https://checkout.razorpay.com/v1/checkout.js";
 
-      if (cleanPhone.length < 10) {
-        alert(
-          "Please enter a valid 10-digit phone number."
-        );
-        return;
-      }
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+
+      document.body.appendChild(script);
+    });
+  }
+
+  async function handlePayment() {
+    setError("");
+
+    if (!customer.name.trim()) {
+      setError("Please enter your name.");
+      return;
     }
 
-    setStep((current) =>
-      Math.min(3, current + 1)
-    );
-  };
+    if (!customer.phone.trim()) {
+      setError("Please enter your phone number.");
+      return;
+    }
 
-  const confirm = async () => {
-    if (paying) return;
+    if (!customer.email.trim()) {
+      setError("Please enter your email.");
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      setError("Please select rental dates.");
+      return;
+    }
+
+    if (endDate < startDate) {
+      setError("Return date cannot be before pickup date.");
+      return;
+    }
+
+    const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+    if (!keyId) {
+      setError(
+        "Razorpay key is missing. Add VITE_RAZORPAY_KEY_ID in Vercel environment variables."
+      );
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      setPaying(true);
+      const loaded = await loadRazorpay();
 
-      const razorpayKey =
-        import.meta.env.VITE_RAZORPAY_KEY_ID;
-
-      if (!razorpayKey) {
+      if (!loaded) {
         throw new Error(
-          "Razorpay key is missing."
-        );
-      }
-
-      if (!window.Razorpay) {
-        await new Promise(
-          (resolve, reject) => {
-            const script =
-              document.createElement("script");
-
-            script.src =
-              "https://checkout.razorpay.com/v1/checkout.js";
-
-            script.onload = resolve;
-            script.onerror = reject;
-
-            document.body.appendChild(
-              script
-            );
-          }
-        );
-      }
-
-      if (!window.Razorpay) {
-        throw new Error(
-          "Razorpay could not be loaded."
+          "Razorpay checkout could not be loaded."
         );
       }
 
@@ -473,653 +677,587 @@ function BookingModal({
         {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             amount: total,
-            receipt: `booking_${Date.now()}`,
+            receipt: `receipt_${Date.now()}`,
           }),
         }
       );
 
-      const orderData =
-        await orderResponse.json();
-
       if (!orderResponse.ok) {
         throw new Error(
-          orderData.error ||
-            "Unable to create payment order."
+          "Unable to create payment order."
+        );
+      }
+
+      const orderData = await orderResponse.json();
+
+      if (!orderData.id) {
+        throw new Error(
+          "Payment order ID was not returned."
         );
       }
 
       const options = {
-        key: razorpayKey,
+        key: keyId,
         amount: orderData.amount,
-        currency:
-          orderData.currency || "INR",
+        currency: orderData.currency || "INR",
         name: "SAWARIYA RENTALS",
-        description: `${car.name} Rental`,
-        order_id: orderData.orderId,
+        description: `${car.name} rental`,
+        order_id: orderData.id,
 
         prefill: {
-          name: name.trim(),
-          contact:
-            phone.replace(/\D/g, ""),
+          name: customer.name,
+          email: customer.email,
+          contact: customer.phone,
         },
 
         theme: {
-          color: "#E3A73B",
+          color: C.orange,
         },
 
-        handler: async function (
-          response
-        ) {
+        handler: async function (response) {
           try {
-            const verifyResponse =
-              await fetch(
-                "/api/verify-payment",
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
-                  body: JSON.stringify(
-                    response
-                  ),
-                }
-              );
+            const verifyResponse = await fetch(
+              "/api/verify-payment",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(response),
+              }
+            );
 
             const verifyData =
               await verifyResponse.json();
 
-            if (
-              !verifyResponse.ok ||
-              !verifyData.verified
-            ) {
-              alert(
-                "Payment verification failed. Please contact SAWARIYA RENTALS."
+            if (!verifyResponse.ok || !verifyData.verified) {
+              throw new Error(
+                "Payment verification failed."
               );
-
-              setPaying(false);
-              return;
             }
 
             onConfirm({
-              id: uid("booking"),
-              carId: car.id,
-              carName: car.name,
-              city: car.city,
-              customer: name.trim(),
-              phone:
-                phone.replace(/\D/g, ""),
+              car,
+              customer,
               startDate,
               endDate,
-              days: totalDays,
+              days,
               total,
-              status: "confirmed",
-              paymentStatus: "paid",
               paymentId:
-                response.razorpay_payment_id,
+                response.razorpay_payment_id || "",
               orderId:
-                response.razorpay_order_id,
-              createdAt:
-                new Date().toISOString(),
+                response.razorpay_order_id || "",
+              signature:
+                response.razorpay_signature || "",
             });
+          } catch (verificationError) {
+            setLoading(false);
 
-            setPaying(false);
-            setDone(true);
-          } catch (error) {
-            console.error(
-              "Payment verification error:",
-              error
+            setError(
+              verificationError.message ||
+                "Payment verification failed."
             );
-
-            alert(
-              "Payment was received, but verification could not be completed. Please contact SAWARIYA RENTALS."
-            );
-
-            setPaying(false);
           }
+        },
+
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          },
         },
       };
 
-      const razorpay =
-        new window.Razorpay(options);
+      const razorpay = new window.Razorpay(options);
 
-      razorpay.on(
-        "payment.failed",
-        function () {
-          setPaying(false);
-          alert(
-            "Payment failed. Please try again."
-          );
-        }
-      );
+      razorpay.on("payment.failed", function () {
+        setLoading(false);
+        setError(
+          "Payment failed. Please try again."
+        );
+      });
 
       razorpay.open();
-    } catch (error) {
-      console.error(
-        "Payment error:",
-        error
-      );
+    } catch (err) {
+      console.error(err);
 
-      setPaying(false);
+      setLoading(false);
 
-      alert(
-        error.message ||
-          "Unable to start payment. Please try again."
+      setError(
+        err.message ||
+          "Something went wrong while starting payment."
       );
     }
-  };
+  }
 
   return (
-    <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
-      <div className="saw-modal-panel-upgraded max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-[#383C46] bg-[#1E212A] shadow-2xl sm:max-w-xl sm:rounded-[30px]">
-
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#383C46] bg-[#1E212A] px-5 py-4">
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(15,23,42,.65)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 720,
+          background: C.white,
+          borderRadius: 24,
+          boxShadow: "0 30px 80px rgba(0,0,0,.25)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: 20,
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div>
-            <h2 className="text-lg font-bold text-white">
+            <h2
+              style={{
+                margin: 0,
+                color: C.dark,
+                fontSize: 22,
+              }}
+            >
               Book {car.name}
             </h2>
 
-            <p className="text-sm text-gray-400">
-              {fmtINR(car.price)} / day
-            </p>
+            <div
+              style={{
+                color: C.gray,
+                fontSize: 13,
+                marginTop: 4,
+              }}
+            >
+              {car.city} · {fmtINR(car.price)} / day
+            </div>
           </div>
 
           <button
             onClick={onClose}
-            disabled={paying}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2A2E38] text-xl text-gray-300 transition hover:bg-[#343945] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              border: `1px solid ${C.border}`,
+              background: C.white,
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+            }}
           >
-            ×
+            <X size={20} />
           </button>
         </div>
 
-        {!done ? (
-          <div className="p-5">
+        <div style={{ padding: 20 }}>
+          {car.image && (
+            <img
+              src={car.image}
+              alt={car.name}
+              style={{
+                width: "100%",
+                height: 180,
+                objectFit: "cover",
+                borderRadius: 16,
+                marginBottom: 18,
+              }}
+            />
+          )}
 
-            <div className="mb-6 flex items-center justify-center gap-2">
-              {[1, 2, 3].map(
-                (number) => (
-                  <React.Fragment
-                    key={number}
-                  >
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
-                        step >= number
-                          ? "bg-[#E3A73B] text-black"
-                          : "bg-[#30343F] text-gray-400"
-                      }`}
-                    >
-                      {number}
-                    </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit,minmax(200px,1fr))",
+              gap: 14,
+            }}
+          >
+            <label style={{ display: "block" }}>
+              <div style={labelStyle}>Full Name</div>
 
-                    {number < 3 && (
-                      <div
-                        className={`h-1 w-10 rounded ${
-                          step > number
-                            ? "bg-[#E3A73B]"
-                            : "bg-[#30343F]"
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
-                )
-              )}
-            </div>
+              <input
+                name="name"
+                value={customer.name}
+                onChange={updateCustomer}
+                placeholder="Your name"
+                style={inputStyle}
+              />
+            </label>
 
-            {step === 1 && (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    Select rental dates
-                  </h3>
+            <label style={{ display: "block" }}>
+              <div style={labelStyle}>Phone</div>
 
-                  <p className="mt-1 text-sm text-gray-400">
-                    Choose when you want to pick up and return the car.
-                  </p>
-                </div>
+              <input
+                name="phone"
+                value={customer.phone}
+                onChange={updateCustomer}
+                placeholder="10 digit mobile number"
+                inputMode="tel"
+                style={inputStyle}
+              />
+            </label>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-300">
-                      Start date
-                    </label>
-
-                    <input
-                      type="date"
-                      value={startDate}
-                      min={todayISO()}
-                      onChange={(e) => {
-                        const value =
-                          e.target.value;
-
-                        setStartDate(value);
-
-                        if (
-                          new Date(endDate) <
-                          new Date(value)
-                        ) {
-                          setEndDate(
-                            addDaysISO(
-                              value,
-                              1
-                            )
-                          );
-                        }
-                      }}
-                      className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-300">
-                      End date
-                    </label>
-
-                    <input
-                      type="date"
-                      value={endDate}
-                      min={startDate}
-                      onChange={(e) =>
-                        setEndDate(
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[#454A56] bg-[#292D37] p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">
-                      Rental duration
-                    </span>
-
-                    <span className="font-bold text-white">
-                      {totalDays}{" "}
-                      {totalDays === 1
-                        ? "day"
-                        : "days"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between border-t border-[#454A56] pt-3">
-                    <span className="text-gray-400">
-                      Estimated total
-                    </span>
-
-                    <span className="text-xl font-bold text-[#E3A73B]">
-                      {fmtINR(total)}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={next}
-                  className="w-full rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
-                >
-                  Continue
-                </button>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    Your details
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    Enter your contact details for the booking.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-300">
-                    Full name
-                  </label>
-
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) =>
-                      setName(
-                        e.target.value
-                      )
-                    }
-                    placeholder="Enter your full name"
-                    className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-[#E3A73B]"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-300">
-                    Phone number
-                  </label>
-
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) =>
-                      setPhone(
-                        e.target.value
-                      )
-                    }
-                    placeholder="Enter 10-digit phone number"
-                    maxLength={15}
-                    className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-[#E3A73B]"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() =>
-                      setStep(1)
-                    }
-                    className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945]"
-                  >
-                    Back
-                  </button>
-
-                  <button
-                    onClick={next}
-                    className="w-2/3 rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-5">
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    Review & payment
-                  </h3>
-
-                  <p className="mt-1 text-sm text-gray-400">
-                    Check your booking details before payment.
-                  </p>
-                </div>
-
-                <div className="space-y-3 rounded-2xl border border-[#454A56] bg-[#292D37] p-4">
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      Car
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {car.name}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      City
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {car.city}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      Customer
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {name}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      Phone
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {phone}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      Dates
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {startDate} →{" "}
-                      {endDate}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">
-                      Duration
-                    </span>
-
-                    <span className="text-right font-semibold text-white">
-                      {totalDays}{" "}
-                      {totalDays === 1
-                        ? "day"
-                        : "days"}
-                    </span>
-                  </div>
-
-                  <div className="border-t border-[#454A56] pt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-300">
-                        Total amount
-                      </span>
-
-                      <span className="text-2xl font-bold text-[#E3A73B]">
-                        {fmtINR(total)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-[#E3A73B]/30 bg-[#E3A73B]/10 p-4 text-sm text-gray-300">
-                  You will be redirected to the secure Razorpay payment window. Your booking will be confirmed only after payment is successfully verified.
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() =>
-                      setStep(2)
-                    }
-                    disabled={paying}
-                    className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Back
-                  </button>
-
-                  <button
-                    onClick={confirm}
-                    disabled={paying}
-                    className="flex w-2/3 items-center justify-center rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {paying
-                      ? "Opening Payment..."
-                      : `Pay ${fmtINR(
-                          total
-                        )}`}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-8 text-center">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 text-4xl">
-              ✓
-            </div>
-
-            <h3 className="text-2xl font-bold text-white">
-              Booking Confirmed!
-            </h3>
-
-            <p className="mt-2 text-gray-400">
-              Your payment has been verified successfully.
-            </p>
-
-            <div className="mt-6 rounded-2xl border border-[#454A56] bg-[#292D37] p-5 text-left">
-
-              <div className="flex justify-between">
-                <span className="text-gray-400">
-                  Car
-                </span>
-
-                <span className="font-semibold text-white">
-                  {car.name}
-                </span>
-              </div>
-
-              <div className="mt-3 flex justify-between">
-                <span className="text-gray-400">
-                  Customer
-                </span>
-
-                <span className="font-semibold text-white">
-                  {name}
-                </span>
-              </div>
-
-              <div className="mt-3 flex justify-between">
-                <span className="text-gray-400">
-                  Duration
-                </span>
-
-                <span className="font-semibold text-white">
-                  {totalDays}{" "}
-                  {totalDays === 1
-                    ? "day"
-                    : "days"}
-                </span>
-              </div>
-
-              <div className="mt-3 flex justify-between border-t border-[#454A56] pt-3">
-                <span className="font-semibold text-gray-300">
-                  Paid
-                </span>
-
-                <span className="font-bold text-green-400">
-                  {fmtINR(total)}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={onClose}
-              className="mt-6 w-full rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
+            <label
+              style={{
+                display: "block",
+                gridColumn: "1 / -1",
+              }}
             >
-              Done
-            </button>
+              <div style={labelStyle}>Email</div>
+
+              <input
+                name="email"
+                value={customer.email}
+                onChange={updateCustomer}
+                placeholder="you@example.com"
+                type="email"
+                style={inputStyle}
+              />
+            </label>
+
+            <label style={{ display: "block" }}>
+              <div style={labelStyle}>Pickup Date</div>
+
+              <input
+                type="date"
+                min={todayISO()}
+                value={startDate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setStartDate(value);
+
+                  if (endDate < value) {
+                    setEndDate(addDaysISO(value, 1));
+                  }
+                }}
+                style={inputStyle}
+              />
+            </label>
+
+            <label style={{ display: "block" }}>
+              <div style={labelStyle}>Return Date</div>
+
+              <input
+                type="date"
+                min={startDate}
+                value={endDate}
+                onChange={(e) =>
+                  setEndDate(e.target.value)
+                }
+                style={inputStyle}
+              />
+            </label>
           </div>
-        )}
+
+          <div
+            style={{
+              marginTop: 20,
+              padding: 18,
+              background: "#f8fafc",
+              border: `1px solid ${C.border}`,
+              borderRadius: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ color: C.gray }}>
+                Daily rate
+              </span>
+
+              <strong>
+                {fmtINR(car.price)}
+              </strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ color: C.gray }}>
+                Rental days
+              </span>
+
+              <strong>{days}</strong>
+            </div>
+
+            <div
+              style={{
+                borderTop: `1px solid ${C.border}`,
+                paddingTop: 12,
+                marginTop: 10,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <strong>Total</strong>
+
+              <strong
+                style={{
+                  color: C.orangeDark,
+                  fontSize: 20,
+                }}
+              >
+                {fmtINR(total)}
+              </strong>
+            </div>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: 12,
+                borderRadius: 12,
+                background: "#fee2e2",
+                color: "#991b1b",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handlePayment}
+            disabled={loading}
+            style={{
+              width: "100%",
+              marginTop: 18,
+              border: 0,
+              borderRadius: 14,
+              padding: 15,
+              background: loading
+                ? "#94a3b8"
+                : C.orange,
+              color: C.white,
+              fontSize: 16,
+              fontWeight: 900,
+              cursor: loading
+                ? "not-allowed"
+                : "pointer",
+            }}
+          >
+            {loading
+              ? "Processing..."
+              : `Pay ${fmtINR(total)}`}
+          </button>
+
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              color: C.gray,
+              fontSize: 12,
+            }}
+          >
+            <ShieldCheck size={15} />
+            Secure payment powered by Razorpay
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    CUSTOMER VIEW
-========================= */
+   ========================================================= */
 
 function CustomerView({
   cars,
   cities,
+  bookings,
   onBook,
 }) {
+  const [search, setSearch] = useState("");
   const [city, setCity] = useState("All");
   const [type, setType] = useState("All");
-  const [query, setQuery] = useState("");
+  const [bookingCar, setBookingCar] = useState(null);
 
-  const types = useMemo(
-    () => [
-      "All",
-      ...Array.from(
-        new Set(cars.map((c) => c.type))
-      ),
-    ],
-    [cars]
-  );
+  const filteredCars = cars.filter((car) => {
+    const matchesSearch =
+      !search ||
+      car.name
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      car.type
+        .toLowerCase()
+        .includes(search.toLowerCase());
 
-  const filtered = useMemo(
-    () =>
-      cars.filter(
-        (car) =>
-          (city === "All" ||
-            car.city === city) &&
-          (type === "All" ||
-            car.type === type) &&
-          car.name
-            .toLowerCase()
-            .includes(
-              query.toLowerCase()
-            )
-      ),
-    [cars, city, type, query]
-  );
+    const matchesCity =
+      city === "All" || car.city === city;
+
+    const matchesType =
+      type === "All" || car.type === type;
+
+    return (
+      matchesSearch &&
+      matchesCity &&
+      matchesType
+    );
+  });
+
+  function handleConfirmBooking(data) {
+    onBook(data);
+    setBookingCar(null);
+  }
+
+  const types = [
+    "All",
+    ...Array.from(
+      new Set(cars.map((car) => car.type))
+    ),
+  ];
 
   return (
-    <main className="saw-page-enter">
-      <section className="relative overflow-hidden border-b border-[#2B2E38]">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.light,
+      }}
+    >
+      <section
+        style={{
+          background: C.dark,
+          color: C.white,
+          padding: "56px 20px 48px",
+        }}
+      >
         <div
-          className="absolute inset-0 opacity-70"
           style={{
-            background:
-              "radial-gradient(circle at 80% 20%, rgba(227,167,59,.18), transparent 30%), radial-gradient(circle at 20% 70%, rgba(58,107,107,.16), transparent 35%)",
+            maxWidth: 1180,
+            margin: "0 auto",
           }}
-        />
-
-        <div className="relative mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
-          <div className="max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#4B3A20] bg-[#2B2111] px-3 py-1.5 text-xs font-bold tracking-[.18em] text-[#E3A73B]">
-              <span className="saw-live-dot h-2 w-2 rounded-full bg-[#E3A73B]" />
-              24×7 RENTALS
+        >
+          <div
+            style={{
+              maxWidth: 700,
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 11px",
+                borderRadius: 999,
+                background: "rgba(249,115,22,.15)",
+                color: "#fdba74",
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              <Car size={14} />
+              SAWARIYA RENTALS
             </div>
 
-            <h1 className="font-display text-5xl leading-none tracking-wide text-[#F2EDE1] sm:text-7xl">
-              SELF DRIVE.
+            <h1
+              style={{
+                fontSize:
+                  "clamp(34px,6vw,64px)",
+                lineHeight: 1.02,
+                margin: "18px 0 14px",
+                letterSpacing: "-2px",
+              }}
+            >
+              Rent a car.
               <br />
-              <span className="text-[#E3A73B]">
-                YOUR WAY.
+              <span style={{ color: C.orange }}>
+                Drive your way.
               </span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#A9ADB6] sm:text-lg">
-              Book cars in your city with SAWARIYA RENTALS. Simple booking, transparent daily rates, and a fleet built for the road.
+            <p
+              style={{
+                color: "#cbd5e1",
+                fontSize: 17,
+                lineHeight: 1.6,
+                margin: 0,
+                maxWidth: 600,
+              }}
+            >
+              Simple, transparent car rentals
+              across your city. Choose your
+              vehicle and book in minutes.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-        <div className="grid gap-3 rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-3 sm:grid-cols-[1fr_auto_auto_auto]">
-
-          <div className="flex items-center gap-2 rounded-2xl bg-[#14161C] px-3">
+      <main
+        style={{
+          maxWidth: 1180,
+          margin: "0 auto",
+          padding: "24px 20px 60px",
+        }}
+      >
+        <div
+          style={{
+            background: C.white,
+            border: `1px solid ${C.border}`,
+            borderRadius: 18,
+            padding: 14,
+            display: "grid",
+            gridTemplateColumns:
+              "minmax(200px,2fr) repeat(2,minmax(140px,1fr))",
+            gap: 10,
+            boxShadow:
+              "0 8px 25px rgba(15,23,42,.05)",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+            }}
+          >
             <Search
               size={18}
-              className="text-[#8A8F98]"
+              color={C.gray}
+              style={{
+                position: "absolute",
+                left: 13,
+                top: 13,
+              }}
             />
 
             <input
-              value={query}
+              value={search}
               onChange={(e) =>
-                setQuery(e.target.value)
+                setSearch(e.target.value)
               }
-              placeholder="Search a car"
-              className="w-full bg-transparent py-3 outline-none"
+              placeholder="Search cars..."
+              style={{
+                ...inputStyle,
+                paddingLeft: 42,
+              }}
             />
           </div>
 
@@ -1128,12 +1266,14 @@ function CustomerView({
             onChange={(e) =>
               setCity(e.target.value)
             }
-            className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none"
+            style={inputStyle}
           >
-            <option>All</option>
+            <option value="All">All cities</option>
 
-            {cities.map((c) => (
-              <option key={c}>{c}</option>
+            {cities.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
           </select>
 
@@ -1142,99 +1282,246 @@ function CustomerView({
             onChange={(e) =>
               setType(e.target.value)
             }
-            className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none"
+            style={inputStyle}
           >
-            {types.map((t) => (
-              <option key={t}>{t}</option>
+            {types.map((item) => (
+              <option key={item} value={item}>
+                {item === "All"
+                  ? "All vehicle types"
+                  : item}
+              </option>
             ))}
           </select>
-
-          <button
-            onClick={() => {
-              setCity("All");
-              setType("All");
-              setQuery("");
-            }}
-            className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"
-          >
-            <RotateCcw size={16} />
-            Reset
-          </button>
         </div>
 
-        <div className="mb-5 mt-8 flex items-end justify-between">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            margin: "28px 0 16px",
+            gap: 12,
+          }}
+        >
           <div>
-            <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">
-              FLEET
-            </div>
-
-            <h2 className="font-display text-3xl">
-              Available rides
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 25,
+                color: C.dark,
+              }}
+            >
+              Available cars
             </h2>
+
+            <p
+              style={{
+                margin: "5px 0 0",
+                color: C.gray,
+                fontSize: 13,
+              }}
+            >
+              {filteredCars.length} vehicle
+              {filteredCars.length === 1
+                ? ""
+                : "s"} found
+            </p>
           </div>
 
-          <div className="text-sm text-[#8A8F98]">
-            {filtered.length} vehicle
-            {filtered.length !== 1
-              ? "s"
-              : ""}
-          </div>
+          <Badge tone="green">
+            <CheckCircle2 size={14} />
+            Ready to book
+          </Badge>
         </div>
 
-        {filtered.length ? (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map(
-              (car, i) => (
-                <CarCard
-                  key={car.id}
-                  car={car}
-                  onBook={onBook}
-                  index={i}
-                />
-              )
-            )}
+        {filteredCars.length === 0 ? (
+          <div
+            style={{
+              background: C.white,
+              border: `1px solid ${C.border}`,
+              borderRadius: 18,
+              padding: 50,
+              textAlign: "center",
+              color: C.gray,
+            }}
+          >
+            No cars match your search.
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-[#3A3E48] p-12 text-center text-[#8A8F98]">
-            No vehicles match your search.
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit,minmax(280px,1fr))",
+              gap: 20,
+            }}
+          >
+            {filteredCars.map((car) => (
+              <CarCard
+                key={car.id}
+                car={car}
+                onBook={setBookingCar}
+              />
+            ))}
           </div>
         )}
-      </section>
-    </main>
+
+        {bookings.length > 0 && (
+          <div
+            style={{
+              marginTop: 45,
+              padding: 20,
+              background: C.white,
+              border: `1px solid ${C.border}`,
+              borderRadius: 18,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+              }}
+            >
+              <CheckCircle2
+                color={C.green}
+              />
+
+              <strong
+                style={{
+                  fontSize: 18,
+                }}
+              >
+                Recent bookings
+              </strong>
+            </div>
+
+            <div
+              style={{
+                marginTop: 15,
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              {bookings
+                .slice(-3)
+                .reverse()
+                .map((booking) => (
+                  <div
+                    key={booking.id}
+                    style={{
+                      padding: 13,
+                      background: "#f8fafc",
+                      borderRadius: 12,
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <strong>
+                        {booking.carName}
+                      </strong>
+
+                      <div
+                        style={{
+                          color: C.gray,
+                          fontSize: 12,
+                          marginTop: 3,
+                        }}
+                      >
+                        {booking.startDate} →{" "}
+                        {booking.endDate}
+                      </div>
+                    </div>
+
+                    <strong>
+                      {fmtINR(booking.total)}
+                    </strong>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {bookingCar && (
+        <BookingModal
+          car={bookingCar}
+          onClose={() => setBookingCar(null)}
+          onConfirm={handleConfirmBooking}
+        />
+      )}
+    </div>
   );
 }
 
-/* =========================
+/* =========================================================
    STAT CARD
-========================= */
+   ========================================================= */
 
 function StatCard({
-  icon: Icon,
+  icon,
   label,
   value,
 }) {
   return (
-    <div className="saw-stat-card rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-5">
-      <div className="flex items-center justify-between">
-        <div className="rounded-2xl bg-[#14161C] p-3 text-[#E3A73B]">
-          <Icon size={20} />
-        </div>
-
-        <div className="font-display text-3xl">
-          {value}
-        </div>
+    <div
+      style={{
+        background: C.white,
+        border: `1px solid ${C.border}`,
+        borderRadius: 16,
+        padding: 18,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 13,
+          background: "#fff7ed",
+          color: C.orange,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        {icon}
       </div>
 
-      <div className="mt-4 text-sm text-[#8A8F98]">
-        {label}
+      <div>
+        <div
+          style={{
+            fontSize: 12,
+            color: C.gray,
+            fontWeight: 700,
+          }}
+        >
+          {label}
+        </div>
+
+        <div
+          style={{
+            marginTop: 3,
+            fontSize: 24,
+            fontWeight: 900,
+            color: C.dark,
+          }}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    ADMIN VIEW
-========================= */
+   ========================================================= */
 
 function AdminView({
   cars,
@@ -1243,104 +1530,124 @@ function AdminView({
   setBookings,
   cities,
   setCities,
-  onLogout,
 }) {
-  const [tab, setTab] = useState(
-    "fleet"
-  );
-
-  const [showAdd, setShowAdd] =
-    useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
-    city: cities[0] || "",
+    city: cities[0] || "Bhopal",
     type: "Hatchback",
     price: "",
     fuel: "Petrol",
     transmission: "Manual",
     seats: 5,
+    image: "",
   });
 
-  const available = cars.filter(
-    (c) => c.status === "available"
-  ).length;
+  const [newCity, setNewCity] = useState("");
 
-  const rented = cars.filter(
-    (c) => c.status === "rented"
-  ).length;
+  const [photoLoading, setPhotoLoading] =
+    useState(false);
 
-  /* =========================
-     PHOTO UPLOAD
-  ========================= */
+  const [photoBusyId, setPhotoBusyId] =
+    useState(null);
 
-  const handlePhotoUpload = (
-    carId,
-    event
-  ) => {
-    const file =
-      event.target.files?.[0];
+  const newPhotoInputRef = useRef(null);
+
+  useEffect(() => {
+    saveShared("sawariya_cars", cars);
+  }, [cars]);
+
+  useEffect(() => {
+    saveShared("sawariya_bookings", bookings);
+  }, [bookings]);
+
+  useEffect(() => {
+    saveShared("sawariya_cities", cities);
+  }, [cities]);
+
+  function updateForm(e) {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  async function handleNewVehiclePhoto(e) {
+    const file = e.target.files?.[0];
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert(
-        "Please select an image file."
+    setPhotoLoading(true);
+
+    try {
+      const compressed = await compressImage(
+        file
       );
-      return;
-    }
 
-    /*
-      Keep image sizes reasonable so
-      browser/storage doesn't become huge.
-    */
-
-    if (file.size > 5 * 1024 * 1024) {
+      setForm((prev) => ({
+        ...prev,
+        image: compressed,
+      }));
+    } catch (error) {
       alert(
-        "Please choose an image smaller than 5 MB."
+        error.message ||
+          "Unable to process the selected image."
       );
-      return;
+    } finally {
+      setPhotoLoading(false);
+
+      if (e.target) {
+        e.target.value = "";
+      }
     }
+  }
 
-    const reader = new FileReader();
+  async function handleExistingVehiclePhoto(
+    carId,
+    e
+  ) {
+    const file = e.target.files?.[0];
 
-    reader.onload = () => {
-      const imageData =
-        reader.result;
+    if (!file) return;
+
+    setPhotoBusyId(carId);
+
+    try {
+      const compressed = await compressImage(
+        file
+      );
 
       setCars((prev) =>
         prev.map((car) =>
           car.id === carId
             ? {
                 ...car,
-                image: imageData,
+                image: compressed,
               }
             : car
         )
       );
-    };
-
-    reader.onerror = () => {
+    } catch (error) {
       alert(
-        "Unable to read the image. Please try another photo."
+        error.message ||
+          "Unable to process the selected image."
       );
-    };
+    } finally {
+      setPhotoBusyId(null);
 
-    reader.readAsDataURL(file);
+      if (e.target) {
+        e.target.value = "";
+      }
+    }
+  }
 
-    /*
-      Reset input so the same image
-      can be selected again later.
-    */
-
-    event.target.value = "";
-  };
-
-  const removePhoto = (carId) => {
-    const confirmed =
-      window.confirm(
-        "Remove this vehicle photo?"
-      );
+  function removeVehiclePhoto(carId) {
+    const confirmed = window.confirm(
+      "Remove this vehicle photo?"
+    );
 
     if (!confirmed) return;
 
@@ -1349,317 +1656,666 @@ function AdminView({
         car.id === carId
           ? {
               ...car,
-              image: null,
+              image: "",
             }
           : car
       )
     );
-  };
+  }
 
-  /* =========================
-     ADD VEHICLE
-  ========================= */
-
-  const addVehicle = (e) => {
+  function addVehicle(e) {
     e.preventDefault();
 
-    if (
-      !form.name.trim() ||
-      !form.price ||
-      !form.city
-    ) {
+    if (!form.name.trim()) {
+      alert("Please enter vehicle name.");
       return;
     }
 
+    if (!form.city.trim()) {
+      alert("Please enter vehicle city.");
+      return;
+    }
+
+    if (!Number(form.price)) {
+      alert("Please enter a valid daily price.");
+      return;
+    }
+
+    const vehicle = {
+      ...form,
+      id: uid("car"),
+      price: Number(form.price),
+      seats: Number(form.seats),
+      status: "available",
+      image: form.image || "",
+    };
+
     setCars((prev) => [
       ...prev,
-      {
-        ...form,
-        id: uid("car"),
-        price: Number(form.price),
-        seats: Number(form.seats),
-        status: "available",
-        image: null,
-      },
+      vehicle,
     ]);
-
-    setShowAdd(false);
 
     setForm({
       name: "",
-      city: cities[0] || "",
+      city: cities[0] || "Bhopal",
       type: "Hatchback",
       price: "",
       fuel: "Petrol",
       transmission: "Manual",
       seats: 5,
+      image: "",
     });
-  };
 
-  const removeCar = (id) =>
-    setCars((prev) =>
-      prev.filter(
-        (c) => c.id !== id
-      )
-    );
+    setShowAdd(false);
+  }
 
-  const toggleStatus = (id) =>
+  function toggleStatus(carId) {
     setCars((prev) =>
-      prev.map((c) =>
-        c.id === id
+      prev.map((car) =>
+        car.id === carId
           ? {
-              ...c,
+              ...car,
               status:
-                c.status ===
-                "available"
+                car.status === "available"
                   ? "rented"
                   : "available",
             }
-          : c
+          : car
       )
+    );
+  }
+
+  function removeCar(carId) {
+    const car = cars.find(
+      (item) => item.id === carId
     );
 
-  const bookingStatus = (
-    id,
-    status
-  ) =>
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              status,
-            }
-          : b
-      )
+    if (!car) return;
+
+    const confirmed = window.confirm(
+      `Delete ${car.name}? This cannot be undone.`
     );
+
+    if (!confirmed) return;
+
+    setCars((prev) =>
+      prev.filter((item) => item.id !== carId)
+    );
+  }
+
+  function addCity() {
+    const clean = newCity.trim();
+
+    if (!clean) return;
+
+    const exists = cities.some(
+      (city) =>
+        city.toLowerCase() === clean.toLowerCase()
+    );
+
+    if (exists) {
+      alert("This city already exists.");
+      return;
+    }
+
+    setCities((prev) => [
+      ...prev,
+      clean,
+    ]);
+
+    setNewCity("");
+  }
+
+  function removeCity(city) {
+    if (cities.length <= 1) {
+      alert(
+        "You must keep at least one city."
+      );
+      return;
+    }
+
+    setCities((prev) =>
+      prev.filter((item) => item !== city)
+    );
+  }
+
+  const available = cars.filter(
+    (car) => car.status === "available"
+  ).length;
+
+  const rented = cars.filter(
+    (car) => car.status === "rented"
+  ).length;
+
+  const revenue = bookings.reduce(
+    (sum, booking) =>
+      sum + Number(booking.total || 0),
+    0
+  );
 
   return (
-    <main className="saw-page-enter mx-auto max-w-7xl px-5 py-8 sm:px-8">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.light,
+      }}
+    >
+      <div
+        style={{
+          background: C.dark,
+          color: C.white,
+          padding: "20px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1180,
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#fdba74",
+                fontWeight: 900,
+                letterSpacing: 1,
+              }}
+            >
+              SAWARIYA RENTALS
+            </div>
 
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">
-            ADMIN CONSOLE
+            <h1
+              style={{
+                margin: "4px 0 0",
+                fontSize: 25,
+              }}
+            >
+              Admin Dashboard
+            </h1>
           </div>
 
-          <h1 className="font-display text-4xl">
-            Fleet control
-          </h1>
+          <Badge tone="green">
+            <ShieldCheck size={14} />
+            Admin access
+          </Badge>
+        </div>
+      </div>
 
-          <p className="mt-1 text-[#8A8F98]">
-            Manage vehicles, photos, bookings and operating cities.
-          </p>
+      <main
+        style={{
+          maxWidth: 1180,
+          margin: "0 auto",
+          padding: "24px 20px 60px",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit,minmax(200px,1fr))",
+            gap: 14,
+          }}
+        >
+          <StatCard
+            icon={<Car size={20} />}
+            label="Total Vehicles"
+            value={cars.length}
+          />
+
+          <StatCard
+            icon={<CheckCircle2 size={20} />}
+            label="Available"
+            value={available}
+          />
+
+          <StatCard
+            icon={<Power size={20} />}
+            label="Rented"
+            value={rented}
+          />
+
+          <StatCard
+            icon={<IndianRupee size={20} />}
+            label="Booking Revenue"
+            value={fmtINR(revenue)}
+          />
         </div>
 
-        <button
-          onClick={onLogout}
-          className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"
+        {/* ADD VEHICLE */}
+        <section
+          style={{
+            marginTop: 24,
+            background: C.white,
+            border: `1px solid ${C.border}`,
+            borderRadius: 18,
+            overflow: "hidden",
+          }}
         >
-          <LogOut size={17} />
-          Exit admin
-        </button>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          icon={Car}
-          label="Total vehicles"
-          value={cars.length}
-        />
-
-        <StatCard
-          icon={ShieldCheck}
-          label="Available now"
-          value={available}
-        />
-
-        <StatCard
-          icon={Clock3}
-          label="Currently rented"
-          value={rented}
-        />
-      </div>
-
-      <div className="mt-8 flex gap-2 overflow-x-auto rounded-2xl bg-[#1E212A] p-2">
-        {[
-          ["fleet", "Fleet"],
-          ["bookings", "Bookings"],
-          ["cities", "Cities"],
-        ].map(
-          ([key, label]) => (
-            <button
-              key={key}
-              onClick={() =>
-                setTab(key)
-              }
-              className={`rounded-xl px-4 py-2.5 text-sm font-bold ${
-                tab === key
-                  ? "bg-[#E3A73B] text-[#14161C]"
-                  : "text-[#9FA4AE]"
-              }`}
-            >
-              {label}
-            </button>
-          )
-        )}
-      </div>
-
-      {/* =========================
-          FLEET
-      ========================= */}
-
-      {tab === "fleet" && (
-        <section className="mt-5 overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]">
-
-          <div className="flex items-center justify-between border-b border-[#2B2E38] p-5">
+          <div
+            style={{
+              padding: 18,
+              borderBottom: `1px solid ${C.border}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
             <div>
-              <h2 className="font-display text-2xl">
-                Vehicles
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 20,
+                  color: C.dark,
+                }}
+              >
+                Vehicle Fleet
               </h2>
 
-              <p className="mt-1 text-sm text-[#8A8F98]">
-                Add and manage your vehicle photos.
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  color: C.gray,
+                  fontSize: 13,
+                }}
+              >
+                Add vehicles and manage their
+                photos and availability.
               </p>
             </div>
 
             <button
               onClick={() =>
-                setShowAdd(true)
+                setShowAdd((prev) => !prev)
               }
-              className="saw-button flex items-center gap-2 rounded-xl px-4 py-2.5 font-bold"
-              style={{
-                background: C.highway,
-                color: C.ink,
-              }}
+              style={primaryButton}
             >
               <Plus size={17} />
-              <span className="hidden sm:inline">
-                Add vehicle
-              </span>
-              <span className="sm:hidden">
-                Add
-              </span>
+              Add Vehicle
             </button>
           </div>
 
-          <div className="divide-y divide-[#2B2E38]">
-
-            {cars.map((car) => (
+          {showAdd && (
+            <form
+              onSubmit={addVehicle}
+              style={{
+                padding: 20,
+                background: "#fffaf5",
+                borderBottom: `1px solid ${C.border}`,
+              }}
+            >
               <div
-                key={car.id}
-                className="p-5"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(200px,1fr))",
+                  gap: 14,
+                }}
               >
-
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-                  {/* VEHICLE INFO */}
-
-                  <div className="flex min-w-0 items-center gap-4">
-
-                    <div className="h-20 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#3A3E48] bg-[#14161C]">
-
-                      {car.image ? (
-                        <img
-                          src={car.image}
-                          alt={car.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center text-[#8A8F98]">
-                          <Camera size={22} />
-                          <span className="mt-1 text-[10px]">
-                            No photo
-                          </span>
-                        </div>
-                      )}
-
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-bold">
-                          {car.name}
-                        </div>
-
-                        <Badge
-                          tone={
-                            car.status ===
-                            "available"
-                              ? "green"
-                              : "red"
-                          }
-                        >
-                          {car.status}
-                        </Badge>
-                      </div>
-
-                      <div className="mt-1 text-sm text-[#8A8F98]">
-                        {car.city} •{" "}
-                        {car.type} •{" "}
-                        {fmtINR(
-                          car.price
-                        )}
-                        /day
-                      </div>
-                    </div>
-
+                <label>
+                  <div style={labelStyle}>
+                    Vehicle Name
                   </div>
 
-                  {/* ACTIONS */}
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={updateForm}
+                    placeholder="e.g. Kia Seltos"
+                    style={inputStyle}
+                  />
+                </label>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                <label>
+                  <div style={labelStyle}>
+                    City
+                  </div>
 
-                    {/* HIDDEN FILE INPUT */}
-
-                    <label className="saw-button flex cursor-pointer items-center gap-2 rounded-xl border border-[#3A3E48] bg-[#14161C] px-3 py-2.5 text-sm font-bold text-white transition hover:bg-[#292D37]">
-
-                      {car.image ? (
-                        <Camera size={16} />
-                      ) : (
-                        <ImagePlus size={16} />
-                      )}
-
-                      {car.image
-                        ? "Change Photo"
-                        : "Add Photo"}
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) =>
-                          handlePhotoUpload(
-                            car.id,
-                            e
-                          )
-                        }
-                      />
-                    </label>
-
-                    {car.image && (
-                      <button
-                        onClick={() =>
-                          removePhoto(
-                            car.id
-                          )
-                        }
-                        className="rounded-xl border border-[#3A3E48] p-2.5 text-[#B3452D] transition hover:bg-[#2B2E38]"
-                        title="Remove photo"
+                  <select
+                    name="city"
+                    value={form.city}
+                    onChange={updateForm}
+                    style={inputStyle}
+                  >
+                    {cities.map((city) => (
+                      <option
+                        key={city}
+                        value={city}
                       >
-                        <Trash2 size={17} />
-                      </button>
-                    )}
+                        {city}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                    <button
-                      onClick={() =>
-                        toggleStatus(
-                          car.id
-                        )
-                      }
-                      className="saw-button"
-                      title="Change vehicle status"
+                <label>
+                  <div style={labelStyle}>
+                    Vehicle Type
+                  </div>
+
+                  <select
+                    name="type"
+                    value={form.type}
+                    onChange={updateForm}
+                    style={inputStyle}
+                  >
+                    <option>Hatchback</option>
+                    <option>Sedan</option>
+                    <option>SUV</option>
+                    <option>MPV</option>
+                    <option>Luxury</option>
+                  </select>
+                </label>
+
+                <label>
+                  <div style={labelStyle}>
+                    Price / Day
+                  </div>
+
+                  <input
+                    name="price"
+                    value={form.price}
+                    onChange={updateForm}
+                    type="number"
+                    min="1"
+                    placeholder="1499"
+                    style={inputStyle}
+                  />
+                </label>
+
+                <label>
+                  <div style={labelStyle}>
+                    Fuel
+                  </div>
+
+                  <select
+                    name="fuel"
+                    value={form.fuel}
+                    onChange={updateForm}
+                    style={inputStyle}
+                  >
+                    <option>Petrol</option>
+                    <option>Diesel</option>
+                    <option>CNG</option>
+                    <option>Electric</option>
+                    <option>Hybrid</option>
+                  </select>
+                </label>
+
+                <label>
+                  <div style={labelStyle}>
+                    Transmission
+                  </div>
+
+                  <select
+                    name="transmission"
+                    value={form.transmission}
+                    onChange={updateForm}
+                    style={inputStyle}
+                  >
+                    <option>Manual</option>
+                    <option>Automatic</option>
+                  </select>
+                </label>
+
+                <label>
+                  <div style={labelStyle}>
+                    Seats
+                  </div>
+
+                  <input
+                    name="seats"
+                    value={form.seats}
+                    onChange={updateForm}
+                    type="number"
+                    min="2"
+                    max="12"
+                    style={inputStyle}
+                  />
+                </label>
+              </div>
+
+              {/* NEW VEHICLE PHOTO */}
+              <div
+                style={{
+                  marginTop: 18,
+                  padding: 16,
+                  borderRadius: 16,
+                  border: `1px dashed ${C.orange}`,
+                  background: C.white,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 10,
+                    color: C.dark,
+                    fontWeight: 900,
+                  }}
+                >
+                  <Camera
+                    size={18}
+                    color={C.orange}
+                  />
+                  Vehicle Photo
+                </div>
+
+                <input
+                  ref={newPhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={
+                    handleNewVehiclePhoto
+                  }
+                  style={{
+                    display: "none",
+                  }}
+                />
+
+                {!form.image ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      newPhotoInputRef.current?.click()
+                    }
+                    disabled={photoLoading}
+                    style={{
+                      border: `1px solid ${C.orange}`,
+                      background: "#fff7ed",
+                      color: C.orangeDark,
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      fontWeight: 900,
+                      cursor: photoLoading
+                        ? "wait"
+                        : "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Upload size={17} />
+
+                    {photoLoading
+                      ? "Processing..."
+                      : "Add Vehicle Photo"}
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <img
+                      src={form.image}
+                      alt="Vehicle preview"
+                      style={{
+                        width: 180,
+                        height: 110,
+                        objectFit: "cover",
+                        borderRadius: 13,
+                        border: `1px solid ${C.border}`,
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
                     >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          newPhotoInputRef.current?.click()
+                        }
+                        style={secondaryButton}
+                      >
+                        <Pencil size={15} />
+                        Change Photo
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            image: "",
+                          }))
+                        }
+                        style={dangerButton}
+                      >
+                        <Trash2 size={15} />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    marginTop: 9,
+                    color: C.gray,
+                    fontSize: 12,
+                  }}
+                >
+                  JPG/PNG photos are automatically
+                  resized and compressed for storage.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 18,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="submit"
+                  style={primaryButton}
+                >
+                  <Plus size={17} />
+                  Add Vehicle
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowAdd(false)
+                  }
+                  style={secondaryButton}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* VEHICLE LIST */}
+          <div style={{ padding: 18 }}>
+            <div
+              style={{
+                display: "grid",
+                gap: 12,
+              }}
+            >
+              {cars.map((car) => (
+                <div
+                  key={car.id}
+                  style={{
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 16,
+                    padding: 12,
+                    display: "grid",
+                    gridTemplateColumns:
+                      "90px minmax(160px,1fr) auto",
+                    gap: 14,
+                    alignItems: "center",
+                  }}
+                >
+                  {/* PHOTO */}
+                  <div
+                    style={{
+                      width: 90,
+                      height: 70,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      background: "#f1f5f9",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    {car.image ? (
+                      <img
+                        src={car.image}
+                        alt={car.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    ) : (
+                      <ImageIcon
+                        size={27}
+                        color="#94a3b8"
+                      />
+                    )}
+                  </div>
+
+                  {/* INFO */}
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <strong
+                        style={{
+                          fontSize: 16,
+                          color: C.dark,
+                        }}
+                      >
+                        {car.name}
+                      </strong>
+
                       <Badge
                         tone={
                           car.status ===
@@ -1670,552 +2326,590 @@ function AdminView({
                       >
                         {car.status}
                       </Badge>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 5,
+                        color: C.gray,
+                        fontSize: 12,
+                      }}
+                    >
+                      {car.city} · {car.type} ·{" "}
+                      {car.seats} seats
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 5,
+                        fontWeight: 900,
+                        color: C.orangeDark,
+                      }}
+                    >
+                      {fmtINR(car.price)} / day
+                    </div>
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 7,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <input
+                      id={`photo-${car.id}`}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        handleExistingVehiclePhoto(
+                          car.id,
+                          e
+                        )
+                      }
+                      style={{
+                        display: "none",
+                      }}
+                    />
+
+                    <label
+                      htmlFor={`photo-${car.id}`}
+                      style={{
+                        ...smallButton,
+                        background: "#fff7ed",
+                        color: C.orangeDark,
+                        border: `1px solid #fed7aa`,
+                        cursor: photoBusyId === car.id
+                          ? "wait"
+                          : "pointer",
+                      }}
+                    >
+                      <Camera size={14} />
+
+                      {photoBusyId === car.id
+                        ? "Processing..."
+                        : car.image
+                        ? "Change Photo"
+                        : "Add Photo"}
+                    </label>
+
+                    {car.image && (
+                      <button
+                        onClick={() =>
+                          removeVehiclePhoto(
+                            car.id
+                          )
+                        }
+                        style={{
+                          ...smallButton,
+                          background: "#fff1f2",
+                          color: C.red,
+                          border: `1px solid #fecdd3`,
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        Photo
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() =>
+                        toggleStatus(car.id)
+                      }
+                      style={{
+                        ...smallButton,
+                        background:
+                          car.status ===
+                          "available"
+                            ? "#fefce8"
+                            : "#ecfdf5",
+                        color:
+                          car.status ===
+                          "available"
+                            ? "#854d0e"
+                            : "#166534",
+                        border: `1px solid ${
+                          car.status ===
+                          "available"
+                            ? "#fde68a"
+                            : "#bbf7d0"
+                        }`,
+                      }}
+                    >
+                      <Power size={14} />
+                      {car.status ===
+                      "available"
+                        ? "Mark Rented"
+                        : "Available"}
                     </button>
 
                     <button
                       onClick={() =>
-                        removeCar(
-                          car.id
-                        )
+                        removeCar(car.id)
                       }
-                      className="rounded-xl border border-[#3A3E48] p-2.5 text-[#B3452D] transition hover:bg-[#2B2E38]"
-                      title="Delete vehicle"
+                      style={{
+                        ...smallButton,
+                        background: "#fff1f2",
+                        color: C.red,
+                        border: `1px solid #fecdd3`,
+                      }}
                     >
-                      <Trash2 size={17} />
+                      <Trash2 size={14} />
+                      Delete
                     </button>
-
                   </div>
                 </div>
-
-                {/* PHOTO STATUS */}
-
-                <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#14161C] px-3 py-2 text-xs text-[#8A8F98]">
-                  {car.image ? (
-                    <>
-                      <ShieldCheck
-                        size={14}
-                        className="text-green-400"
-                      />
-                      Vehicle photo added — customers can see this photo.
-                    </>
-                  ) : (
-                    <>
-                      <ImagePlus
-                        size={14}
-                        className="text-[#E3A73B]"
-                      />
-                      No photo added yet. Tap “Add Photo” to upload one.
-                    </>
-                  )}
-                </div>
-
-              </div>
-            ))}
-
+              ))}
+            </div>
           </div>
         </section>
-      )}
 
-      {/* =========================
-          BOOKINGS
-      ========================= */}
-
-      {tab === "bookings" && (
-        <section className="mt-5 overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]">
-
-          <div className="border-b border-[#2B2E38] p-5">
-            <h2 className="font-display text-2xl">
-              Bookings
-            </h2>
-          </div>
-
-          {bookings.length ? (
-            <div className="divide-y divide-[#2B2E38]">
-
-              {bookings
-                .slice()
-                .reverse()
-                .map((b) => (
-                  <div
-                    key={b.id}
-                    className="p-5"
-                  >
-
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row">
-
-                      <div>
-                        <div className="font-bold">
-                          {b.carName} •{" "}
-                          {b.customer}
-                        </div>
-
-                        <div className="mt-1 text-sm text-[#8A8F98]">
-                          {b.city} •{" "}
-                          {b.startDate} →{" "}
-                          {b.endDate} •{" "}
-                          {b.phone}
-                        </div>
-
-                        {b.paymentId && (
-                          <div className="mt-1 text-xs text-[#6F747D]">
-                            Payment ID:{" "}
-                            {b.paymentId}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-left sm:text-right">
-
-                        <div className="font-display text-xl text-[#E3A73B]">
-                          {fmtINR(
-                            b.total
-                          )}
-                        </div>
-
-                        <select
-                          value={b.status}
-                          onChange={(e) =>
-                            bookingStatus(
-                              b.id,
-                              e.target.value
-                            )
-                          }
-                          className="mt-1 rounded-lg bg-[#14161C] px-2 py-1 text-xs"
-                        >
-                          <option value="confirmed">
-                            confirmed
-                          </option>
-
-                          <option value="completed">
-                            completed
-                          </option>
-
-                          <option value="cancelled">
-                            cancelled
-                          </option>
-                        </select>
-
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-            </div>
-          ) : (
-            <div className="p-10 text-center text-[#8A8F98]">
-              No bookings yet.
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* =========================
-          CITIES
-      ========================= */}
-
-      {tab === "cities" && (
-        <section className="mt-5 rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-5">
-
-          <h2 className="font-display text-2xl">
-            Cities
+        {/* CITIES */}
+        <section
+          style={{
+            marginTop: 24,
+            background: C.white,
+            border: `1px solid ${C.border}`,
+            borderRadius: 18,
+            padding: 18,
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 20,
+              color: C.dark,
+            }}
+          >
+            Manage Cities
           </h2>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 14,
+              flexWrap: "wrap",
+            }}
+          >
             {cities.map((city) => (
               <div
                 key={city}
-                className="flex items-center gap-2 rounded-full border border-[#3A3E48] bg-[#14161C] px-3 py-2"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "8px 10px",
+                  borderRadius: 999,
+                  background: "#f8fafc",
+                  border: `1px solid ${C.border}`,
+                  fontWeight: 800,
+                  fontSize: 13,
+                }}
               >
-                <MapPin
-                  size={14}
-                  className="text-[#E3A73B]"
-                />
-
                 {city}
 
                 <button
                   onClick={() =>
-                    setCities(
-                      (prev) =>
-                        prev.filter(
-                          (c) =>
-                            c !== city
-                        )
-                    )
+                    removeCity(city)
                   }
-                  className="text-[#8A8F98] hover:text-[#B3452D]"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    border: 0,
+                    background: "#fee2e2",
+                    color: C.red,
+                    cursor: "pointer",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               </div>
             ))}
-
           </div>
 
-          <form
-            className="mt-5 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-
-              const value =
-                e.currentTarget.city.value.trim();
-
-              if (
-                value &&
-                !cities.includes(value)
-              ) {
-                setCities(
-                  (prev) => [
-                    ...prev,
-                    value,
-                  ]
-                );
-              }
-
-              e.currentTarget.reset();
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 15,
+              maxWidth: 450,
             }}
           >
             <input
-              name="city"
-              placeholder="Add city"
-              className="min-w-0 flex-1 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 outline-none"
+              value={newCity}
+              onChange={(e) =>
+                setNewCity(e.target.value)
+              }
+              placeholder="Add new city"
+              style={{
+                ...inputStyle,
+                flex: 1,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCity();
+                }
+              }}
             />
 
             <button
-              className="saw-button rounded-2xl px-4 font-bold"
-              style={{
-                background:
-                  C.highway,
-                color: C.ink,
-              }}
+              onClick={addCity}
+              style={secondaryButton}
             >
+              <Plus size={16} />
               Add
             </button>
-          </form>
+          </div>
         </section>
-      )}
 
-      {/* =========================
-          ADD VEHICLE MODAL
-      ========================= */}
-
-      {showAdd && (
-        <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
-
-          <form
-            onSubmit={addVehicle}
-            className="saw-modal-panel-upgraded w-full max-w-lg rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-5 shadow-2xl"
+        {/* BOOKINGS */}
+        <section
+          style={{
+            marginTop: 24,
+            background: C.white,
+            border: `1px solid ${C.border}`,
+            borderRadius: 18,
+            padding: 18,
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 20,
+              color: C.dark,
+            }}
           >
+            Booking Records
+          </h2>
 
-            <div className="mb-5 flex items-center justify-between">
-
-              <h2 className="font-display text-2xl">
-                Add vehicle
-              </h2>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowAdd(false)
-                }
-              >
-                <X />
-              </button>
-
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-
-              <input
-                required
-                placeholder="Vehicle name"
-                value={form.name}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    name: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none sm:col-span-2"
-              />
-
-              <select
-                value={form.city}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    city: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              >
-                {cities.map((c) => (
-                  <option key={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    type: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              >
-                <option>
-                  Hatchback
-                </option>
-                <option>SUV</option>
-                <option>MUV</option>
-                <option>Sedan</option>
-              </select>
-
-              <input
-                required
-                type="number"
-                min="1"
-                placeholder="Price / day"
-                value={form.price}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    price: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              />
-
-              <select
-                value={form.fuel}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    fuel: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              >
-                <option>
-                  Petrol
-                </option>
-                <option>
-                  Diesel
-                </option>
-                <option>
-                  CNG
-                </option>
-                <option>
-                  Electric
-                </option>
-              </select>
-
-              <select
-                value={form.transmission}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    transmission:
-                      e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              >
-                <option>
-                  Manual
-                </option>
-                <option>
-                  Automatic
-                </option>
-              </select>
-
-              <input
-                type="number"
-                min="1"
-                max="12"
-                value={form.seats}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    seats: e.target.value,
-                  })
-                }
-                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
-              />
-
-            </div>
-
-            <button
-              className="saw-button mt-5 w-full rounded-2xl py-3 font-bold"
+          {bookings.length === 0 ? (
+            <div
               style={{
-                background:
-                  C.highway,
-                color: C.ink,
+                padding: 30,
+                textAlign: "center",
+                color: C.gray,
               }}
             >
-              Add to fleet
-            </button>
+              No bookings yet.
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 14,
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              {[...bookings]
+                .reverse()
+                .map((booking) => (
+                  <div
+                    key={booking.id}
+                    style={{
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 13,
+                      padding: 13,
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <strong>
+                        {booking.carName}
+                      </strong>
 
-          </form>
-        </div>
-      )}
-    </main>
+                      <div
+                        style={{
+                          color: C.gray,
+                          fontSize: 12,
+                          marginTop: 4,
+                        }}
+                      >
+                        {booking.customerName} ·{" "}
+                        {booking.phone}
+                      </div>
+
+                      <div
+                        style={{
+                          color: C.gray,
+                          fontSize: 12,
+                          marginTop: 3,
+                        }}
+                      >
+                        {booking.startDate} →{" "}
+                        {booking.endDate}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        textAlign: "right",
+                      }}
+                    >
+                      <strong
+                        style={{
+                          color: C.orangeDark,
+                        }}
+                      >
+                        {fmtINR(
+                          booking.total
+                        )}
+                      </strong>
+
+                      <div
+                        style={{
+                          color: C.gray,
+                          fontSize: 11,
+                          marginTop: 4,
+                        }}
+                      >
+                        {booking.paymentId
+                          ? `Payment: ${booking.paymentId}`
+                          : "Payment recorded"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
 
-/* =========================
+/* =========================================================
    ADMIN GATE
-========================= */
+   ========================================================= */
 
 function AdminGate({
   onSuccess,
   onCancel,
 }) {
-  const [pass, setPass] =
-    useState("");
+  const [passcode, setPasscode] = useState("");
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState(false);
-
-  const submit = (e) => {
+  function submit(e) {
     e.preventDefault();
 
-    if (pass === ADMIN_PASSCODE) {
+    if (passcode === ADMIN_PASSCODE) {
+      setError("");
       onSuccess();
-    } else {
-      setError(true);
+      return;
     }
-  };
+
+    setError("Incorrect admin passcode.");
+  }
 
   return (
-    <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm">
-
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.light,
+        display: "grid",
+        placeItems: "center",
+        padding: 20,
+      }}
+    >
       <form
         onSubmit={submit}
-        className="saw-modal-panel-upgraded w-full max-w-sm rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-6 shadow-2xl"
+        style={{
+          width: "100%",
+          maxWidth: 430,
+          background: C.white,
+          border: `1px solid ${C.border}`,
+          borderRadius: 22,
+          padding: 28,
+          boxShadow:
+            "0 20px 60px rgba(15,23,42,.1)",
+        }}
       >
-
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#14161C] text-[#E3A73B]">
-          <KeyRound />
+        <div
+          style={{
+            width: 55,
+            height: 55,
+            borderRadius: 16,
+            background: "#fff7ed",
+            color: C.orange,
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <Lock size={25} />
         </div>
 
-        <h2 className="mt-5 text-center font-display text-2xl">
-          Admin access
-        </h2>
+        <h1
+          style={{
+            margin: "18px 0 6px",
+            color: C.dark,
+            fontSize: 27,
+          }}
+        >
+          Admin Login
+        </h1>
 
-        <p className="mt-1 text-center text-sm text-[#8A8F98]">
-          Enter the admin passcode.
+        <p
+          style={{
+            margin: 0,
+            color: C.gray,
+            lineHeight: 1.5,
+          }}
+        >
+          Enter the admin passcode to manage
+          your Sawariya Rentals fleet.
         </p>
 
-        <input
-          autoFocus
-          type="password"
-          value={pass}
-          onChange={(e) => {
-            setPass(
-              e.target.value
-            );
-            setError(false);
+        <label
+          style={{
+            display: "block",
+            marginTop: 20,
           }}
-          className="mt-5 w-full rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 text-center outline-none"
-          placeholder="Passcode"
-        />
+        >
+          <div style={labelStyle}>
+            Admin Passcode
+          </div>
+
+          <input
+            type="password"
+            value={passcode}
+            onChange={(e) =>
+              setPasscode(e.target.value)
+            }
+            placeholder="Enter passcode"
+            autoFocus
+            style={inputStyle}
+          />
+        </label>
 
         {error && (
-          <div className="mt-2 text-center text-sm text-[#F1A28F]">
-            Incorrect passcode.
+          <div
+            style={{
+              marginTop: 12,
+              padding: 11,
+              background: "#fee2e2",
+              color: "#991b1b",
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {error}
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <button
+          type="submit"
+          style={{
+            ...primaryButton,
+            width: "100%",
+            justifyContent: "center",
+            marginTop: 17,
+          }}
+        >
+          <Lock size={16} />
+          Login
+        </button>
 
-          <button
-            type="button"
-            onClick={onCancel}
-            className="saw-button rounded-2xl border border-[#3A3E48] py-3 font-bold"
-          >
-            Cancel
-          </button>
-
-          <button
-            className="saw-button rounded-2xl py-3 font-bold"
-            style={{
-              background:
-                C.highway,
-              color: C.ink,
-            }}
-          >
-            Enter
-          </button>
-
-        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            width: "100%",
+            marginTop: 9,
+            padding: 12,
+            borderRadius: 12,
+            border: `1px solid ${C.border}`,
+            background: C.white,
+            color: C.dark,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Back to Rentals
+        </button>
       </form>
     </div>
   );
 }
 
-/* =========================
+/* =========================================================
    APP
-========================= */
+   ========================================================= */
 
-export default function App() {
-  const [cars, setCars] =
-    useState(seedCars);
-
+function App() {
+  const [cars, setCars] = useState(seedCars);
   const [cities, setCities] =
     useState(seedCities);
+  const [bookings, setBookings] = useState([]);
 
-  const [bookings, setBookings] =
-    useState([]);
+  const [view, setView] =
+    useState("customer");
+
+  const [gate, setGate] =
+    useState(true);
 
   const [loading, setLoading] =
     useState(true);
 
-  const [admin, setAdmin] =
-    useState(false);
-
-  const [gate, setGate] =
-    useState(false);
-
-  const [bookingCar, setBookingCar] =
-    useState(null);
-
   useEffect(() => {
-    (async () => {
+    async function loadData() {
       const [
         storedCars,
         storedCities,
         storedBookings,
       ] = await Promise.all([
         loadShared(
-          "cars",
+          "sawariya_cars",
           seedCars
         ),
         loadShared(
-          "cities",
+          "sawariya_cities",
           seedCities
         ),
         loadShared(
-          "bookings",
+          "sawariya_bookings",
           []
         ),
       ]);
 
-      setCars(storedCars);
-      setCities(storedCities);
-      setBookings(storedBookings);
+      setCars(
+        Array.isArray(storedCars)
+          ? storedCars
+          : seedCars
+      );
+
+      setCities(
+        Array.isArray(storedCities)
+          ? storedCities
+          : seedCities
+      );
+
+      setBookings(
+        Array.isArray(storedBookings)
+          ? storedBookings
+          : []
+      );
+
       setLoading(false);
-    })();
+    }
+
+    loadData();
   }, []);
 
   useEffect(() => {
     if (!loading) {
       saveShared(
-        "cars",
+        "sawariya_cars",
         cars
       );
     }
@@ -2224,7 +2918,7 @@ export default function App() {
   useEffect(() => {
     if (!loading) {
       saveShared(
-        "cities",
+        "sawariya_cities",
         cities
       );
     }
@@ -2233,154 +2927,260 @@ export default function App() {
   useEffect(() => {
     if (!loading) {
       saveShared(
-        "bookings",
+        "sawariya_bookings",
         bookings
       );
     }
   }, [bookings, loading]);
 
-  const confirmBooking = (
-    booking
-  ) => {
+  function confirmBooking(data) {
+    const booking = {
+      id: uid("booking"),
+      carId: data.car.id,
+      carName: data.car.name,
+      customerName: data.customer.name,
+      phone: data.customer.phone,
+      email: data.customer.email,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      days: data.days,
+      total: data.total,
+      paymentId: data.paymentId,
+      orderId: data.orderId,
+      signature: data.signature,
+      createdAt: new Date().toISOString(),
+    };
+
     setBookings((prev) => [
       ...prev,
       booking,
     ]);
 
     setCars((prev) =>
-      prev.map((c) =>
-        c.id === booking.carId
+      prev.map((car) =>
+        car.id === data.car.id
           ? {
-              ...c,
+              ...car,
               status: "rented",
             }
-          : c
+          : car
       )
     );
-  };
+
+    alert(
+      "Booking confirmed successfully!"
+    );
+  }
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#14161C] text-[#E3A73B]">
-        <div className="saw-live-dot font-display text-2xl tracking-widest">
-          SAWARIYA
-        </div>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: C.light,
+          color: C.dark,
+          fontWeight: 800,
+        }}
+      >
+        Loading SAWARIYA RENTALS...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#14161C] text-[#F2EDE1]">
+    <div>
+      {/* TOP NAVIGATION */}
+      <div
+        style={{
+          position: "fixed",
+          zIndex: 900,
+          top: 14,
+          left: 14,
+          right: 14,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1180,
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "flex-end",
+            pointerEvents: "auto",
+          }}
+        >
+          {view === "customer" && (
+            <button
+              onClick={() => {
+                setView("admin");
+                setGate(true);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "9px 12px",
+                borderRadius: 11,
+                border:
+                  "1px solid rgba(255,255,255,.2)",
+                background:
+                  "rgba(17,24,39,.82)",
+                color: C.white,
+                fontWeight: 800,
+                cursor: "pointer",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <Lock size={14} />
+              Admin
+            </button>
+          )}
 
-      <header className="sticky top-0 z-40 border-b border-[#2B2E38] bg-[#14161C]/90 backdrop-blur-xl">
-
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-
-          <button
-            onClick={() =>
-              setAdmin(false)
-            }
-            className="flex items-center gap-3 text-left"
-          >
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E3A73B] text-[#14161C]">
-              <Car size={22} />
-            </div>
-
-            <div>
-              <div className="font-display text-xl tracking-wide">
-                SAWARIYA RENTALS
-              </div>
-
-              <div className="text-[10px] tracking-[.18em] text-[#8A8F98]">
-                SELF DRIVE • YOUR WAY
-              </div>
-            </div>
-
-          </button>
-
-          <button
-            onClick={() =>
-              admin
-                ? setAdmin(false)
-                : setGate(true)
-            }
-            className="saw-button flex items-center gap-2 rounded-xl border border-[#3A3E48] px-3 py-2 text-sm font-semibold"
-          >
-            {admin ? (
-              <>
-                <LayoutDashboard
-                  size={16}
-                />
-                Customer
-              </>
-            ) : (
-              <>
-                <KeyRound size={16} />
-                Admin
-              </>
-            )}
-          </button>
-
+          {view === "admin" && !gate && (
+            <button
+              onClick={() => {
+                setGate(false);
+                setView("customer");
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "9px 12px",
+                borderRadius: 11,
+                border:
+                  "1px solid rgba(255,255,255,.2)",
+                background:
+                  "rgba(17,24,39,.82)",
+                color: C.white,
+                fontWeight: 800,
+                cursor: "pointer",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <LogOut size={14} />
+              Rentals
+            </button>
+          )}
         </div>
-      </header>
+      </div>
 
-      {admin ? (
+      {view === "customer" && (
+        <CustomerView
+          cars={cars}
+          cities={cities}
+          bookings={bookings}
+          onBook={() => {}}
+        />
+      )}
+
+      {view === "admin" && gate && (
+        <AdminGate
+          onSuccess={() => {
+            setGate(false);
+          }}
+          onCancel={() => {
+            setGate(false);
+            setView("customer");
+          }}
+        />
+      )}
+
+      {view === "admin" && !gate && (
         <AdminView
           cars={cars}
           setCars={setCars}
           bookings={bookings}
-          setBookings={
-            setBookings
-          }
+          setBookings={setBookings}
           cities={cities}
           setCities={setCities}
-          onLogout={() =>
-            setAdmin(false)
-          }
-        />
-      ) : (
-        <CustomerView
-          cars={cars}
-          cities={cities}
-          onBook={setBookingCar}
         />
       )}
+    </div>
+  );
+}
 
-      <footer className="border-t border-[#2B2E38]">
+/* =========================================================
+   STYLES
+   ========================================================= */
 
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-[#8A8F98] sm:flex-row sm:items-center sm:justify-between sm:px-8">
+const labelStyle = {
+  fontSize: 12,
+  fontWeight: 800,
+  color: C.dark2,
+  marginBottom: 6,
+};
 
-          <div>
-            <span className="font-display text-[#F2EDE1]">
-              SAWARIYA RENTALS
-            </span>{" "}
-            • 24×7 rental service
-          </div>
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "11px 12px",
+  borderRadius: 11,
+  border: `1px solid ${C.border}`,
+  background: C.white,
+  color: C.dark,
+  outline: "none",
+  fontSize: 14,
+};
 
-          <div className="flex items-center gap-4">
-            <span>Cars</span>
-            <span>Bike</span>
-            <span>Scooty</span>
-            <span>Support</span>
-          </div>
+const primaryButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+  border: 0,
+  borderRadius: 11,
+  padding: "11px 15px",
+  background: C.orange,
+  color: C.white,
+  fontWeight: 900,
+  cursor: "pointer",
+};
 
-        </div>
-      </footer>
+const secondaryButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+  border: `1px solid ${C.border}`,
+  borderRadius: 11,
+  padding: "10px 13px",
+  background: C.white,
+  color: C.dark,
+  fontWeight: 800,
+  cursor: "pointer",
+};
 
-      {bookingCar && (
-        <BookingModal
-          car={bookingCar}
-          onClose={() =>
-            setBookingCar(null)
-          }
-          onConfirm={
-            confirmBooking
-          }
-        />
-      )}
+const dangerButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+  border: `1px solid #fecdd3`,
+  borderRadius: 11,
+  padding: "10px 13px",
+  background: "#fff1f2",
+  color: C.red,
+  fontWeight: 800,
+  cursor: "pointer",
+};
 
-      {gate && (
-        <AdminGate
-          onSuccess={() => {
-            setGate(false);
+const smallButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  borderRadius: 9,
+  padding: "8px 10px",
+  fontSize: 11,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+/* =========================================================
+   EXPORT
+   ========================================================= */
+
+export default App;
