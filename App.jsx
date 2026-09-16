@@ -182,226 +182,546 @@ function BookingModal({ car, onClose, onConfirm }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [done, setDone] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const totalDays = daysBetween(startDate, endDate);
   const total = totalDays * car.price;
 
-  
-    if (step === 1 && new Date(endDate) < new Date(startDate)) return;
-    if (step === 2 && (!name.trim() || phone.replace(/\D/g, "").length < 10)) return;
-    setStep((s) => Math.min(3, s + 1));
+  const next = () => {
+    if (step === 1) {
+      if (new Date(endDate) < new Date(startDate)) {
+        alert("End date cannot be before start date.");
+        return;
+      }
+    }
+
+    if (step === 2) {
+      const cleanPhone = phone.replace(/\D/g, "");
+
+      if (!name.trim()) {
+        alert("Please enter your name.");
+        return;
+      }
+
+      if (cleanPhone.length < 10) {
+        alert("Please enter a valid 10-digit phone number.");
+        return;
+      }
+    }
+
+    setStep((current) => Math.min(3, current + 1));
   };
 
   const confirm = async () => {
-  try {
-    // Load Razorpay Checkout
-    if (!window.Razorpay) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.body.appendChild(script);
+    if (paying) return;
+
+    try {
+      setPaying(true);
+
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+      if (!razorpayKey) {
+        throw new Error("Razorpay key is missing.");
+      }
+
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+
+          script.src =
+            "https://checkout.razorpay.com/v1/checkout.js";
+
+          script.onload = resolve;
+          script.onerror = reject;
+
+          document.body.appendChild(script);
+        });
+      }
+
+      if (!window.Razorpay) {
+        throw new Error("Razorpay could not be loaded.");
+      }
+
+      const orderResponse = await fetch("/api/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: total,
+          receipt: `booking_${Date.now()}`,
+        }),
       });
+
+      const orderData = await orderResponse.json();
+
+      if (!orderResponse.ok) {
+        throw new Error(
+          orderData.error || "Unable to create payment order."
+        );
+      }
+
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "SAWARIYA RENTALS",
+        description: `${car.name} Rental`,
+        order_id: orderData.orderId,
+
+        prefill: {
+          name: name.trim(),
+          contact: phone.replace(/\D/g, ""),
+        },
+
+        theme: {
+          color: "#E3A73B",
+        },
+
+        handler: async function (response) {
+          try {
+            const verifyResponse = await fetch(
+              "/api/verify-payment",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(response),
+              }
+            );
+
+            const verifyData = await verifyResponse.json();
+
+            if (!verifyResponse.ok || !verifyData.verified) {
+              alert(
+                "Payment verification failed. Please contact SAWARIYA RENTALS."
+              );
+              setPaying(false);
+              return;
+            }
+
+            onConfirm({
+              id: uid("booking"),
+              carId: car.id,
+              carName: car.name,
+              city: car.city,
+              customer: name.trim(),
+              phone: phone.replace(/\D/g, ""),
+              startDate,
+              endDate,
+              days: totalDays,
+              total,
+              status: "confirmed",
+              paymentStatus: "paid",
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              createdAt: new Date().toISOString(),
+            });
+
+            setPaying(false);
+            setDone(true);
+          } catch (error) {
+            console.error(
+              "Payment verification error:",
+              error
+            );
+
+            alert(
+              "Payment was received, but verification could not be completed. Please contact SAWARIYA RENTALS."
+            );
+
+            setPaying(false);
+          }
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.on("payment.failed", function () {
+        setPaying(false);
+        alert("Payment failed. Please try again.");
+      });
+
+      razorpay.open();
+    } catch (error) {
+      console.error("Payment error:", error);
+
+      setPaying(false);
+
+      alert(
+        error.message ||
+          "Unable to start payment. Please try again."
+      );
     }
+  };
 
-    // Create Razorpay order
-    const orderResponse = await fetch("/api/create-order", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: total,
-        receipt: `booking_${Date.now()}`,
-      }),
-    });
-
-    const orderData = await orderResponse.json();
-
-    if (!orderResponse.ok) {
-      throw new Error(orderData.error || "Unable to create payment order");
-    }
-
-    // Open Razorpay
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-      amount: orderData.amount,
-      currency: orderData.currency,
-      name: "SAWARIYA RENTALS",
-      description: `${car.name} Rental`,
-      order_id: orderData.orderId,
-
-      prefill: {
-        name: name.trim(),
-        contact: phone.trim(),
-      },
-
-      theme: {
-        color: "#E3A73B",
-      },
-
-      handler: async function (response) {
-        // Verify payment on server
-        const verifyResponse = await fetch("/api/verify-payment", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(response),
-        });
-
-        const verifyData = await verifyResponse.json();
-
-        if (!verifyResponse.ok || !verifyData.verified) {
-          alert("Payment verification failed. Please contact SAWARIYA RENTALS.");
-          return;
-        }
-
-        // Payment verified — confirm booking
-        onConfirm({
-          id: uid("booking"),
-          carId: car.id,
-          carName: car.name,
-          city: car.city,
-          customer: name.trim(),
-          phone: phone.trim(),
-          startDate,
-          endDate,
-          days: totalDays,
-          total,
-          status: "confirmed",
-          paymentStatus: "paid",
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id,
-          createdAt: new Date().toISOString(),
-        });
-
-        setDone(true);
-      },
-    };
-
-    const razorpay = new window.Razorpay(options);
-
-    razorpay.on("payment.failed", function () {
-      alert("Payment failed. Please try again.");
-    });
-
-    razorpay.open();
-
-  } catch (error) {
-    console.error(error);
-    alert("Unable to start payment. Please try again.");
-  }
-};
+  return (
+    <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
       <div className="saw-modal-panel-upgraded max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-[#383C46] bg-[#1E212A] shadow-2xl sm:max-w-xl sm:rounded-[30px]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2B2E38] bg-[#1E212A]/95 px-5 py-4 backdrop-blur">
+
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#383C46] bg-[#1E212A] px-5 py-4">
           <div>
-            <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">SAWARIYA RENTALS</div>
-            <div className="font-display text-xl text-[#F2EDE1]">{done ? "Booking confirmed" : `Book ${car.name}`}</div>
+            <h2 className="text-lg font-bold text-white">
+              Book {car.name}
+            </h2>
+
+            <p className="text-sm text-gray-400">
+              ₹{fmtINR(car.price)} / day
+            </p>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-[#B9BDC5] hover:bg-[#2B2E38]"><X size={20} /></button>
+
+          <button
+            onClick={onClose}
+            disabled={paying}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2A2E38] text-xl text-gray-300 transition hover:bg-[#343945] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            ×
+          </button>
         </div>
 
         {!done ? (
           <div className="p-5">
-            <div className="mb-6 flex items-center gap-2">
-              {[1,2,3].map((n) => (
-                <React.Fragment key={n}>
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${step >= n ? "bg-[#E3A73B] text-[#14161C]" : "bg-[#2B2E38] text-[#8A8F98]"}`}>{n}</div>
-                  {n < 3 && <div className={`h-0.5 flex-1 ${step > n ? "bg-[#E3A73B]" : "bg-[#2B2E38]"}`} />}
+
+            <div className="mb-6 flex items-center justify-center gap-2">
+              {[1, 2, 3].map((number) => (
+                <React.Fragment key={number}>
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
+                      step >= number
+                        ? "bg-[#E3A73B] text-black"
+                        : "bg-[#30343F] text-gray-400"
+                    }`}
+                  >
+                    {number}
+                  </div>
+
+                  {number < 3 && (
+                    <div
+                      className={`h-1 w-10 rounded ${
+                        step > number
+                          ? "bg-[#E3A73B]"
+                          : "bg-[#30343F]"
+                      }`}
+                    />
+                  )}
                 </React.Fragment>
               ))}
             </div>
 
             {step === 1 && (
-              <div className="anim-fade-in">
-                <h3 className="mb-1 font-display text-2xl">Choose your dates</h3>
-                <p className="mb-5 text-sm text-[#8A8F98]">{car.city} • {fmtINR(car.price)}/day</p>
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Select rental dates
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-400">
+                    Choose when you want to pick up and return the car.
+                  </p>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-semibold">
-                    Pickup
-                    <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-3">
-                      <Calendar size={17} className="text-[#E3A73B]" />
-                      <input className="w-full bg-transparent px-1 py-3 outline-none" type="date" min={todayISO()} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </div>
-                  </label>
-                  <label className="block text-sm font-semibold">
-                    Return
-                    <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-3">
-                      <Calendar size={17} className="text-[#E3A73B]" />
-                      <input className="w-full bg-transparent px-1 py-3 outline-none" type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                    </div>
-                  </label>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-300">
+                      Start date
+                    </label>
+
+                    <input
+                      type="date"
+                      value={startDate}
+                      min={todayISO()}
+                      onChange={(e) => {
+                        const value = e.target.value;
+
+                        setStartDate(value);
+
+                        if (new Date(endDate) < new Date(value)) {
+                          setEndDate(addDaysISO(value, 1));
+                        }
+                      }}
+                      className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-300">
+                      End date
+                    </label>
+
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate}
+                      onChange={(e) =>
+                        setEndDate(e.target.value)
+                      }
+                      className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
+                    />
+                  </div>
                 </div>
-                <div className="mt-5 rounded-2xl bg-[#14161C] p-4 text-sm text-[#B9BDC5]">
-                  {totalDays} day{totalDays > 1 ? "s" : ""} × {fmtINR(car.price)} = <strong className="text-[#F2EDE1]">{fmtINR(total)}</strong>
+
+                <div className="rounded-2xl border border-[#454A56] bg-[#292D37] p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">
+                      Rental duration
+                    </span>
+
+                    <span className="font-bold text-white">
+                      {totalDays}{" "}
+                      {totalDays === 1 ? "day" : "days"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-[#454A56] pt-3">
+                    <span className="text-gray-400">
+                      Estimated total
+                    </span>
+
+                    <span className="text-xl font-bold text-[#E3A73B]">
+                      ₹{fmtINR(total)}
+                    </span>
+                  </div>
                 </div>
+
+                <button
+                  onClick={next}
+                  className="w-full rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
+                >
+                  Continue
+                </button>
               </div>
             )}
 
             {step === 2 && (
-              <div className="anim-fade-in">
-                <h3 className="mb-1 font-display text-2xl">Your details</h3>
-                <p className="mb-5 text-sm text-[#8A8F98]">We'll use these details for your booking.</p>
-                <label className="mb-4 block text-sm font-semibold">Full name
-                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-3">
-                    <User size={17} className="text-[#E3A73B]" />
-                    <input className="w-full bg-transparent px-1 py-3 outline-none" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                </label>
-                <label className="block text-sm font-semibold">Phone number
-                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-3">
-                    <Phone size={17} className="text-[#E3A73B]" />
-                    <input className="w-full bg-transparent px-1 py-3 outline-none" inputMode="tel" placeholder="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  </div>
-                </label>
-              </div>
-            )}
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Your details
+                  </h3>
 
-            {step === 3 && (
-              <div className="anim-fade-in">
-                <h3 className="mb-4 font-display text-2xl">Review & confirm</h3>
-                <div className="space-y-3 rounded-2xl bg-[#14161C] p-4 text-sm">
-                  <div className="flex justify-between"><span className="text-[#8A8F98]">Vehicle</span><strong>{car.name}</strong></div>
-                  <div className="flex justify-between"><span className="text-[#8A8F98]">City</span><strong>{car.city}</strong></div>
-                  <div className="flex justify-between"><span className="text-[#8A8F98]">Dates</span><strong>{startDate} → {endDate}</strong></div>
-                  <div className="flex justify-between"><span className="text-[#8A8F98]">Customer</span><strong>{name}</strong></div>
-                  <div className="flex justify-between"><span className="text-[#8A8F98]">Phone</span><strong>{phone}</strong></div>
-                  <div className="mt-2 border-t border-[#2B2E38] pt-3 flex justify-between text-base"><span>Total</span><strong className="text-[#E3A73B]">{fmtINR(total)}</strong></div>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Enter your contact details for the booking.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-300">
+                    Full name
+                  </label>
+
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) =>
+                      setName(e.target.value)
+                    }
+                    placeholder="Enter your full name"
+                    className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-[#E3A73B]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-300">
+                    Phone number
+                  </label>
+
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) =>
+                      setPhone(e.target.value)
+                    }
+                    placeholder="Enter 10-digit phone number"
+                    maxLength={15}
+                    className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-[#E3A73B]"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945]"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    onClick={next}
+                    className="w-2/3 rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
+                  >
+                    Continue
+                  </button>
                 </div>
               </div>
             )}
 
-            <div className="mt-6 flex gap-3">
-              {step > 1 && <button onClick={() => setStep((s) => s - 1)} className="saw-button flex-1 rounded-2xl border border-[#3A3E48] py-3 font-bold">Back</button>}
-              {step < 3 ? (
-                <button onClick={next} className="saw-button flex-1 rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Continue</button>
-              ) : (
-                <button onClick={confirm} className="saw-button flex-1 rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Confirm booking</button>
-              )}
-            </div>
+            {step === 3 && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Review & payment
+                  </h3>
+
+                  <p className="mt-1 text-sm text-gray-400">
+                    Check your booking details before payment.
+                  </p>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-[#454A56] bg-[#292D37] p-4">
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">Car</span>
+                    <span className="text-right font-semibold text-white">
+                      {car.name}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">City</span>
+                    <span className="text-right font-semibold text-white">
+                      {car.city}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">Customer</span>
+                    <span className="text-right font-semibold text-white">
+                      {name}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">Phone</span>
+                    <span className="text-right font-semibold text-white">
+                      {phone}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">Dates</span>
+                    <span className="text-right font-semibold text-white">
+                      {startDate} → {endDate}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-400">Duration</span>
+                    <span className="text-right font-semibold text-white">
+                      {totalDays}{" "}
+                      {totalDays === 1 ? "day" : "days"}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-[#454A56] pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-300">
+                        Total amount
+                      </span>
+
+                      <span className="text-2xl font-bold text-[#E3A73B]">
+                        ₹{fmtINR(total)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#E3A73B]/30 bg-[#E3A73B]/10 p-4 text-sm text-gray-300">
+                  You will be redirected to the secure Razorpay
+                  payment window. Your booking will be confirmed
+                  only after payment is successfully verified.
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(2)}
+                    disabled={paying}
+                    className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+
+                  <button
+                    onClick={confirm}
+                    disabled={paying}
+                    className="flex w-2/3 items-center justify-center rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {paying
+                      ? "Opening Payment..."
+                      : `Pay ₹${fmtINR(total)}`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-8 text-center">
-            <div className="saw-success-icon mx-auto flex h-20 w-20 items-center justify-center rounded-full" style={{ background: "#26372A" }}>
-              <Check size={42} className="text-[#A9D0AE]" />
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 text-4xl">
+              ✓
             </div>
-            <h3 className="mt-5 font-display text-3xl">You're booked</h3>
-            <p className="mt-2 text-[#9FA4AE]">Your {car.name} booking has been recorded.</p>
-            <div className="mt-6 rounded-2xl bg-[#14161C] p-4 text-left text-sm">
-              <div className="flex justify-between"><span className="text-[#8A8F98]">Booking ID</span><strong>#{String(Date.now()).slice(-6)}</strong></div>
-              <div className="mt-2 flex justify-between"><span className="text-[#8A8F98]">Total</span><strong className="text-[#E3A73B]">{fmtINR(total)}</strong></div>
+
+            <h3 className="text-2xl font-bold text-white">
+              Booking Confirmed!
+            </h3>
+
+            <p className="mt-2 text-gray-400">
+              Your payment has been verified successfully.
+            </p>
+
+            <div className="mt-6 rounded-2xl border border-[#454A56] bg-[#292D37] p-5 text-left">
+
+              <div className="flex justify-between">
+                <span className="text-gray-400">Car</span>
+
+                <span className="font-semibold text-white">
+                  {car.name}
+                </span>
+              </div>
+
+              <div className="mt-3 flex justify-between">
+                <span className="text-gray-400">
+                  Customer
+                </span>
+
+                <span className="font-semibold text-white">
+                  {name}
+                </span>
+              </div>
+
+              <div className="mt-3 flex justify-between">
+                <span className="text-gray-400">
+                  Duration
+                </span>
+
+                <span className="font-semibold text-white">
+                  {totalDays}{" "}
+                  {totalDays === 1 ? "day" : "days"}
+                </span>
+              </div>
+
+              <div className="mt-3 flex justify-between border-t border-[#454A56] pt-3">
+                <span className="font-semibold text-gray-300">
+                  Paid
+                </span>
+
+                <span className="font-bold text-green-400">
+                  ₹{fmtINR(total)}
+                </span>
+              </div>
             </div>
-            <button onClick={onClose} className="saw-button mt-6 w-full rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Done</button>
+
+            <button
+              onClick={onClose}
+              className="mt-6 w-full rounded-xl bg-[#E3A73B] px-5 py-3.5 font-bold text-black transition hover:bg-[#f0b84d]"
+            >
+              Done
+            </button>
           </div>
-        </div>
         )}
       </div>
     </div>
   );
 }
-
 function CustomerView({ cars, cities, onBook }) {
   const [city, setCity] = useState("All");
   const [type, setType] = useState("All");
