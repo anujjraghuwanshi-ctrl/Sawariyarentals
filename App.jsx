@@ -611,11 +611,29 @@ function BookingModal({ car, onClose, onConfirm }) {
         }
       );
 
-      if (!orderResponse.ok) {
-        throw new Error(
-          "Unable to create payment order."
-        );
-      }
+      const orderData = await orderResponse
+  .json()
+  .catch(() => ({}));
+
+if (!orderResponse.ok) {
+  throw new Error(
+    orderData?.message ||
+      orderData?.error ||
+      "Unable to create payment order."
+  );
+}
+
+const razorpayOrderId =
+  orderData?.id ||
+  orderData?.orderId;
+
+if (!razorpayOrderId) {
+  throw new Error(
+    orderData?.message ||
+      orderData?.error ||
+      "Payment order was not created."
+  );
+}
 
       const orderData = await orderResponse.json();
 
@@ -651,7 +669,7 @@ function BookingModal({ car, onClose, onConfirm }) {
             ? `₹${advanceAmount} Booking Advance - ${car.name}`
             : `Full Payment - ${car.name}`,
 
-        order_id: orderData.id,
+        order_id: razorpayOrderId,
 
         prefill: {
           name: name.trim(),
