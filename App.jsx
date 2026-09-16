@@ -186,13 +186,114 @@ function BookingModal({ car, onClose, onConfirm }) {
   const totalDays = daysBetween(startDate, endDate);
   const total = totalDays * car.price;
 
-  const next = () => {
+  
     if (step === 1 && new Date(endDate) < new Date(startDate)) return;
     if (step === 2 && (!name.trim() || phone.replace(/\D/g, "").length < 10)) return;
     setStep((s) => Math.min(3, s + 1));
   };
 
-  const confirm = () => {
+  const confirm = async () => {
+  try {
+    // Load Razorpay Checkout
+    if (!window.Razorpay) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    }
+
+    // Create Razorpay order
+    const orderResponse = await fetch("/api/create-order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: total,
+        receipt: `booking_${Date.now()}`,
+      }),
+    });
+
+    const orderData = await orderResponse.json();
+
+    if (!orderResponse.ok) {
+      throw new Error(orderData.error || "Unable to create payment order");
+    }
+
+    // Open Razorpay
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: orderData.amount,
+      currency: orderData.currency,
+      name: "SAWARIYA RENTALS",
+      description: `${car.name} Rental`,
+      order_id: orderData.orderId,
+
+      prefill: {
+        name: name.trim(),
+        contact: phone.trim(),
+      },
+
+      theme: {
+        color: "#E3A73B",
+      },
+
+      handler: async function (response) {
+        // Verify payment on server
+        const verifyResponse = await fetch("/api/verify-payment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(response),
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyResponse.ok || !verifyData.verified) {
+          alert("Payment verification failed. Please contact SAWARIYA RENTALS.");
+          return;
+        }
+
+        // Payment verified — confirm booking
+        onConfirm({
+          id: uid("booking"),
+          carId: car.id,
+          carName: car.name,
+          city: car.city,
+          customer: name.trim(),
+          phone: phone.trim(),
+          startDate,
+          endDate,
+          days: totalDays,
+          total,
+          status: "confirmed",
+          paymentStatus: "paid",
+          paymentId: response.razorpay_payment_id,
+          orderId: response.razorpay_order_id,
+          createdAt: new Date().toISOString(),
+        });
+
+        setDone(true);
+      },
+    };
+
+    const razorpay = new window.Razorpay(options);
+
+    razorpay.on("payment.failed", function () {
+      alert("Payment failed. Please try again.");
+    });
+
+    razorpay.open();
+
+  } catch (error) {
+    console.error(error);
+    alert("Unable to start payment. Please try again.");
+  }
+};
     onConfirm({
       id: uid("booking"),
       carId: car.id,
