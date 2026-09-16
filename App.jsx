@@ -54,14 +54,14 @@ const C = {
   black: "#020617",
 };
 
-const ADMIN_PASSCODE = "1234";
+const ADMIN_PASSCODE = "7224011916";
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
    RENTAL DURATIONS
 ========================================================= */
 
-const RENTAL_DURATIONS = [8, 12];
+const RENTAL_DURATIONS = [8, 12, 24];
 
 /* =========================================================
    INITIAL DATA
