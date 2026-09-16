@@ -371,6 +371,7 @@ function CarCard({ car, onBook }) {
         {photos.length > 1 && (
           <>
             <button
+              type="button"
               onClick={() =>
                 setPhotoIndex(
                   (photoIndex - 1 + photos.length) %
@@ -397,6 +398,7 @@ function CarCard({ car, onBook }) {
             </button>
 
             <button
+              type="button"
               onClick={() =>
                 setPhotoIndex(
                   (photoIndex + 1) % photos.length
@@ -499,6 +501,7 @@ function CarCard({ car, onBook }) {
         </div>
 
         <button
+          type="button"
           onClick={() => onBook(car)}
           disabled={!car.available}
           style={{
@@ -586,6 +589,11 @@ function BookingModal({ car, onClose, onConfirm }) {
       return;
     }
 
+    if (paymentAmount <= 0) {
+      alert("Invalid payment amount.");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -611,35 +619,40 @@ function BookingModal({ car, onClose, onConfirm }) {
         }
       );
 
+      /* -----------------------------------------------
+         IMPORTANT FIX:
+         Backend may return either:
+         {
+           id: "order_xxx"
+         }
+
+         OR:
+         {
+           orderId: "order_xxx"
+         }
+      ------------------------------------------------ */
+
       const orderData = await orderResponse
-  .json()
-  .catch(() => ({}));
+        .json()
+        .catch(() => ({}));
 
-if (!orderResponse.ok) {
-  throw new Error(
-    orderData?.message ||
-      orderData?.error ||
-      "Unable to create payment order."
-  );
-}
-
-const razorpayOrderId =
-  orderData?.id ||
-  orderData?.orderId;
-
-if (!razorpayOrderId) {
-  throw new Error(
-    orderData?.message ||
-      orderData?.error ||
-      "Payment order was not created."
-  );
-}
-
-      const orderData = await orderResponse.json();
-
-      if (!orderData?.id) {
+      if (!orderResponse.ok) {
         throw new Error(
-          "Payment order was not created."
+          orderData?.message ||
+            orderData?.error ||
+            "Unable to create payment order."
+        );
+      }
+
+      const razorpayOrderId =
+        orderData?.id ||
+        orderData?.orderId;
+
+      if (!razorpayOrderId) {
+        throw new Error(
+          orderData?.message ||
+            orderData?.error ||
+            "Payment order was not created."
         );
       }
 
@@ -647,20 +660,22 @@ if (!razorpayOrderId) {
         alert(
           "Razorpay is not loaded. Please refresh the page and try again."
         );
+
+        setLoading(false);
         return;
       }
 
       const options = {
         key:
-          orderData.key ||
+          orderData?.key ||
           import.meta.env.VITE_RAZORPAY_KEY_ID,
 
         amount:
-          orderData.amount ||
+          orderData?.amount ||
           Math.round(paymentAmount * 100),
 
         currency:
-          orderData.currency || "INR",
+          orderData?.currency || "INR",
 
         name: "SAWARIYA RENTALS",
 
@@ -704,21 +719,26 @@ if (!razorpayOrderId) {
               }
             );
 
+            const verifyData =
+              await verifyResponse
+                .json()
+                .catch(() => ({}));
+
             if (!verifyResponse.ok) {
               throw new Error(
-                "Payment verification failed."
+                verifyData?.message ||
+                  verifyData?.error ||
+                  "Payment verification failed."
               );
             }
-
-            const verifyData =
-              await verifyResponse.json();
 
             if (
               verifyData?.success === false ||
               verifyData?.verified === false
             ) {
               throw new Error(
-                "Payment could not be verified."
+                verifyData?.message ||
+                  "Payment could not be verified."
               );
             }
 
@@ -726,25 +746,36 @@ if (!razorpayOrderId) {
               carId: car.id,
               carName: car.name,
               city: car.city,
+
               name: name.trim(),
               phone: cleanPhone,
+
               pickupDate,
               returnDate,
               days,
+
               total,
+
               paidAmount: paymentAmount,
+
               advancePaid:
                 paymentType === "advance"
                   ? paymentAmount
                   : 0,
+
               remainingAmount,
+
               paymentType,
+
               paymentId:
                 response.razorpay_payment_id,
+
               orderId:
                 response.razorpay_order_id,
+
               signature:
                 response.razorpay_signature,
+
               status: "Confirmed",
             });
 
@@ -760,14 +791,20 @@ if (!razorpayOrderId) {
                   )} received.`
             );
 
+            setLoading(false);
             onClose();
           } catch (error) {
-            console.error(error);
+            console.error(
+              "Payment verification error:",
+              error
+            );
 
             alert(
               error?.message ||
                 "Payment verification failed. Please contact support."
             );
+
+            setLoading(false);
           }
         },
 
@@ -778,7 +815,8 @@ if (!razorpayOrderId) {
         },
       };
 
-      const razorpay = new window.Razorpay(options);
+      const razorpay =
+        new window.Razorpay(options);
 
       razorpay.on(
         "payment.failed",
@@ -799,7 +837,10 @@ if (!razorpayOrderId) {
 
       razorpay.open();
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Payment start error:",
+        error
+      );
 
       alert(
         error?.message ||
@@ -812,32 +853,17 @@ if (!razorpayOrderId) {
 
   return (
     <div
-      id="kaxq0y"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 1000,
         background: "rgba(15,23,42,.65)",
         display: "flex",
-
-        /*
-          IMPORTANT:
-          Do NOT vertically center the modal.
-
-          On mobile, a tall modal could otherwise have its
-          top hidden outside the viewport. This was the reason
-          the Name and Phone fields disappeared until zoom-out.
-        */
         alignItems: "flex-start",
-
         justifyContent: "center",
-
         padding: "16px",
-
         overflowY: "auto",
-
         WebkitOverflowScrolling: "touch",
-
         boxSizing: "border-box",
       }}
     >
@@ -845,20 +871,13 @@ if (!razorpayOrderId) {
         style={{
           width: "100%",
           maxWidth: 720,
-
           boxSizing: "border-box",
-
           background: C.white,
-
           borderRadius: 24,
-
           boxShadow:
             "0 30px 80px rgba(0,0,0,.25)",
-
           overflow: "hidden",
-
           margin: "0 auto 16px",
-
           flexShrink: 0,
         }}
       >
@@ -867,27 +886,17 @@ if (!razorpayOrderId) {
         <div
           style={{
             padding: "18px 20px",
-
             background:
               "linear-gradient(135deg,#eff6ff,#ffffff)",
-
             borderBottom:
               `1px solid ${C.border}`,
-
             display: "flex",
-
             alignItems: "center",
-
             justifyContent: "space-between",
-
             gap: 12,
           }}
         >
-          <div
-            style={{
-              minWidth: 0,
-            }}
-          >
+          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 color: C.blue,
@@ -937,7 +946,6 @@ if (!razorpayOrderId) {
         {/* CONTENT */}
 
         <div
-          id="g4c2yw"
           style={{
             padding: 20,
             boxSizing: "border-box",
@@ -959,22 +967,12 @@ if (!razorpayOrderId) {
             </h3>
 
             <div
-              id="rdvxzt"
               style={{
                 display: "grid",
-
-                /*
-                  IMPORTANT:
-                  min(200px, 100%) prevents the input columns
-                  from becoming wider than a small phone.
-                */
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
-
                 gap: 14,
-
                 width: "100%",
-
                 boxSizing: "border-box",
               }}
             >
@@ -1072,7 +1070,10 @@ if (!razorpayOrderId) {
 
                 <input
                   type="date"
-                  min={addDaysISO(pickupDate, 1)}
+                  min={addDaysISO(
+                    pickupDate,
+                    1
+                  )}
                   value={returnDate}
                   onChange={(e) =>
                     setReturnDate(
@@ -1093,13 +1094,15 @@ if (!razorpayOrderId) {
                 padding: 16,
                 borderRadius: 18,
                 background: C.grayLight,
-                border: `1px solid ${C.border}`,
+                border:
+                  `1px solid ${C.border}`,
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                   gap: 10,
                   marginBottom: 8,
                 }}
@@ -1125,7 +1128,8 @@ if (!razorpayOrderId) {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                   gap: 10,
                   marginBottom: 8,
                 }}
@@ -1144,7 +1148,8 @@ if (!razorpayOrderId) {
                     color: C.navy,
                   }}
                 >
-                  {days} day{days > 1 ? "s" : ""}
+                  {days} day
+                  {days > 1 ? "s" : ""}
                 </strong>
               </div>
 
@@ -1159,7 +1164,8 @@ if (!razorpayOrderId) {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                   gap: 10,
                 }}
               >
@@ -1197,17 +1203,12 @@ if (!razorpayOrderId) {
             </h3>
 
             <div
-              id="xeyajc"
               style={{
                 display: "grid",
-
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(230px, 100%), 1fr))",
-
                 gap: 12,
-
                 width: "100%",
-
                 boxSizing: "border-box",
               }}
             >
@@ -1216,27 +1217,25 @@ if (!razorpayOrderId) {
                 onClick={() =>
                   setPaymentType("advance")
                 }
-                disabled={total < BOOKING_ADVANCE}
+                disabled={
+                  total < BOOKING_ADVANCE
+                }
                 style={{
                   textAlign: "left",
                   padding: 16,
                   borderRadius: 18,
-
                   border:
                     paymentType === "advance"
                       ? `2px solid ${C.blue}`
                       : `1px solid ${C.border}`,
-
                   background:
                     paymentType === "advance"
                       ? C.sky
                       : C.white,
-
                   cursor:
                     total < BOOKING_ADVANCE
                       ? "not-allowed"
                       : "pointer",
-
                   opacity:
                     total < BOOKING_ADVANCE
                       ? 0.5
@@ -1300,17 +1299,14 @@ if (!razorpayOrderId) {
                   textAlign: "left",
                   padding: 16,
                   borderRadius: 18,
-
                   border:
                     paymentType === "full"
                       ? `2px solid ${C.green}`
                       : `1px solid ${C.border}`,
-
                   background:
                     paymentType === "full"
                       ? C.greenLight
                       : C.white,
-
                   cursor: "pointer",
                 }}
               >
@@ -1370,12 +1366,10 @@ if (!razorpayOrderId) {
                 marginTop: 14,
                 padding: 16,
                 borderRadius: 18,
-
                 background:
                   paymentType === "advance"
                     ? C.orangeLight
                     : C.greenLight,
-
                 border:
                   paymentType === "advance"
                     ? `1px solid #fed7aa`
@@ -1385,7 +1379,8 @@ if (!razorpayOrderId) {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                   gap: 10,
                   marginBottom: 7,
                 }}
@@ -1415,7 +1410,8 @@ if (!razorpayOrderId) {
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent:
+                    "space-between",
                   gap: 10,
                 }}
               >
@@ -1447,8 +1443,9 @@ if (!razorpayOrderId) {
                     color: C.gray,
                   }}
                 >
-                  Only ₹500 will be charged now. The
-                  remaining {fmtINR(remainingAmount)} will
+                  Only ₹500 will be charged now.
+                  The remaining{" "}
+                  {fmtINR(remainingAmount)} will
                   be payable later.
                 </div>
               )}
@@ -1488,7 +1485,9 @@ if (!razorpayOrderId) {
 
                 {loading
                   ? "Processing..."
-                  : `Pay ${fmtINR(paymentAmount)}`}
+                  : `Pay ${fmtINR(
+                      paymentAmount
+                    )}`}
               </button>
             </div>
 
@@ -1584,7 +1583,8 @@ function CustomerView({
           zIndex: 50,
           background: "rgba(255,255,255,.96)",
           backdropFilter: "blur(12px)",
-          borderBottom: `1px solid ${C.border}`,
+          borderBottom:
+            `1px solid ${C.border}`,
         }}
       >
         <div
@@ -1594,7 +1594,8 @@ function CustomerView({
             padding: "14px 16px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             gap: 12,
           }}
         >
@@ -1711,8 +1712,8 @@ function CustomerView({
               lineHeight: 1.6,
             }}
           >
-            Affordable and reliable self-drive car
-            rentals from SAWARIYA RENTALS.
+            Affordable and reliable self-drive
+            car rentals from SAWARIYA RENTALS.
           </p>
         </div>
       </section>
@@ -1735,11 +1736,7 @@ function CustomerView({
             gap: 12,
           }}
         >
-          <div
-            style={{
-              position: "relative",
-            }}
-          >
+          <div style={{ position: "relative" }}>
             <Search
               size={18}
               color={C.gray}
@@ -1839,7 +1836,8 @@ function CustomerView({
               padding: 40,
               background: C.white,
               borderRadius: 20,
-              border: `1px solid ${C.border}`,
+              border:
+                `1px solid ${C.border}`,
               textAlign: "center",
               color: C.gray,
             }}
@@ -1868,11 +1866,7 @@ function CustomerView({
         {/* RECENT BOOKINGS */}
 
         {bookings.length > 0 && (
-          <section
-            style={{
-              marginTop: 40,
-            }}
-          >
+          <section style={{ marginTop: 40 }}>
             <h2
               style={{
                 margin: "0 0 14px",
@@ -1898,7 +1892,8 @@ function CustomerView({
                     key={booking.id}
                     style={{
                       background: C.white,
-                      border: `1px solid ${C.border}`,
+                      border:
+                        `1px solid ${C.border}`,
                       borderRadius: 16,
                       padding: 15,
                       display: "flex",
@@ -2019,11 +2014,7 @@ function StatCard({
         {icon}
       </div>
 
-      <div
-        style={{
-          minWidth: 0,
-        }}
-      >
+      <div style={{ minWidth: 0 }}>
         <div
           style={{
             color: C.gray,
@@ -2061,22 +2052,24 @@ function AdminView({
   setCities,
   bookings,
 }) {
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] =
+    useState("dashboard");
 
   const [editingCar, setEditingCar] =
     useState(null);
 
-  const [carForm, setCarForm] = useState({
-    name: "",
-    type: "Hatchback",
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    price: "",
-    city: "",
-    photos: [],
-    available: true,
-  });
+  const [carForm, setCarForm] =
+    useState({
+      name: "",
+      type: "Hatchback",
+      seats: 5,
+      fuel: "Petrol",
+      transmission: "Manual",
+      price: "",
+      city: "",
+      photos: [],
+      available: true,
+    });
 
   const [newCity, setNewCity] =
     useState("");
@@ -2091,25 +2084,27 @@ function AdminView({
     (car) => !car.available
   ).length;
 
-  const totalRevenue = bookings.reduce(
-    (sum, booking) =>
-      sum +
-      Number(
-        booking.paidAmount ??
-          booking.total ??
-          0
-      ),
-    0
-  );
+  const totalRevenue =
+    bookings.reduce(
+      (sum, booking) =>
+        sum +
+        Number(
+          booking.paidAmount ??
+            booking.total ??
+            0
+        ),
+      0
+    );
 
-  const totalPending = bookings.reduce(
-    (sum, booking) =>
-      sum +
-      Number(
-        booking.remainingAmount ?? 0
-      ),
-    0
-  );
+  const totalPending =
+    bookings.reduce(
+      (sum, booking) =>
+        sum +
+        Number(
+          booking.remainingAmount ?? 0
+        ),
+      0
+    );
 
   function resetCarForm() {
     setEditingCar(null);
@@ -2201,9 +2196,12 @@ function AdminView({
       ]);
     }
 
+    const wasEditing = Boolean(editingCar);
+
     resetCarForm();
+
     alert(
-      editingCar
+      wasEditing
         ? "Car updated successfully."
         : "Car added successfully."
     );
@@ -2498,13 +2496,13 @@ function AdminView({
             ["cities", "Cities"],
           ].map(([value, label]) => (
             <button
+              type="button"
               key={value}
               onClick={() => setTab(value)}
               style={{
                 border: "none",
                 borderRadius: 12,
-                padding:
-                  "10px 14px",
+                padding: "10px 14px",
                 background:
                   tab === value
                     ? C.blue
@@ -2515,8 +2513,7 @@ function AdminView({
                     : C.navy,
                 fontWeight: 850,
                 cursor: "pointer",
-                whiteSpace:
-                  "nowrap",
+                whiteSpace: "nowrap",
               }}
             >
               {label}
@@ -2536,11 +2533,7 @@ function AdminView({
 
         {tab === "dashboard" && (
           <>
-            <div
-              style={{
-                marginBottom: 18,
-              }}
-            >
+            <div style={{ marginBottom: 18 }}>
               <h1
                 style={{
                   margin: 0,
@@ -2579,9 +2572,7 @@ function AdminView({
 
               <StatCard
                 icon={
-                  <CheckCircle2
-                    size={21}
-                  />
+                  <CheckCircle2 size={21} />
                 }
                 label="Available"
                 value={availableCars}
@@ -2589,9 +2580,7 @@ function AdminView({
               />
 
               <StatCard
-                icon={
-                  <Clock3 size={21} />
-                }
+                icon={<Clock3 size={21} />}
                 label="Rented"
                 value={rentedCars}
                 color={C.orange}
@@ -2599,9 +2588,7 @@ function AdminView({
 
               <StatCard
                 icon={
-                  <IndianRupee
-                    size={21}
-                  />
+                  <IndianRupee size={21} />
                 }
                 label="Money Collected"
                 value={fmtINR(
@@ -2612,9 +2599,7 @@ function AdminView({
 
               <StatCard
                 icon={
-                  <CreditCard
-                    size={21}
-                  />
+                  <CreditCard size={21} />
                 }
                 label="Pending Later"
                 value={fmtINR(
@@ -2625,9 +2610,7 @@ function AdminView({
 
               <StatCard
                 icon={
-                  <CalendarDays
-                    size={21}
-                  />
+                  <CalendarDays size={21} />
                 }
                 label="Total Bookings"
                 value={bookings.length}
@@ -2669,12 +2652,12 @@ function AdminView({
                     margin: "5px 0 0",
                   }}
                 >
-                  Add cars, prices and
-                  photos.
+                  Add cars, prices and photos.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={resetCarForm}
                 style={primaryButton}
               >
@@ -2688,7 +2671,8 @@ function AdminView({
             <div
               style={{
                 background: C.white,
-                border: `1px solid ${C.border}`,
+                border:
+                  `1px solid ${C.border}`,
                 borderRadius: 20,
                 padding: 18,
                 marginBottom: 20,
@@ -2718,6 +2702,7 @@ function AdminView({
 
                 {editingCar && (
                   <button
+                    type="button"
                     onClick={resetCarForm}
                     style={smallButton}
                   >
@@ -2775,21 +2760,11 @@ function AdminView({
                       }
                       style={inputStyle}
                     >
-                      <option>
-                        Hatchback
-                      </option>
-                      <option>
-                        Sedan
-                      </option>
-                      <option>
-                        SUV
-                      </option>
-                      <option>
-                        MUV
-                      </option>
-                      <option>
-                        Luxury
-                      </option>
+                      <option>Hatchback</option>
+                      <option>Sedan</option>
+                      <option>SUV</option>
+                      <option>MUV</option>
+                      <option>Luxury</option>
                     </select>
                   </div>
 
@@ -2834,18 +2809,10 @@ function AdminView({
                       }
                       style={inputStyle}
                     >
-                      <option>
-                        Petrol
-                      </option>
-                      <option>
-                        Diesel
-                      </option>
-                      <option>
-                        CNG
-                      </option>
-                      <option>
-                        Electric
-                      </option>
+                      <option>Petrol</option>
+                      <option>Diesel</option>
+                      <option>CNG</option>
+                      <option>Electric</option>
                     </select>
                   </div>
 
@@ -2869,12 +2836,8 @@ function AdminView({
                       }
                       style={inputStyle}
                     >
-                      <option>
-                        Manual
-                      </option>
-                      <option>
-                        Automatic
-                      </option>
+                      <option>Manual</option>
+                      <option>Automatic</option>
                     </select>
                   </div>
 
@@ -2982,9 +2945,8 @@ function AdminView({
                           marginTop: 3,
                         }}
                       >
-                        Add one or more
-                        photos. JPG/PNG
-                        supported.
+                        Add one or more photos.
+                        JPG/PNG supported.
                       </div>
                     </div>
 
@@ -3002,9 +2964,7 @@ function AdminView({
                         accept="image/*"
                         multiple
                         onChange={(e) =>
-                          handlePhotoUpload(
-                            e
-                          )
+                          handlePhotoUpload(e)
                         }
                         style={{
                           display: "none",
@@ -3036,7 +2996,8 @@ function AdminView({
                                 "relative",
                               aspectRatio:
                                 "4 / 3",
-                              borderRadius: 12,
+                              borderRadius:
+                                12,
                               overflow:
                                 "hidden",
                               background:
@@ -3090,11 +3051,7 @@ function AdminView({
                                   "center",
                               }}
                             >
-                              <X
-                                size={
-                                  15
-                                }
-                              />
+                              <X size={15} />
                             </button>
                           </div>
                         )
@@ -3115,9 +3072,7 @@ function AdminView({
                     type="submit"
                     style={primaryButton}
                   >
-                    <CheckCircle2
-                      size={17}
-                    />
+                    <CheckCircle2 size={17} />
                     {editingCar
                       ? "Update Vehicle"
                       : "Save Vehicle"}
@@ -3138,8 +3093,7 @@ function AdminView({
                 <div
                   key={car.id}
                   style={{
-                    background:
-                      C.white,
+                    background: C.white,
                     border:
                       `1px solid ${C.border}`,
                     borderRadius: 18,
@@ -3162,12 +3116,9 @@ function AdminView({
                   >
                     <div
                       style={{
-                        display:
-                          "flex",
-                        flexWrap:
-                          "wrap",
-                        alignItems:
-                          "center",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
                         justifyContent:
                           "space-between",
                         gap: 8,
@@ -3190,8 +3141,7 @@ function AdminView({
 
                         <div
                           style={{
-                            color:
-                              C.gray,
+                            color: C.gray,
                             fontSize: 12,
                             marginTop: 3,
                           }}
@@ -3220,56 +3170,45 @@ function AdminView({
 
                     <div
                       style={{
-                        display:
-                          "flex",
-                        flexWrap:
-                          "wrap",
+                        display: "flex",
+                        flexWrap: "wrap",
                         gap: 7,
                         marginTop: 10,
                       }}
                     >
                       <button
+                        type="button"
                         onClick={() =>
                           toggleAvailability(
                             car.id
                           )
                         }
-                        style={
-                          smallButton
-                        }
+                        style={smallButton}
                       >
-                        <Clock3
-                          size={14}
-                        />
+                        <Clock3 size={14} />
                         {car.available
                           ? "Mark Rented"
                           : "Mark Available"}
                       </button>
 
                       <button
+                        type="button"
                         onClick={() =>
                           editCar(car)
                         }
-                        style={
-                          smallButton
-                        }
+                        style={smallButton}
                       >
-                        <Pencil
-                          size={14}
-                        />
+                        <Pencil size={14} />
                         Edit
                       </button>
 
                       <label
                         style={{
                           ...smallButton,
-                          cursor:
-                            "pointer",
+                          cursor: "pointer",
                         }}
                       >
-                        <Camera
-                          size={14}
-                        />
+                        <Camera size={14} />
                         Add Photo
 
                         <input
@@ -3283,25 +3222,19 @@ function AdminView({
                             )
                           }
                           style={{
-                            display:
-                              "none",
+                            display: "none",
                           }}
                         />
                       </label>
 
                       <button
+                        type="button"
                         onClick={() =>
-                          deleteCar(
-                            car.id
-                          )
+                          deleteCar(car.id)
                         }
-                        style={
-                          dangerButton
-                        }
+                        style={dangerButton}
                       >
-                        <Trash2
-                          size={14}
-                        />
+                        <Trash2 size={14} />
                         Delete
                       </button>
                     </div>
@@ -3312,10 +3245,8 @@ function AdminView({
                       0 && (
                       <div
                         style={{
-                          display:
-                            "flex",
-                          flexWrap:
-                            "wrap",
+                          display: "flex",
+                          flexWrap: "wrap",
                           gap: 8,
                           marginTop: 12,
                         }}
@@ -3341,8 +3272,7 @@ function AdminView({
                               <img
                                 src={photo}
                                 alt={`${car.name} ${
-                                  index +
-                                  1
+                                  index + 1
                                 }`}
                                 style={{
                                   width:
@@ -3355,6 +3285,7 @@ function AdminView({
                               />
 
                               <button
+                                type="button"
                                 onClick={() =>
                                   removeCarPhoto(
                                     car.id,
@@ -3386,11 +3317,7 @@ function AdminView({
                                     "pointer",
                                 }}
                               >
-                                <X
-                                  size={
-                                    12
-                                  }
-                                />
+                                <X size={12} />
                               </button>
                             </div>
                           )
@@ -3408,11 +3335,7 @@ function AdminView({
 
         {tab === "bookings" && (
           <>
-            <div
-              style={{
-                marginBottom: 18,
-              }}
-            >
+            <div style={{ marginBottom: 18 }}>
               <h1
                 style={{
                   margin: 0,
@@ -3429,8 +3352,7 @@ function AdminView({
                   margin: "5px 0 0",
                 }}
               >
-                Payment and customer
-                records.
+                Payment and customer records.
               </p>
             </div>
 
@@ -3462,8 +3384,7 @@ function AdminView({
                     <div
                       key={booking.id}
                       style={{
-                        background:
-                          C.white,
+                        background: C.white,
                         border:
                           `1px solid ${C.border}`,
                         borderRadius: 18,
@@ -3472,10 +3393,8 @@ function AdminView({
                     >
                       <div
                         style={{
-                          display:
-                            "flex",
-                          flexWrap:
-                            "wrap",
+                          display: "flex",
+                          flexWrap: "wrap",
                           justifyContent:
                             "space-between",
                           gap: 12,
@@ -3484,10 +3403,8 @@ function AdminView({
                         <div>
                           <div
                             style={{
-                              display:
-                                "flex",
-                              flexWrap:
-                                "wrap",
+                              display: "flex",
+                              flexWrap: "wrap",
                               alignItems:
                                 "center",
                               gap: 8,
@@ -3495,63 +3412,41 @@ function AdminView({
                           >
                             <strong
                               style={{
-                                fontSize:
-                                  18,
+                                fontSize: 18,
                               }}
                             >
-                              {
-                                booking.carName
-                              }
+                              {booking.carName}
                             </strong>
 
                             <Badge
-                              color={
-                                C.green
-                              }
+                              color={C.green}
                             >
-                              {
-                                booking.status
-                              }
+                              {booking.status}
                             </Badge>
                           </div>
 
                           <div
                             style={{
                               marginTop: 7,
-                              color:
-                                C.gray,
-                              fontSize:
-                                13,
+                              color: C.gray,
+                              fontSize: 13,
                             }}
                           >
-                            {
-                              booking.name
-                            }{" "}
-                            •{" "}
-                            {
-                              booking.phone
-                            }
+                            {booking.name} •{" "}
+                            {booking.phone}
                           </div>
 
                           <div
                             style={{
                               marginTop: 5,
-                              color:
-                                C.gray,
-                              fontSize:
-                                13,
+                              color: C.gray,
+                              fontSize: 13,
                             }}
                           >
-                            {
-                              booking.pickupDate
-                            }{" "}
+                            {booking.pickupDate}{" "}
                             →{" "}
-                            {
-                              booking.returnDate
-                            }{" "}
-                            •{" "}
-                            {booking.days}{" "}
-                            day
+                            {booking.returnDate}{" "}
+                            • {booking.days} day
                             {booking.days !==
                             1
                               ? "s"
@@ -3561,18 +3456,14 @@ function AdminView({
 
                         <div
                           style={{
-                            textAlign:
-                              "right",
+                            textAlign: "right",
                           }}
                         >
                           <div
                             style={{
-                              color:
-                                C.green,
-                              fontWeight:
-                                950,
-                              fontSize:
-                                18,
+                              color: C.green,
+                              fontWeight: 950,
+                              fontSize: 18,
                             }}
                           >
                             Paid{" "}
@@ -3583,14 +3474,10 @@ function AdminView({
 
                           <div
                             style={{
-                              color:
-                                C.navy,
-                              fontWeight:
-                                800,
-                              fontSize:
-                                13,
-                              marginTop:
-                                4,
+                              color: C.navy,
+                              fontWeight: 800,
+                              fontSize: 13,
+                              marginTop: 4,
                             }}
                           >
                             Total{" "}
@@ -3601,12 +3488,9 @@ function AdminView({
 
                           <div
                             style={{
-                              color:
-                                C.orange,
-                              fontSize:
-                                13,
-                              marginTop:
-                                4,
+                              color: C.orange,
+                              fontSize: 13,
+                              marginTop: 4,
                             }}
                           >
                             Remaining{" "}
@@ -3623,10 +3507,8 @@ function AdminView({
                           paddingTop: 12,
                           borderTop:
                             `1px solid ${C.border}`,
-                          display:
-                            "flex",
-                          flexWrap:
-                            "wrap",
+                          display: "flex",
+                          flexWrap: "wrap",
                           gap: 8,
                         }}
                       >
@@ -3638,9 +3520,7 @@ function AdminView({
                               : C.green
                           }
                         >
-                          <CreditCard
-                            size={12}
-                          />
+                          <CreditCard size={12} />
 
                           {booking.paymentType ===
                           "advance"
@@ -3658,9 +3538,7 @@ function AdminView({
                         {booking.paymentId && (
                           <Badge color={C.gray}>
                             Payment:{" "}
-                            {
-                              booking.paymentId
-                            }
+                            {booking.paymentId}
                           </Badge>
                         )}
                       </div>
@@ -3675,11 +3553,7 @@ function AdminView({
 
         {tab === "cities" && (
           <>
-            <div
-              style={{
-                marginBottom: 18,
-              }}
-            >
+            <div style={{ marginBottom: 18 }}>
               <h1
                 style={{
                   margin: 0,
@@ -3716,9 +3590,7 @@ function AdminView({
               <input
                 value={newCity}
                 onChange={(e) =>
-                  setNewCity(
-                    e.target.value
-                  )
+                  setNewCity(e.target.value)
                 }
                 placeholder="Enter city name"
                 style={{
@@ -3763,8 +3635,7 @@ function AdminView({
                   <div
                     style={{
                       display: "flex",
-                      alignItems:
-                        "center",
+                      alignItems: "center",
                       gap: 10,
                     }}
                   >
@@ -3773,9 +3644,7 @@ function AdminView({
                       color={C.blue}
                     />
 
-                    <strong>
-                      {city.name}
-                    </strong>
+                    <strong>{city.name}</strong>
 
                     <Badge
                       color={
@@ -3793,20 +3662,16 @@ function AdminView({
                   <div
                     style={{
                       display: "flex",
-                      flexWrap:
-                        "wrap",
+                      flexWrap: "wrap",
                       gap: 7,
                     }}
                   >
                     <button
+                      type="button"
                       onClick={() =>
-                        toggleCity(
-                          city.id
-                        )
+                        toggleCity(city.id)
                       }
-                      style={
-                        smallButton
-                      }
+                      style={smallButton}
                     >
                       {city.active
                         ? "Disable"
@@ -3814,18 +3679,13 @@ function AdminView({
                     </button>
 
                     <button
+                      type="button"
                       onClick={() =>
-                        deleteCity(
-                          city.id
-                        )
+                        deleteCity(city.id)
                       }
-                      style={
-                        dangerButton
-                      }
+                      style={dangerButton}
                     >
-                      <Trash2
-                        size={14}
-                      />
+                      <Trash2 size={14} />
                       Delete
                     </button>
                   </div>
@@ -3941,9 +3801,8 @@ function AdminGate({
             lineHeight: 1.5,
           }}
         >
-          Enter your admin passcode to
-          manage vehicles, bookings and
-          cities.
+          Enter your admin passcode to manage
+          vehicles, bookings and cities.
         </p>
 
         <label style={labelStyle}>
@@ -3954,9 +3813,7 @@ function AdminGate({
           type="password"
           value={passcode}
           onChange={(e) =>
-            setPasscode(
-              e.target.value
-            )
+            setPasscode(e.target.value)
           }
           placeholder="Enter passcode"
           style={inputStyle}
@@ -3996,7 +3853,10 @@ function AdminGate({
 
 function App() {
   const [cars, setCars] = useState(() =>
-    loadShared("sawariya_cars", seedCars)
+    loadShared(
+      "sawariya_cars",
+      seedCars
+    )
   );
 
   const [cities, setCities] =
@@ -4017,6 +3877,20 @@ function App() {
 
   const [isAdmin, setIsAdmin] =
     useState(false);
+
+  /* -----------------------------------------------
+     MOBILE / BODY FIX
+  ------------------------------------------------ */
+
+  useEffect(() => {
+    document.body.style.margin = "0";
+    document.body.style.overflowX = "hidden";
+
+    return () => {
+      document.body.style.margin = "";
+      document.body.style.overflowX = "";
+    };
+  }, []);
 
   /* -----------------------------------------------
      SAVE DATA
@@ -4060,11 +3934,6 @@ function App() {
       booking,
     ]);
 
-    /*
-      Once a booking is successfully paid and
-      verified, mark that vehicle as rented.
-    */
-
     setCars((prev) =>
       prev.map((car) =>
         car.id === data.carId
@@ -4093,6 +3962,7 @@ function App() {
           }}
         >
           <button
+            type="button"
             onClick={() =>
               setIsAdmin(false)
             }
@@ -4130,6 +4000,7 @@ function App() {
       {/* SECRET / ADMIN BUTTON */}
 
       <button
+        type="button"
         onClick={() => setIsAdmin(true)}
         title="Admin"
         style={{
@@ -4139,7 +4010,8 @@ function App() {
           width: 42,
           height: 42,
           borderRadius: 999,
-          border: `1px solid ${C.border}`,
+          border:
+            `1px solid ${C.border}`,
           background:
             "rgba(255,255,255,.94)",
           color: C.gray,
@@ -4177,7 +4049,8 @@ const inputStyle = {
   minWidth: 0,
   height: 46,
   boxSizing: "border-box",
-  border: `1px solid ${C.border}`,
+  border:
+    `1px solid ${C.border}`,
   borderRadius: 12,
   padding: "0 13px",
   background: C.white,
@@ -4205,7 +4078,8 @@ const primaryButton = {
 
 const secondaryButton = {
   minHeight: 44,
-  border: `1px solid ${C.border}`,
+  border:
+    `1px solid ${C.border}`,
   borderRadius: 12,
   padding: "10px 15px",
   background: C.white,
@@ -4222,7 +4096,8 @@ const secondaryButton = {
 
 const dangerButton = {
   minHeight: 38,
-  border: `1px solid #fecaca`,
+  border:
+    `1px solid #fecaca`,
   borderRadius: 10,
   padding: "8px 11px",
   background: C.redLight,
@@ -4239,7 +4114,8 @@ const dangerButton = {
 
 const smallButton = {
   minHeight: 38,
-  border: `1px solid ${C.border}`,
+  border:
+    `1px solid ${C.border}`,
   borderRadius: 10,
   padding: "8px 11px",
   background: C.white,
