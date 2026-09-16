@@ -24,6 +24,7 @@ import {
 import {
   fetchCars,
   upsertCar,
+  deleteCar as deleteCarCloud,
   fetchCities,
   fetchBookings,
   insertBooking,
@@ -306,6 +307,9 @@ function CarCard({
         0
     );
 
+  const price24 =
+    Number(car.price24 || 0);
+
   return (
     <div
       style={{
@@ -482,7 +486,7 @@ function CarCard({
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(2, minmax(0,1fr))",
+              "repeat(3, minmax(0,1fr))",
             gap: 8,
             marginTop: 14,
           }}
@@ -542,6 +546,35 @@ function CarCard({
               }}
             >
               {fmtINR(price12)}
+            </strong>
+          </div>
+
+          <div
+            style={{
+              padding: 10,
+              borderRadius: 12,
+              background: C.orangeLight,
+              border:
+                `1px solid #fed7aa`,
+            }}
+          >
+            <div
+              style={{
+                color: C.gray,
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              24 HOURS
+            </div>
+
+            <strong
+              style={{
+                color: C.orange,
+                fontSize: 17,
+              }}
+            >
+              {fmtINR(price24)}
             </strong>
           </div>
         </div>
@@ -635,10 +668,15 @@ function BookingModal({
         0
     );
 
+  const price24 =
+    Number(car.price24 || 0);
+
   const total =
     rentalDuration === 8
       ? price8
-      : price12;
+      : rentalDuration === 12
+      ? price12
+      : price24;
 
   const advanceAmount =
     Math.min(
@@ -1334,7 +1372,7 @@ function BookingModal({
                 display:
                   "grid",
                 gridTemplateColumns:
-                  "repeat(2, minmax(0, 1fr))",
+                  "repeat(3, minmax(0, 1fr))",
                 gap: 12,
               }}
             >
@@ -1347,7 +1385,9 @@ function BookingModal({
                   const price =
                     hours === 8
                       ? price8
-                      : price12;
+                      : hours === 12
+                      ? price12
+                      : price24;
 
                   return (
                     <button
@@ -2263,6 +2303,11 @@ function CustomerView({
               <Clock3 size={13} />
               12 Hour Rentals
             </Badge>
+
+            <Badge color={C.orange}>
+              <Clock3 size={13} />
+              24 Hour Rentals
+            </Badge>
           </div>
         </div>
       </section>
@@ -2764,7 +2809,7 @@ function AdminView({
       seats: 5,
       fuel: "Petrol",
       transmission: "Manual",
-            price8: "",
+      price8: "",
       price12: "",
       price24: "",
       city: "",
@@ -2824,6 +2869,7 @@ function AdminView({
       transmission: "Manual",
       price8: "",
       price12: "",
+      price24: "",
       city:
         cities.find(
           (c) => c.active
@@ -2867,6 +2913,10 @@ function AdminView({
         car.price ||
         "",
 
+      price24:
+        car.price24 ||
+        "",
+
       city:
         car.city || "",
 
@@ -2881,7 +2931,7 @@ function AdminView({
     setTab("cars");
   }
 
-  function saveCar(e) {
+  async function saveCar(e) {
     e.preventDefault();
 
     if (!carForm.name.trim()) {
@@ -2922,6 +2972,18 @@ function AdminView({
       return;
     }
 
+    if (
+      !carForm.price24 ||
+      Number(
+        carForm.price24
+      ) <= 0
+    ) {
+      alert(
+        "Enter a valid 24-hour price."
+      );
+      return;
+    }
+
     const vehicleData = {
       ...carForm,
       name:
@@ -2937,7 +2999,34 @@ function AdminView({
         Number(
           carForm.price12
         ),
+      price24:
+        Number(
+          carForm.price24
+        ),
     };
+
+    let saved = {
+      id: editingCar || undefined,
+      ...vehicleData,
+    };
+
+    try {
+      const photos = [];
+      for (const p of saved.photos || []) {
+        if (typeof p === "string" && p.startsWith("data:")) {
+          photos.push(await uploadPhoto(p));
+        } else {
+          photos.push(p);
+        }
+      }
+      saved.photos = photos;
+      const cloudId = await upsertCar(saved);
+      if (cloudId) saved.id = cloudId;
+      if (!saved.id) saved.id = uid("car");
+    } catch (err) {
+      alert("Cloud save failed: " + (err.message || err));
+      return;
+    }
 
     if (editingCar) {
       setCars(
@@ -2948,7 +3037,7 @@ function AdminView({
               editingCar
                 ? {
                     ...car,
-                    ...vehicleData,
+                    ...saved,
                   }
                 : car
           )
@@ -2957,10 +3046,7 @@ function AdminView({
       setCars(
         (prev) => [
           ...prev,
-          {
-            id: uid("car"),
-            ...vehicleData,
-          },
+          saved,
         ]
       );
     }
@@ -2979,7 +3065,7 @@ function AdminView({
     );
   }
 
-  function deleteCar(id) {
+    async function deleteCar(id) {
     const car =
       cars.find(
         (item) =>
@@ -2994,6 +3080,12 @@ function AdminView({
       )
     ) {
       return;
+    }
+
+    try {
+      await deleteCarCloud(id);
+    } catch (err) {
+      console.error(err);
     }
 
     setCars(
@@ -3986,6 +4078,43 @@ function AdminView({
                         )
                       }
                       placeholder="1499"
+                      style={
+                        inputStyle
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      24 Hour Price
+                    </label>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={
+                        carForm.price24
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setCarForm(
+                          (
+                            prev
+                          ) => ({
+                            ...prev,
+                            price24:
+                              e
+                                .target
+                                .value,
+                          })
+                        )
+                      }
+                      placeholder="2499"
                       style={
                         inputStyle
                       }
@@ -5484,7 +5613,7 @@ function App() {
      SAVE DATA
   ------------------------------------------------ */
 
-    useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
         const [c, ci, b] = await Promise.all([
@@ -5516,6 +5645,10 @@ function App() {
 
       ...data,
     };
+
+    insertBooking(booking).catch((err) =>
+      console.error(err)
+    );
 
     setBookings(
       (prev) => [
