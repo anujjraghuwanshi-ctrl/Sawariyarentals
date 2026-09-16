@@ -5483,26 +5483,22 @@ function App() {
      SAVE DATA
   ------------------------------------------------ */
 
-  useEffect(() => {
-    saveShared(
-      "sawariya_cars",
-      cars
-    );
-  }, [cars]);
-
-  useEffect(() => {
-    saveShared(
-      "sawariya_cities",
-      cities
-    );
-  }, [cities]);
-
-  useEffect(() => {
-    saveShared(
-      "sawariya_bookings",
-      bookings
-    );
-  }, [bookings]);
+    useEffect(() => {
+    (async () => {
+      try {
+        const [c, ci, b] = await Promise.all([
+          fetchCars(),
+          fetchCities(),
+          fetchBookings(),
+        ]);
+        setCars(c);
+        if (ci.length) setCities(ci);
+        if (b.length) setBookings(b);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
 
   /* -----------------------------------------------
      CONFIRM BOOKING
