@@ -7,6 +7,12 @@ export const supabase = createClient(
 
 const BUCKET = "Cars";
 
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
 function fromRow(row) {
   return {
     id: row.id,
@@ -17,6 +23,7 @@ function fromRow(row) {
     transmission: row.transmission,
     price8: Number(row.price_8h || 0),
     price12: Number(row.price_12h || 0),
+    price24: Number(row.price_24h || 0),
     city: row.city,
     photos: row.photos || [],
     available: row.available !== false,
@@ -24,8 +31,7 @@ function fromRow(row) {
 }
 
 function toRow(car) {
-  return {
-    id: car.id,
+  const row = {
     name: car.name,
     type: car.type,
     seats: Number(car.seats || 0),
@@ -33,10 +39,13 @@ function toRow(car) {
     transmission: car.transmission,
     price_8h: Number(car.price8 || 0),
     price_12h: Number(car.price12 || car.price || 0),
+    price_24h: Number(car.price24 || 0),
     city: car.city,
     photos: car.photos || [],
     available: car.available !== false,
   };
+  if (isUuid(car.id)) row.id = car.id;
+  return row;
 }
 
 export async function fetchCars() {
@@ -46,8 +55,13 @@ export async function fetchCars() {
 }
 
 export async function upsertCar(car) {
-  const { error } = await supabase.from("vehicles").upsert(toRow(car));
+  const { data, error } = await supabase
+    .from("vehicles")
+    .upsert(toRow(car))
+    .select("id")
+    .single();
   if (error) throw error;
+  return data?.id;
 }
 
 export async function deleteCar(id) {
@@ -62,30 +76,45 @@ export async function fetchCities() {
 }
 
 export async function upsertCity(city) {
-  const { error } = await supabase.from("cities").upsert({
-    id: city.id,
+  const row = {
     name: city.name,
     active: city.active !== false,
-  });
+  };
+  if (isUuid(city.id)) row.id = city.id;
+  const { error } = await supabase.from("cities").upsert(row);
   if (error) throw error;
 }
 
 export async function fetchBookings() {
   const { data, error } = await supabase.from("bookings").select("*");
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => ({
+    id: row.id,
+    carId: row.vehicle_id,
+    carName: row.car_name || "",
+    name: row.customer_name,
+    phone: row.phone,
+    rentalDuration: row.hours,
+    hours: row.hours,
+    total: Number(row.amount || 0),
+    paidAmount: Number(row.amount || 0),
+    remainingAmount: 0,
+    payment_status: row.payment_status,
+    status: row.payment_status || "pending",
+  }));
 }
 
 export async function insertBooking(b) {
-  const { error } = await supabase.from("bookings").insert({
-    id: b.id,
-    vehicle_id: b.carId || b.vehicle_id || null,
+  const row = {
     customer_name: b.name || b.customer_name,
     phone: b.phone,
-    hours: Number(b.hours || 0),
-    amount: Number(b.amount || b.total || 0),
+    hours: Number(b.hours || b.rentalDuration || 0),
+    amount: Number(b.amount || b.total || b.paidAmount || 0),
     payment_status: b.payment_status || b.status || "pending",
-  });
+  };
+  if (isUuid(b.id)) row.id = b.id;
+  if (isUuid(b.carId || b.vehicle_id)) row.vehicle_id = b.carId || b.vehicle_id;
+  const { error } = await supabase.from("bookings").insert(row);
   if (error) throw error;
 }
 
