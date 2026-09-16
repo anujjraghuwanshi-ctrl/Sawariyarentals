@@ -3065,7 +3065,7 @@ function AdminView({
     );
   }
 
-  function deleteCar(id) {
+    async function deleteCar(id) {
     const car =
       cars.find(
         (item) =>
