@@ -107,25 +107,59 @@ function CarThumb({ car }) {
     SUV: "from-[#30353F] to-[#15171C]",
     MUV: "from-[#3B3530] to-[#17191D]",
     Hatchback: "from-[#343C3C] to-[#17191D]",
+    Sedan: "from-[#30353F] to-[#15171C]",
   };
+
   return (
-    <div className={`relative h-44 overflow-hidden rounded-2xl bg-gradient-to-br ${gradients[car.type] || gradients.SUV}`}>
-      <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(circle at 70% 30%, #E3A73B 0, transparent 34%)" }} />
-      <div className="absolute bottom-8 left-1/2 w-[78%] -translate-x-1/2">
-        <div className="relative h-14 rounded-[45%] bg-[#0D0F13] shadow-[0_14px_30px_rgba(0,0,0,.55)]">
-          <div className="absolute left-[18%] top-[-22px] h-12 w-[52%] rounded-t-[70%] bg-[#20242C] border border-[#4B505B]">
-            <div className="absolute left-2 top-2 h-7 w-[45%] rounded-tl-[70%] bg-[#66717B]/50" />
-            <div className="absolute right-2 top-2 h-7 w-[45%] rounded-tr-[70%] bg-[#66717B]/50" />
+    <div
+      className={`relative h-44 overflow-hidden rounded-2xl bg-gradient-to-br ${
+        gradients[car.type] || gradients.SUV
+      }`}
+    >
+      {car.image ? (
+        <>
+          <img
+            src={car.image}
+            alt={car.name}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+          <div className="absolute bottom-3 left-4 text-[10px] font-bold tracking-[.24em] text-white">
+            SAWARIYA • {car.type.toUpperCase()}
           </div>
-          <div className="absolute left-[8%] top-4 h-3 w-7 rounded-full bg-[#E3A73B]" />
-          <div className="absolute right-[8%] top-4 h-3 w-7 rounded-full bg-[#B3452D]" />
-          <div className="absolute -bottom-3 left-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
-          <div className="absolute -bottom-3 right-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
-        </div>
-      </div>
-      <div className="absolute bottom-3 left-4 text-[10px] font-bold tracking-[.24em] text-[#C9CBD0]">
-        SAWARIYA • {car.type.toUpperCase()}
-      </div>
+        </>
+      ) : (
+        <>
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              background:
+                "radial-gradient(circle at 70% 30%, #E3A73B 0, transparent 34%)",
+            }}
+          />
+
+          <div className="absolute bottom-8 left-1/2 w-[78%] -translate-x-1/2">
+            <div className="relative h-14 rounded-[45%] bg-[#0D0F13] shadow-[0_14px_30px_rgba(0,0,0,.55)]">
+              <div className="absolute left-[18%] top-[-22px] h-12 w-[52%] rounded-t-[70%] border border-[#4B505B] bg-[#20242C]">
+                <div className="absolute left-2 top-2 h-7 w-[45%] rounded-tl-[70%] bg-[#66717B]/50" />
+                <div className="absolute right-2 top-2 h-7 w-[45%] rounded-tr-[70%] bg-[#66717B]/50" />
+              </div>
+
+              <div className="absolute left-[8%] top-4 h-3 w-7 rounded-full bg-[#E3A73B]" />
+              <div className="absolute right-[8%] top-4 h-3 w-7 rounded-full bg-[#B3452D]" />
+
+              <div className="absolute -bottom-3 left-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
+              <div className="absolute -bottom-3 right-[14%] h-7 w-7 rounded-full border-4 border-[#22252B] bg-[#090A0D]" />
+            </div>
+          </div>
+
+          <div className="absolute bottom-3 left-4 text-[10px] font-bold tracking-[.24em] text-[#C9CBD0]">
+            SAWARIYA • {car.type.toUpperCase()}
+          </div>
+        </>
+      )}
     </div>
   );
 }
