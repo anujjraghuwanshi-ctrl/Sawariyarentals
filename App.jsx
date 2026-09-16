@@ -395,6 +395,7 @@ function BookingModal({ car, onClose, onConfirm }) {
             </div>
             <button onClick={onClose} className="saw-button mt-6 w-full rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Done</button>
           </div>
+        </div>
         )}
       </div>
     </div>
