@@ -294,25 +294,6 @@ function BookingModal({ car, onClose, onConfirm }) {
     alert("Unable to start payment. Please try again.");
   }
 };
-    onConfirm({
-      id: uid("booking"),
-      carId: car.id,
-      carName: car.name,
-      city: car.city,
-      customer: name.trim(),
-      phone: phone.trim(),
-      startDate,
-      endDate,
-      days: totalDays,
-      total,
-      status: "confirmed",
-      createdAt: new Date().toISOString(),
-    });
-    setDone(true);
-  };
-
-  return (
-    <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-6">
       <div className="saw-modal-panel-upgraded max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-[#383C46] bg-[#1E212A] shadow-2xl sm:max-w-xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2B2E38] bg-[#1E212A]/95 px-5 py-4 backdrop-blur">
           <div>
