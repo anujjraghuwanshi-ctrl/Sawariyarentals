@@ -1,28 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
   MapPin,
-  Calendar,
   Phone,
   User,
   Plus,
   Trash2,
-  Check,
   X,
   Fuel,
   Settings2,
   LayoutDashboard,
   KeyRound,
   LogOut,
-  ChevronRight,
   Clock3,
-  CircleDollarSign,
   Search,
-  Menu,
   ShieldCheck,
-  Gauge,
   ArrowRight,
   RotateCcw,
+  ImagePlus,
+  Camera,
 } from "lucide-react";
 
 const C = {
@@ -41,33 +37,111 @@ const C = {
 const ADMIN_PASSCODE = "sawariya123";
 
 const seedCars = [
-  { id: "car-1", name: "Maruti Swift", city: "Indore", type: "Hatchback", price: 1400, fuel: "Petrol", transmission: "Manual", seats: 5, status: "available" },
-  { id: "car-2", name: "Hyundai i20", city: "Indore", type: "Hatchback", price: 1600, fuel: "Petrol", transmission: "Manual", seats: 5, status: "available" },
-  { id: "car-3", name: "Mahindra Thar", city: "Indore", type: "SUV", price: 3200, fuel: "Diesel", transmission: "Manual", seats: 4, status: "rented" },
-  { id: "car-4", name: "Kia Seltos", city: "Ujjain", type: "SUV", price: 2800, fuel: "Petrol", transmission: "Automatic", seats: 5, status: "available" },
-  { id: "car-5", name: "Toyota Innova Crysta", city: "Indore", type: "MUV", price: 3600, fuel: "Diesel", transmission: "Manual", seats: 7, status: "available" },
-  { id: "car-6", name: "Renault Kwid", city: "Ujjain", type: "Hatchback", price: 1100, fuel: "Petrol", transmission: "Manual", seats: 5, status: "available" },
+  {
+    id: "car-1",
+    name: "Maruti Swift",
+    city: "Indore",
+    type: "Hatchback",
+    price: 1400,
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 5,
+    status: "available",
+  },
+  {
+    id: "car-2",
+    name: "Hyundai i20",
+    city: "Indore",
+    type: "Hatchback",
+    price: 1600,
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 5,
+    status: "available",
+  },
+  {
+    id: "car-3",
+    name: "Mahindra Thar",
+    city: "Indore",
+    type: "SUV",
+    price: 3200,
+    fuel: "Diesel",
+    transmission: "Manual",
+    seats: 4,
+    status: "rented",
+  },
+  {
+    id: "car-4",
+    name: "Kia Seltos",
+    city: "Ujjain",
+    type: "SUV",
+    price: 2800,
+    fuel: "Petrol",
+    transmission: "Automatic",
+    seats: 5,
+    status: "available",
+  },
+  {
+    id: "car-5",
+    name: "Toyota Innova Crysta",
+    city: "Indore",
+    type: "MUV",
+    price: 3600,
+    fuel: "Diesel",
+    transmission: "Manual",
+    seats: 7,
+    status: "available",
+  },
+  {
+    id: "car-6",
+    name: "Renault Kwid",
+    city: "Ujjain",
+    type: "Hatchback",
+    price: 1100,
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 5,
+    status: "available",
+  },
 ];
 
 const seedCities = ["Indore", "Ujjain"];
 
-const uid = (prefix = "id") => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const fmtINR = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const uid = (prefix = "id") =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const fmtINR = (n) =>
+  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
 const addDaysISO = (date, days) => {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 };
-const daysBetween = (a, b) => Math.max(1, Math.ceil((new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`)) / 86400000));
+
+const daysBetween = (a, b) =>
+  Math.max(
+    1,
+    Math.ceil(
+      (new Date(`${b}T00:00:00`) -
+        new Date(`${a}T00:00:00`)) /
+        86400000
+    )
+  );
 
 async function loadShared(key, fallback) {
   try {
     if (window.storage?.get) {
       const result = await window.storage.get(key, true);
-      if (result?.value) return JSON.parse(result.value);
+
+      if (result?.value) {
+        return JSON.parse(result.value);
+      }
     }
   } catch {}
+
   try {
     const raw = localStorage.getItem(`sawariya:${key}`);
     return raw ? JSON.parse(raw) : fallback;
@@ -79,28 +153,60 @@ async function loadShared(key, fallback) {
 async function saveShared(key, value) {
   try {
     if (window.storage?.set) {
-      await window.storage.set(key, JSON.stringify(value), true);
+      await window.storage.set(
+        key,
+        JSON.stringify(value),
+        true
+      );
       return;
     }
   } catch {}
+
   try {
-    localStorage.setItem(`sawariya:${key}`, JSON.stringify(value));
+    localStorage.setItem(
+      `sawariya:${key}`,
+      JSON.stringify(value)
+    );
   } catch {}
 }
 
+/* =========================
+   BADGE
+========================= */
+
 function Badge({ children, tone = "gold" }) {
   const styles = {
-    gold: { background: "#3A2D16", color: C.highway },
-    green: { background: "#213126", color: "#A9D0AE" },
-    red: { background: "#3A201B", color: "#F1A28F" },
-    gray: { background: "#292C34", color: "#C9CBD0" },
+    gold: {
+      background: "#3A2D16",
+      color: C.highway,
+    },
+    green: {
+      background: "#213126",
+      color: "#A9D0AE",
+    },
+    red: {
+      background: "#3A201B",
+      color: "#F1A28F",
+    },
+    gray: {
+      background: "#292C34",
+      color: "#C9CBD0",
+    },
   };
+
   return (
-    <span className="rounded-full px-2.5 py-1 text-xs font-semibold" style={styles[tone]}>
+    <span
+      className="rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={styles[tone]}
+    >
       {children}
     </span>
   );
 }
+
+/* =========================
+   CAR IMAGE
+========================= */
 
 function CarThumb({ car }) {
   const gradients = {
@@ -164,73 +270,145 @@ function CarThumb({ car }) {
   );
 }
 
+/* =========================
+   CAR CARD
+========================= */
+
 function CarCard({ car, onBook, index }) {
   return (
     <article
       className="saw-card-enter saw-card-interactive overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]"
-      style={{ animationDelay: `${index * 70}ms` }}
+      style={{
+        animationDelay: `${index * 70}ms`,
+      }}
     >
       <CarThumb car={car} />
+
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <h3 className="font-display text-2xl tracking-wide text-[#F2EDE1]">{car.name}</h3>
-              <Badge tone={car.status === "available" ? "green" : "red"}>
-                {car.status === "available" ? "AVAILABLE" : "RENTED"}
+              <h3 className="font-display text-2xl tracking-wide text-[#F2EDE1]">
+                {car.name}
+              </h3>
+
+              <Badge
+                tone={
+                  car.status === "available"
+                    ? "green"
+                    : "red"
+                }
+              >
+                {car.status === "available"
+                  ? "AVAILABLE"
+                  : "RENTED"}
               </Badge>
             </div>
+
             <div className="flex items-center gap-1 text-sm text-[#9FA4AE]">
-              <MapPin size={14} /> {car.city}
+              <MapPin size={14} />
+              {car.city}
             </div>
           </div>
+
           <div className="text-right">
-            <div className="font-display text-2xl text-[#E3A73B]">{fmtINR(car.price)}</div>
-            <div className="text-xs text-[#8A8F98]">per day</div>
+            <div className="font-display text-2xl text-[#E3A73B]">
+              {fmtINR(car.price)}
+            </div>
+
+            <div className="text-xs text-[#8A8F98]">
+              per day
+            </div>
           </div>
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2 border-y border-[#2B2E38] py-4 text-xs text-[#B9BDC5]">
-          <div className="flex items-center gap-1.5"><Fuel size={14} />{car.fuel}</div>
-          <div className="flex items-center gap-1.5"><Settings2 size={14} />{car.transmission}</div>
-          <div className="flex items-center gap-1.5"><User size={14} />{car.seats} seats</div>
+          <div className="flex items-center gap-1.5">
+            <Fuel size={14} />
+            {car.fuel}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Settings2 size={14} />
+            {car.transmission}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <User size={14} />
+            {car.seats} seats
+          </div>
         </div>
 
         <button
           disabled={car.status !== "available"}
           onClick={() => onBook(car)}
           className="saw-button mt-5 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 font-bold disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: car.status === "available" ? C.highway : C.line, color: C.ink }}
+          style={{
+            background:
+              car.status === "available"
+                ? C.highway
+                : C.line,
+            color: C.ink,
+          }}
         >
-          {car.status === "available" ? <>Book this car <ArrowRight size={17} /></> : "Currently rented"}
+          {car.status === "available" ? (
+            <>
+              Book this car
+              <ArrowRight size={17} />
+            </>
+          ) : (
+            "Currently rented"
+          )}
         </button>
       </div>
     </article>
   );
 }
 
-function BookingModal({ car, onClose, onConfirm }) {
+/* =========================
+   BOOKING MODAL
+========================= */
+
+function BookingModal({
+  car,
+  onClose,
+  onConfirm,
+}) {
   const [step, setStep] = useState(1);
-  const [startDate, setStartDate] = useState(todayISO());
-  const [endDate, setEndDate] = useState(addDaysISO(todayISO(), 1));
+  const [startDate, setStartDate] = useState(
+    todayISO()
+  );
+  const [endDate, setEndDate] = useState(
+    addDaysISO(todayISO(), 1)
+  );
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [done, setDone] = useState(false);
   const [paying, setPaying] = useState(false);
 
-  const totalDays = daysBetween(startDate, endDate);
+  const totalDays = daysBetween(
+    startDate,
+    endDate
+  );
+
   const total = totalDays * car.price;
 
   const next = () => {
     if (step === 1) {
-      if (new Date(endDate) < new Date(startDate)) {
-        alert("End date cannot be before start date.");
+      if (
+        new Date(endDate) <
+        new Date(startDate)
+      ) {
+        alert(
+          "End date cannot be before start date."
+        );
         return;
       }
     }
 
     if (step === 2) {
-      const cleanPhone = phone.replace(/\D/g, "");
+      const cleanPhone =
+        phone.replace(/\D/g, "");
 
       if (!name.trim()) {
         alert("Please enter your name.");
@@ -238,12 +416,16 @@ function BookingModal({ car, onClose, onConfirm }) {
       }
 
       if (cleanPhone.length < 10) {
-        alert("Please enter a valid 10-digit phone number.");
+        alert(
+          "Please enter a valid 10-digit phone number."
+        );
         return;
       }
     }
 
-    setStep((current) => Math.min(3, current + 1));
+    setStep((current) =>
+      Math.min(3, current + 1)
+    );
   };
 
   const confirm = async () => {
@@ -252,85 +434,114 @@ function BookingModal({ car, onClose, onConfirm }) {
     try {
       setPaying(true);
 
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      const razorpayKey =
+        import.meta.env.VITE_RAZORPAY_KEY_ID;
 
       if (!razorpayKey) {
-        throw new Error("Razorpay key is missing.");
+        throw new Error(
+          "Razorpay key is missing."
+        );
       }
 
       if (!window.Razorpay) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
+        await new Promise(
+          (resolve, reject) => {
+            const script =
+              document.createElement("script");
 
-          script.src =
-            "https://checkout.razorpay.com/v1/checkout.js";
+            script.src =
+              "https://checkout.razorpay.com/v1/checkout.js";
 
-          script.onload = resolve;
-          script.onerror = reject;
+            script.onload = resolve;
+            script.onerror = reject;
 
-          document.body.appendChild(script);
-        });
+            document.body.appendChild(
+              script
+            );
+          }
+        );
       }
 
       if (!window.Razorpay) {
-        throw new Error("Razorpay could not be loaded.");
+        throw new Error(
+          "Razorpay could not be loaded."
+        );
       }
 
-      const orderResponse = await fetch("/api/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: total,
-          receipt: `booking_${Date.now()}`,
-        }),
-      });
+      const orderResponse = await fetch(
+        "/api/create-order",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            amount: total,
+            receipt: `booking_${Date.now()}`,
+          }),
+        }
+      );
 
-      const orderData = await orderResponse.json();
+      const orderData =
+        await orderResponse.json();
 
       if (!orderResponse.ok) {
         throw new Error(
-          orderData.error || "Unable to create payment order."
+          orderData.error ||
+            "Unable to create payment order."
         );
       }
 
       const options = {
         key: razorpayKey,
         amount: orderData.amount,
-        currency: orderData.currency || "INR",
+        currency:
+          orderData.currency || "INR",
         name: "SAWARIYA RENTALS",
         description: `${car.name} Rental`,
         order_id: orderData.orderId,
 
         prefill: {
           name: name.trim(),
-          contact: phone.replace(/\D/g, ""),
+          contact:
+            phone.replace(/\D/g, ""),
         },
 
         theme: {
           color: "#E3A73B",
         },
 
-        handler: async function (response) {
+        handler: async function (
+          response
+        ) {
           try {
-            const verifyResponse = await fetch(
-              "/api/verify-payment",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(response),
-              }
-            );
+            const verifyResponse =
+              await fetch(
+                "/api/verify-payment",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify(
+                    response
+                  ),
+                }
+              );
 
-            const verifyData = await verifyResponse.json();
+            const verifyData =
+              await verifyResponse.json();
 
-            if (!verifyResponse.ok || !verifyData.verified) {
+            if (
+              !verifyResponse.ok ||
+              !verifyData.verified
+            ) {
               alert(
                 "Payment verification failed. Please contact SAWARIYA RENTALS."
               );
+
               setPaying(false);
               return;
             }
@@ -341,16 +552,20 @@ function BookingModal({ car, onClose, onConfirm }) {
               carName: car.name,
               city: car.city,
               customer: name.trim(),
-              phone: phone.replace(/\D/g, ""),
+              phone:
+                phone.replace(/\D/g, ""),
               startDate,
               endDate,
               days: totalDays,
               total,
               status: "confirmed",
               paymentStatus: "paid",
-              paymentId: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              createdAt: new Date().toISOString(),
+              paymentId:
+                response.razorpay_payment_id,
+              orderId:
+                response.razorpay_order_id,
+              createdAt:
+                new Date().toISOString(),
             });
 
             setPaying(false);
@@ -370,16 +585,25 @@ function BookingModal({ car, onClose, onConfirm }) {
         },
       };
 
-      const razorpay = new window.Razorpay(options);
+      const razorpay =
+        new window.Razorpay(options);
 
-      razorpay.on("payment.failed", function () {
-        setPaying(false);
-        alert("Payment failed. Please try again.");
-      });
+      razorpay.on(
+        "payment.failed",
+        function () {
+          setPaying(false);
+          alert(
+            "Payment failed. Please try again."
+          );
+        }
+      );
 
       razorpay.open();
     } catch (error) {
-      console.error("Payment error:", error);
+      console.error(
+        "Payment error:",
+        error
+      );
 
       setPaying(false);
 
@@ -401,7 +625,7 @@ function BookingModal({ car, onClose, onConfirm }) {
             </h2>
 
             <p className="text-sm text-gray-400">
-              ₹{fmtINR(car.price)} / day
+              {fmtINR(car.price)} / day
             </p>
           </div>
 
@@ -418,29 +642,33 @@ function BookingModal({ car, onClose, onConfirm }) {
           <div className="p-5">
 
             <div className="mb-6 flex items-center justify-center gap-2">
-              {[1, 2, 3].map((number) => (
-                <React.Fragment key={number}>
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
-                      step >= number
-                        ? "bg-[#E3A73B] text-black"
-                        : "bg-[#30343F] text-gray-400"
-                    }`}
+              {[1, 2, 3].map(
+                (number) => (
+                  <React.Fragment
+                    key={number}
                   >
-                    {number}
-                  </div>
-
-                  {number < 3 && (
                     <div
-                      className={`h-1 w-10 rounded ${
-                        step > number
-                          ? "bg-[#E3A73B]"
-                          : "bg-[#30343F]"
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
+                        step >= number
+                          ? "bg-[#E3A73B] text-black"
+                          : "bg-[#30343F] text-gray-400"
                       }`}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
+                    >
+                      {number}
+                    </div>
+
+                    {number < 3 && (
+                      <div
+                        className={`h-1 w-10 rounded ${
+                          step > number
+                            ? "bg-[#E3A73B]"
+                            : "bg-[#30343F]"
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                )
+              )}
             </div>
 
             {step === 1 && (
@@ -466,12 +694,21 @@ function BookingModal({ car, onClose, onConfirm }) {
                       value={startDate}
                       min={todayISO()}
                       onChange={(e) => {
-                        const value = e.target.value;
+                        const value =
+                          e.target.value;
 
                         setStartDate(value);
 
-                        if (new Date(endDate) < new Date(value)) {
-                          setEndDate(addDaysISO(value, 1));
+                        if (
+                          new Date(endDate) <
+                          new Date(value)
+                        ) {
+                          setEndDate(
+                            addDaysISO(
+                              value,
+                              1
+                            )
+                          );
                         }
                       }}
                       className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
@@ -488,7 +725,9 @@ function BookingModal({ car, onClose, onConfirm }) {
                       value={endDate}
                       min={startDate}
                       onChange={(e) =>
-                        setEndDate(e.target.value)
+                        setEndDate(
+                          e.target.value
+                        )
                       }
                       className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white outline-none focus:border-[#E3A73B]"
                     />
@@ -503,7 +742,9 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                     <span className="font-bold text-white">
                       {totalDays}{" "}
-                      {totalDays === 1 ? "day" : "days"}
+                      {totalDays === 1
+                        ? "day"
+                        : "days"}
                     </span>
                   </div>
 
@@ -513,7 +754,7 @@ function BookingModal({ car, onClose, onConfirm }) {
                     </span>
 
                     <span className="text-xl font-bold text-[#E3A73B]">
-                      ₹{fmtINR(total)}
+                      {fmtINR(total)}
                     </span>
                   </div>
                 </div>
@@ -548,7 +789,9 @@ function BookingModal({ car, onClose, onConfirm }) {
                     type="text"
                     value={name}
                     onChange={(e) =>
-                      setName(e.target.value)
+                      setName(
+                        e.target.value
+                      )
                     }
                     placeholder="Enter your full name"
                     className="w-full rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3 text-white placeholder:text-gray-500 outline-none focus:border-[#E3A73B]"
@@ -564,7 +807,9 @@ function BookingModal({ car, onClose, onConfirm }) {
                     type="tel"
                     value={phone}
                     onChange={(e) =>
-                      setPhone(e.target.value)
+                      setPhone(
+                        e.target.value
+                      )
                     }
                     placeholder="Enter 10-digit phone number"
                     maxLength={15}
@@ -574,7 +819,9 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() =>
+                      setStep(1)
+                    }
                     className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945]"
                   >
                     Back
@@ -605,45 +852,66 @@ function BookingModal({ car, onClose, onConfirm }) {
                 <div className="space-y-3 rounded-2xl border border-[#454A56] bg-[#292D37] p-4">
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">Car</span>
+                    <span className="text-gray-400">
+                      Car
+                    </span>
+
                     <span className="text-right font-semibold text-white">
                       {car.name}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">City</span>
+                    <span className="text-gray-400">
+                      City
+                    </span>
+
                     <span className="text-right font-semibold text-white">
                       {car.city}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">Customer</span>
+                    <span className="text-gray-400">
+                      Customer
+                    </span>
+
                     <span className="text-right font-semibold text-white">
                       {name}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">Phone</span>
+                    <span className="text-gray-400">
+                      Phone
+                    </span>
+
                     <span className="text-right font-semibold text-white">
                       {phone}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">Dates</span>
+                    <span className="text-gray-400">
+                      Dates
+                    </span>
+
                     <span className="text-right font-semibold text-white">
-                      {startDate} → {endDate}
+                      {startDate} →{" "}
+                      {endDate}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-4">
-                    <span className="text-gray-400">Duration</span>
+                    <span className="text-gray-400">
+                      Duration
+                    </span>
+
                     <span className="text-right font-semibold text-white">
                       {totalDays}{" "}
-                      {totalDays === 1 ? "day" : "days"}
+                      {totalDays === 1
+                        ? "day"
+                        : "days"}
                     </span>
                   </div>
 
@@ -654,21 +922,21 @@ function BookingModal({ car, onClose, onConfirm }) {
                       </span>
 
                       <span className="text-2xl font-bold text-[#E3A73B]">
-                        ₹{fmtINR(total)}
+                        {fmtINR(total)}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-[#E3A73B]/30 bg-[#E3A73B]/10 p-4 text-sm text-gray-300">
-                  You will be redirected to the secure Razorpay
-                  payment window. Your booking will be confirmed
-                  only after payment is successfully verified.
+                  You will be redirected to the secure Razorpay payment window. Your booking will be confirmed only after payment is successfully verified.
                 </div>
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setStep(2)}
+                    onClick={() =>
+                      setStep(2)
+                    }
                     disabled={paying}
                     className="w-1/3 rounded-xl border border-[#454A56] bg-[#292D37] px-4 py-3.5 font-semibold text-white transition hover:bg-[#343945] disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -682,7 +950,9 @@ function BookingModal({ car, onClose, onConfirm }) {
                   >
                     {paying
                       ? "Opening Payment..."
-                      : `Pay ₹${fmtINR(total)}`}
+                      : `Pay ${fmtINR(
+                          total
+                        )}`}
                   </button>
                 </div>
               </div>
@@ -705,7 +975,9 @@ function BookingModal({ car, onClose, onConfirm }) {
             <div className="mt-6 rounded-2xl border border-[#454A56] bg-[#292D37] p-5 text-left">
 
               <div className="flex justify-between">
-                <span className="text-gray-400">Car</span>
+                <span className="text-gray-400">
+                  Car
+                </span>
 
                 <span className="font-semibold text-white">
                   {car.name}
@@ -729,7 +1001,9 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                 <span className="font-semibold text-white">
                   {totalDays}{" "}
-                  {totalDays === 1 ? "day" : "days"}
+                  {totalDays === 1
+                    ? "day"
+                    : "days"}
                 </span>
               </div>
 
@@ -739,7 +1013,7 @@ function BookingModal({ car, onClose, onConfirm }) {
                 </span>
 
                 <span className="font-bold text-green-400">
-                  ₹{fmtINR(total)}
+                  {fmtINR(total)}
                 </span>
               </div>
             </div>
@@ -756,115 +1030,455 @@ function BookingModal({ car, onClose, onConfirm }) {
     </div>
   );
 }
-function CustomerView({ cars, cities, onBook }) {
+
+/* =========================
+   CUSTOMER VIEW
+========================= */
+
+function CustomerView({
+  cars,
+  cities,
+  onBook,
+}) {
   const [city, setCity] = useState("All");
   const [type, setType] = useState("All");
   const [query, setQuery] = useState("");
 
-  const types = useMemo(() => ["All", ...Array.from(new Set(cars.map((c) => c.type)))], [cars]);
-  const filtered = useMemo(() => cars.filter((car) =>
-    (city === "All" || car.city === city) &&
-    (type === "All" || car.type === type) &&
-    car.name.toLowerCase().includes(query.toLowerCase())
-  ), [cars, city, type, query]);
+  const types = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(cars.map((c) => c.type))
+      ),
+    ],
+    [cars]
+  );
+
+  const filtered = useMemo(
+    () =>
+      cars.filter(
+        (car) =>
+          (city === "All" ||
+            car.city === city) &&
+          (type === "All" ||
+            car.type === type) &&
+          car.name
+            .toLowerCase()
+            .includes(
+              query.toLowerCase()
+            )
+      ),
+    [cars, city, type, query]
+  );
 
   return (
     <main className="saw-page-enter">
       <section className="relative overflow-hidden border-b border-[#2B2E38]">
-        <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(circle at 80% 20%, rgba(227,167,59,.18), transparent 30%), radial-gradient(circle at 20% 70%, rgba(58,107,107,.16), transparent 35%)" }} />
+        <div
+          className="absolute inset-0 opacity-70"
+          style={{
+            background:
+              "radial-gradient(circle at 80% 20%, rgba(227,167,59,.18), transparent 30%), radial-gradient(circle at 20% 70%, rgba(58,107,107,.16), transparent 35%)",
+          }}
+        />
+
         <div className="relative mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
           <div className="max-w-3xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#4B3A20] bg-[#2B2111] px-3 py-1.5 text-xs font-bold tracking-[.18em] text-[#E3A73B]">
-              <span className="saw-live-dot h-2 w-2 rounded-full bg-[#E3A73B]" /> 24×7 RENTALS
+              <span className="saw-live-dot h-2 w-2 rounded-full bg-[#E3A73B]" />
+              24×7 RENTALS
             </div>
-            <h1 className="font-display text-5xl leading-none tracking-wide text-[#F2EDE1] sm:text-7xl">SELF DRIVE.<br /><span className="text-[#E3A73B]">YOUR WAY.</span></h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#A9ADB6] sm:text-lg">Book cars in your city with SAWARIYA RENTALS. Simple booking, transparent daily rates, and a fleet built for the road.</p>
+
+            <h1 className="font-display text-5xl leading-none tracking-wide text-[#F2EDE1] sm:text-7xl">
+              SELF DRIVE.
+              <br />
+              <span className="text-[#E3A73B]">
+                YOUR WAY.
+              </span>
+            </h1>
+
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#A9ADB6] sm:text-lg">
+              Book cars in your city with SAWARIYA RENTALS. Simple booking, transparent daily rates, and a fleet built for the road.
+            </p>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
         <div className="grid gap-3 rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-3 sm:grid-cols-[1fr_auto_auto_auto]">
+
           <div className="flex items-center gap-2 rounded-2xl bg-[#14161C] px-3">
-            <Search size={18} className="text-[#8A8F98]" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search a car" className="w-full bg-transparent py-3 outline-none" />
+            <Search
+              size={18}
+              className="text-[#8A8F98]"
+            />
+
+            <input
+              value={query}
+              onChange={(e) =>
+                setQuery(e.target.value)
+              }
+              placeholder="Search a car"
+              className="w-full bg-transparent py-3 outline-none"
+            />
           </div>
-          <select value={city} onChange={(e) => setCity(e.target.value)} className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none">
+
+          <select
+            value={city}
+            onChange={(e) =>
+              setCity(e.target.value)
+            }
+            className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none"
+          >
             <option>All</option>
-            {cities.map((c) => <option key={c}>{c}</option>)}
+
+            {cities.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
           </select>
-          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none">
-            {types.map((t) => <option key={t}>{t}</option>)}
+
+          <select
+            value={type}
+            onChange={(e) =>
+              setType(e.target.value)
+            }
+            className="rounded-2xl bg-[#14161C] px-4 py-3 text-[#F2EDE1] outline-none"
+          >
+            {types.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
           </select>
-          <button onClick={() => { setCity("All"); setType("All"); setQuery(""); }} className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"><RotateCcw size={16} /> Reset</button>
+
+          <button
+            onClick={() => {
+              setCity("All");
+              setType("All");
+              setQuery("");
+            }}
+            className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"
+          >
+            <RotateCcw size={16} />
+            Reset
+          </button>
         </div>
 
         <div className="mb-5 mt-8 flex items-end justify-between">
           <div>
-            <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">FLEET</div>
-            <h2 className="font-display text-3xl">Available rides</h2>
+            <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">
+              FLEET
+            </div>
+
+            <h2 className="font-display text-3xl">
+              Available rides
+            </h2>
           </div>
-          <div className="text-sm text-[#8A8F98]">{filtered.length} vehicle{filtered.length !== 1 ? "s" : ""}</div>
+
+          <div className="text-sm text-[#8A8F98]">
+            {filtered.length} vehicle
+            {filtered.length !== 1
+              ? "s"
+              : ""}
+          </div>
         </div>
 
         {filtered.length ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((car, i) => <CarCard key={car.id} car={car} onBook={onBook} index={i} />)}
+            {filtered.map(
+              (car, i) => (
+                <CarCard
+                  key={car.id}
+                  car={car}
+                  onBook={onBook}
+                  index={i}
+                />
+              )
+            )}
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-[#3A3E48] p-12 text-center text-[#8A8F98]">No vehicles match your search.</div>
+          <div className="rounded-3xl border border-dashed border-[#3A3E48] p-12 text-center text-[#8A8F98]">
+            No vehicles match your search.
+          </div>
         )}
       </section>
     </main>
   );
 }
 
-function StatCard({ icon: Icon, label, value }) {
+/* =========================
+   STAT CARD
+========================= */
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}) {
   return (
     <div className="saw-stat-card rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-5">
       <div className="flex items-center justify-between">
-        <div className="rounded-2xl bg-[#14161C] p-3 text-[#E3A73B]"><Icon size={20} /></div>
-        <div className="font-display text-3xl">{value}</div>
+        <div className="rounded-2xl bg-[#14161C] p-3 text-[#E3A73B]">
+          <Icon size={20} />
+        </div>
+
+        <div className="font-display text-3xl">
+          {value}
+        </div>
       </div>
-      <div className="mt-4 text-sm text-[#8A8F98]">{label}</div>
+
+      <div className="mt-4 text-sm text-[#8A8F98]">
+        {label}
+      </div>
     </div>
   );
 }
 
-function AdminView({ cars, setCars, bookings, setBookings, cities, setCities, onLogout }) {
-  const [tab, setTab] = useState("fleet");
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", city: cities[0] || "", type: "Hatchback", price: "", fuel: "Petrol", transmission: "Manual", seats: 5 });
-  const available = cars.filter((c) => c.status === "available").length;
-  const rented = cars.filter((c) => c.status === "rented").length;
+/* =========================
+   ADMIN VIEW
+========================= */
+
+function AdminView({
+  cars,
+  setCars,
+  bookings,
+  setBookings,
+  cities,
+  setCities,
+  onLogout,
+}) {
+  const [tab, setTab] = useState(
+    "fleet"
+  );
+
+  const [showAdd, setShowAdd] =
+    useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    city: cities[0] || "",
+    type: "Hatchback",
+    price: "",
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 5,
+  });
+
+  const available = cars.filter(
+    (c) => c.status === "available"
+  ).length;
+
+  const rented = cars.filter(
+    (c) => c.status === "rented"
+  ).length;
+
+  /* =========================
+     PHOTO UPLOAD
+  ========================= */
+
+  const handlePhotoUpload = (
+    carId,
+    event
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert(
+        "Please select an image file."
+      );
+      return;
+    }
+
+    /*
+      Keep image sizes reasonable so
+      browser/storage doesn't become huge.
+    */
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(
+        "Please choose an image smaller than 5 MB."
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const imageData =
+        reader.result;
+
+      setCars((prev) =>
+        prev.map((car) =>
+          car.id === carId
+            ? {
+                ...car,
+                image: imageData,
+              }
+            : car
+        )
+      );
+    };
+
+    reader.onerror = () => {
+      alert(
+        "Unable to read the image. Please try another photo."
+      );
+    };
+
+    reader.readAsDataURL(file);
+
+    /*
+      Reset input so the same image
+      can be selected again later.
+    */
+
+    event.target.value = "";
+  };
+
+  const removePhoto = (carId) => {
+    const confirmed =
+      window.confirm(
+        "Remove this vehicle photo?"
+      );
+
+    if (!confirmed) return;
+
+    setCars((prev) =>
+      prev.map((car) =>
+        car.id === carId
+          ? {
+              ...car,
+              image: null,
+            }
+          : car
+      )
+    );
+  };
+
+  /* =========================
+     ADD VEHICLE
+  ========================= */
 
   const addVehicle = (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.price || !form.city) return;
-    setCars((prev) => [...prev, { ...form, id: uid("car"), price: Number(form.price), seats: Number(form.seats), status: "available" }]);
+
+    if (
+      !form.name.trim() ||
+      !form.price ||
+      !form.city
+    ) {
+      return;
+    }
+
+    setCars((prev) => [
+      ...prev,
+      {
+        ...form,
+        id: uid("car"),
+        price: Number(form.price),
+        seats: Number(form.seats),
+        status: "available",
+        image: null,
+      },
+    ]);
+
     setShowAdd(false);
-    setForm({ name: "", city: cities[0] || "", type: "Hatchback", price: "", fuel: "Petrol", transmission: "Manual", seats: 5 });
+
+    setForm({
+      name: "",
+      city: cities[0] || "",
+      type: "Hatchback",
+      price: "",
+      fuel: "Petrol",
+      transmission: "Manual",
+      seats: 5,
+    });
   };
 
-  const removeCar = (id) => setCars((prev) => prev.filter((c) => c.id !== id));
-  const toggleStatus = (id) => setCars((prev) => prev.map((c) => c.id === id ? { ...c, status: c.status === "available" ? "rented" : "available" } : c));
-  const bookingStatus = (id, status) => setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
+  const removeCar = (id) =>
+    setCars((prev) =>
+      prev.filter(
+        (c) => c.id !== id
+      )
+    );
+
+  const toggleStatus = (id) =>
+    setCars((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              status:
+                c.status ===
+                "available"
+                  ? "rented"
+                  : "available",
+            }
+          : c
+      )
+    );
+
+  const bookingStatus = (
+    id,
+    status
+  ) =>
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              status,
+            }
+          : b
+      )
+    );
 
   return (
     <main className="saw-page-enter mx-auto max-w-7xl px-5 py-8 sm:px-8">
+
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">ADMIN CONSOLE</div>
-          <h1 className="font-display text-4xl">Fleet control</h1>
-          <p className="mt-1 text-[#8A8F98]">Manage vehicles, bookings and operating cities.</p>
+          <div className="text-xs font-bold tracking-[.2em] text-[#E3A73B]">
+            ADMIN CONSOLE
+          </div>
+
+          <h1 className="font-display text-4xl">
+            Fleet control
+          </h1>
+
+          <p className="mt-1 text-[#8A8F98]">
+            Manage vehicles, photos, bookings and operating cities.
+          </p>
         </div>
-        <button onClick={onLogout} className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"><LogOut size={17} /> Exit admin</button>
+
+        <button
+          onClick={onLogout}
+          className="saw-button flex items-center justify-center gap-2 rounded-2xl border border-[#3A3E48] px-4 py-3 font-semibold"
+        >
+          <LogOut size={17} />
+          Exit admin
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard icon={Car} label="Total vehicles" value={cars.length} />
-        <StatCard icon={ShieldCheck} label="Available now" value={available} />
-        <StatCard icon={Clock3} label="Currently rented" value={rented} />
+        <StatCard
+          icon={Car}
+          label="Total vehicles"
+          value={cars.length}
+        />
+
+        <StatCard
+          icon={ShieldCheck}
+          label="Available now"
+          value={available}
+        />
+
+        <StatCard
+          icon={Clock3}
+          label="Currently rented"
+          value={rented}
+        />
       </div>
 
       <div className="mt-8 flex gap-2 overflow-x-auto rounded-2xl bg-[#1E212A] p-2">
@@ -872,102 +1486,580 @@ function AdminView({ cars, setCars, bookings, setBookings, cities, setCities, on
           ["fleet", "Fleet"],
           ["bookings", "Bookings"],
           ["cities", "Cities"],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${tab === key ? "bg-[#E3A73B] text-[#14161C]" : "text-[#9FA4AE]"}`}>{label}</button>
-        ))}
+        ].map(
+          ([key, label]) => (
+            <button
+              key={key}
+              onClick={() =>
+                setTab(key)
+              }
+              className={`rounded-xl px-4 py-2.5 text-sm font-bold ${
+                tab === key
+                  ? "bg-[#E3A73B] text-[#14161C]"
+                  : "text-[#9FA4AE]"
+              }`}
+            >
+              {label}
+            </button>
+          )
+        )}
       </div>
+
+      {/* =========================
+          FLEET
+      ========================= */}
 
       {tab === "fleet" && (
         <section className="mt-5 overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]">
+
           <div className="flex items-center justify-between border-b border-[#2B2E38] p-5">
-            <h2 className="font-display text-2xl">Vehicles</h2>
-            <button onClick={() => setShowAdd(true)} className="saw-button flex items-center gap-2 rounded-xl px-4 py-2.5 font-bold" style={{ background: C.highway, color: C.ink }}><Plus size={17} /> Add vehicle</button>
+            <div>
+              <h2 className="font-display text-2xl">
+                Vehicles
+              </h2>
+
+              <p className="mt-1 text-sm text-[#8A8F98]">
+                Add and manage your vehicle photos.
+              </p>
+            </div>
+
+            <button
+              onClick={() =>
+                setShowAdd(true)
+              }
+              className="saw-button flex items-center gap-2 rounded-xl px-4 py-2.5 font-bold"
+              style={{
+                background: C.highway,
+                color: C.ink,
+              }}
+            >
+              <Plus size={17} />
+              <span className="hidden sm:inline">
+                Add vehicle
+              </span>
+              <span className="sm:hidden">
+                Add
+              </span>
+            </button>
           </div>
+
           <div className="divide-y divide-[#2B2E38]">
+
             {cars.map((car) => (
-              <div key={car.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-2xl bg-[#14161C] p-3"><Car size={20} className="text-[#E3A73B]" /></div>
-                  <div>
-                    <div className="font-bold">{car.name}</div>
-                    <div className="text-sm text-[#8A8F98]">{car.city} • {car.type} • {fmtINR(car.price)}/day</div>
+              <div
+                key={car.id}
+                className="p-5"
+              >
+
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+
+                  {/* VEHICLE INFO */}
+
+                  <div className="flex min-w-0 items-center gap-4">
+
+                    <div className="h-20 w-28 shrink-0 overflow-hidden rounded-2xl border border-[#3A3E48] bg-[#14161C]">
+
+                      {car.image ? (
+                        <img
+                          src={car.image}
+                          alt={car.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center text-[#8A8F98]">
+                          <Camera size={22} />
+                          <span className="mt-1 text-[10px]">
+                            No photo
+                          </span>
+                        </div>
+                      )}
+
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-bold">
+                          {car.name}
+                        </div>
+
+                        <Badge
+                          tone={
+                            car.status ===
+                            "available"
+                              ? "green"
+                              : "red"
+                          }
+                        >
+                          {car.status}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-1 text-sm text-[#8A8F98]">
+                        {car.city} •{" "}
+                        {car.type} •{" "}
+                        {fmtINR(
+                          car.price
+                        )}
+                        /day
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* ACTIONS */}
+
+                  <div className="flex flex-wrap items-center gap-2">
+
+                    {/* HIDDEN FILE INPUT */}
+
+                    <label className="saw-button flex cursor-pointer items-center gap-2 rounded-xl border border-[#3A3E48] bg-[#14161C] px-3 py-2.5 text-sm font-bold text-white transition hover:bg-[#292D37]">
+
+                      {car.image ? (
+                        <Camera size={16} />
+                      ) : (
+                        <ImagePlus size={16} />
+                      )}
+
+                      {car.image
+                        ? "Change Photo"
+                        : "Add Photo"}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handlePhotoUpload(
+                            car.id,
+                            e
+                          )
+                        }
+                      />
+                    </label>
+
+                    {car.image && (
+                      <button
+                        onClick={() =>
+                          removePhoto(
+                            car.id
+                          )
+                        }
+                        className="rounded-xl border border-[#3A3E48] p-2.5 text-[#B3452D] transition hover:bg-[#2B2E38]"
+                        title="Remove photo"
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() =>
+                        toggleStatus(
+                          car.id
+                        )
+                      }
+                      className="saw-button"
+                      title="Change vehicle status"
+                    >
+                      <Badge
+                        tone={
+                          car.status ===
+                          "available"
+                            ? "green"
+                            : "red"
+                        }
+                      >
+                        {car.status}
+                      </Badge>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        removeCar(
+                          car.id
+                        )
+                      }
+                      className="rounded-xl border border-[#3A3E48] p-2.5 text-[#B3452D] transition hover:bg-[#2B2E38]"
+                      title="Delete vehicle"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => toggleStatus(car.id)} className="saw-button"><Badge tone={car.status === "available" ? "green" : "red"}>{car.status}</Badge></button>
-                  <button onClick={() => removeCar(car.id)} className="rounded-xl border border-[#3A3E48] p-2.5 text-[#B3452D] hover:bg-[#2B2E38]"><Trash2 size={17} /></button>
+
+                {/* PHOTO STATUS */}
+
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-[#14161C] px-3 py-2 text-xs text-[#8A8F98]">
+                  {car.image ? (
+                    <>
+                      <ShieldCheck
+                        size={14}
+                        className="text-green-400"
+                      />
+                      Vehicle photo added — customers can see this photo.
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus
+                        size={14}
+                        className="text-[#E3A73B]"
+                      />
+                      No photo added yet. Tap “Add Photo” to upload one.
+                    </>
+                  )}
                 </div>
+
               </div>
             ))}
+
           </div>
         </section>
       )}
+
+      {/* =========================
+          BOOKINGS
+      ========================= */}
 
       {tab === "bookings" && (
         <section className="mt-5 overflow-hidden rounded-3xl border border-[#2B2E38] bg-[#1E212A]">
-          <div className="border-b border-[#2B2E38] p-5"><h2 className="font-display text-2xl">Bookings</h2></div>
+
+          <div className="border-b border-[#2B2E38] p-5">
+            <h2 className="font-display text-2xl">
+              Bookings
+            </h2>
+          </div>
+
           {bookings.length ? (
             <div className="divide-y divide-[#2B2E38]">
-              {bookings.slice().reverse().map((b) => (
-                <div key={b.id} className="p-5">
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row">
-                    <div>
-                      <div className="font-bold">{b.carName} • {b.customer}</div>
-                      <div className="mt-1 text-sm text-[#8A8F98]">{b.city} • {b.startDate} → {b.endDate} • {b.phone}</div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <div className="font-display text-xl text-[#E3A73B]">{fmtINR(b.total)}</div>
-                      <select value={b.status} onChange={(e) => bookingStatus(b.id, e.target.value)} className="mt-1 rounded-lg bg-[#14161C] px-2 py-1 text-xs">
-                        <option value="confirmed">confirmed</option>
-                        <option value="completed">completed</option>
-                        <option value="cancelled">cancelled</option>
-                      </select>
+
+              {bookings
+                .slice()
+                .reverse()
+                .map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-5"
+                  >
+
+                    <div className="flex flex-col justify-between gap-3 sm:flex-row">
+
+                      <div>
+                        <div className="font-bold">
+                          {b.carName} •{" "}
+                          {b.customer}
+                        </div>
+
+                        <div className="mt-1 text-sm text-[#8A8F98]">
+                          {b.city} •{" "}
+                          {b.startDate} →{" "}
+                          {b.endDate} •{" "}
+                          {b.phone}
+                        </div>
+
+                        {b.paymentId && (
+                          <div className="mt-1 text-xs text-[#6F747D]">
+                            Payment ID:{" "}
+                            {b.paymentId}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-left sm:text-right">
+
+                        <div className="font-display text-xl text-[#E3A73B]">
+                          {fmtINR(
+                            b.total
+                          )}
+                        </div>
+
+                        <select
+                          value={b.status}
+                          onChange={(e) =>
+                            bookingStatus(
+                              b.id,
+                              e.target.value
+                            )
+                          }
+                          className="mt-1 rounded-lg bg-[#14161C] px-2 py-1 text-xs"
+                        >
+                          <option value="confirmed">
+                            confirmed
+                          </option>
+
+                          <option value="completed">
+                            completed
+                          </option>
+
+                          <option value="cancelled">
+                            cancelled
+                          </option>
+                        </select>
+
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+
             </div>
-          ) : <div className="p-10 text-center text-[#8A8F98]">No bookings yet.</div>}
+          ) : (
+            <div className="p-10 text-center text-[#8A8F98]">
+              No bookings yet.
+            </div>
+          )}
         </section>
       )}
 
+      {/* =========================
+          CITIES
+      ========================= */}
+
       {tab === "cities" && (
         <section className="mt-5 rounded-3xl border border-[#2B2E38] bg-[#1E212A] p-5">
-          <h2 className="font-display text-2xl">Cities</h2>
+
+          <h2 className="font-display text-2xl">
+            Cities
+          </h2>
+
           <div className="mt-4 flex flex-wrap gap-2">
+
             {cities.map((city) => (
-              <div key={city} className="flex items-center gap-2 rounded-full border border-[#3A3E48] bg-[#14161C] px-3 py-2">
-                <MapPin size={14} className="text-[#E3A73B]" /> {city}
-                <button onClick={() => setCities((prev) => prev.filter((c) => c !== city))} className="text-[#8A8F98] hover:text-[#B3452D]"><X size={14} /></button>
+              <div
+                key={city}
+                className="flex items-center gap-2 rounded-full border border-[#3A3E48] bg-[#14161C] px-3 py-2"
+              >
+                <MapPin
+                  size={14}
+                  className="text-[#E3A73B]"
+                />
+
+                {city}
+
+                <button
+                  onClick={() =>
+                    setCities(
+                      (prev) =>
+                        prev.filter(
+                          (c) =>
+                            c !== city
+                        )
+                    )
+                  }
+                  className="text-[#8A8F98] hover:text-[#B3452D]"
+                >
+                  <X size={14} />
+                </button>
               </div>
             ))}
+
           </div>
-          <form className="mt-5 flex gap-2" onSubmit={(e) => {
-            e.preventDefault();
-            const value = e.currentTarget.city.value.trim();
-            if (value && !cities.includes(value)) setCities((prev) => [...prev, value]);
-            e.currentTarget.reset();
-          }}>
-            <input name="city" placeholder="Add city" className="min-w-0 flex-1 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 outline-none" />
-            <button className="saw-button rounded-2xl px-4 font-bold" style={{ background: C.highway, color: C.ink }}>Add</button>
+
+          <form
+            className="mt-5 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              const value =
+                e.currentTarget.city.value.trim();
+
+              if (
+                value &&
+                !cities.includes(value)
+              ) {
+                setCities(
+                  (prev) => [
+                    ...prev,
+                    value,
+                  ]
+                );
+              }
+
+              e.currentTarget.reset();
+            }}
+          >
+            <input
+              name="city"
+              placeholder="Add city"
+              className="min-w-0 flex-1 rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 outline-none"
+            />
+
+            <button
+              className="saw-button rounded-2xl px-4 font-bold"
+              style={{
+                background:
+                  C.highway,
+                color: C.ink,
+              }}
+            >
+              Add
+            </button>
           </form>
         </section>
       )}
 
+      {/* =========================
+          ADD VEHICLE MODAL
+      ========================= */}
+
       {showAdd && (
         <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
-          <form onSubmit={addVehicle} className="saw-modal-panel-upgraded w-full max-w-lg rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-5 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between"><h2 className="font-display text-2xl">Add vehicle</h2><button type="button" onClick={() => setShowAdd(false)}><X /></button></div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input required placeholder="Vehicle name" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none sm:col-span-2" />
-              <select value={form.city} onChange={(e) => setForm({...form, city: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none">{cities.map((c) => <option key={c}>{c}</option>)}</select>
-              <select value={form.type} onChange={(e) => setForm({...form, type: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"><option>Hatchback</option><option>SUV</option><option>MUV</option><option>Sedan</option></select>
-              <input required type="number" min="1" placeholder="Price / day" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none" />
-              <select value={form.fuel} onChange={(e) => setForm({...form, fuel: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"><option>Petrol</option><option>Diesel</option><option>CNG</option><option>Electric</option></select>
-              <select value={form.transmission} onChange={(e) => setForm({...form, transmission: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"><option>Manual</option><option>Automatic</option></select>
-              <input type="number" min="1" max="12" value={form.seats} onChange={(e) => setForm({...form, seats: e.target.value})} className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none" />
+
+          <form
+            onSubmit={addVehicle}
+            className="saw-modal-panel-upgraded w-full max-w-lg rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-5 shadow-2xl"
+          >
+
+            <div className="mb-5 flex items-center justify-between">
+
+              <h2 className="font-display text-2xl">
+                Add vehicle
+              </h2>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowAdd(false)
+                }
+              >
+                <X />
+              </button>
+
             </div>
-            <button className="saw-button mt-5 w-full rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Add to fleet</button>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+
+              <input
+                required
+                placeholder="Vehicle name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    name: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none sm:col-span-2"
+              />
+
+              <select
+                value={form.city}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    city: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              >
+                {cities.map((c) => (
+                  <option key={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={form.type}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    type: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              >
+                <option>
+                  Hatchback
+                </option>
+                <option>SUV</option>
+                <option>MUV</option>
+                <option>Sedan</option>
+              </select>
+
+              <input
+                required
+                type="number"
+                min="1"
+                placeholder="Price / day"
+                value={form.price}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    price: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              />
+
+              <select
+                value={form.fuel}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    fuel: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              >
+                <option>
+                  Petrol
+                </option>
+                <option>
+                  Diesel
+                </option>
+                <option>
+                  CNG
+                </option>
+                <option>
+                  Electric
+                </option>
+              </select>
+
+              <select
+                value={form.transmission}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    transmission:
+                      e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              >
+                <option>
+                  Manual
+                </option>
+                <option>
+                  Automatic
+                </option>
+              </select>
+
+              <input
+                type="number"
+                min="1"
+                max="12"
+                value={form.seats}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    seats: e.target.value,
+                  })
+                }
+                className="rounded-2xl bg-[#14161C] px-4 py-3 outline-none"
+              />
+
+            </div>
+
+            <button
+              className="saw-button mt-5 w-full rounded-2xl py-3 font-bold"
+              style={{
+                background:
+                  C.highway,
+                color: C.ink,
+              }}
+            >
+              Add to fleet
+            </button>
+
           </form>
         </div>
       )}
@@ -975,47 +2067,144 @@ function AdminView({ cars, setCars, bookings, setBookings, cities, setCities, on
   );
 }
 
-function AdminGate({ onSuccess, onCancel }) {
-  const [pass, setPass] = useState("");
-  const [error, setError] = useState(false);
+/* =========================
+   ADMIN GATE
+========================= */
+
+function AdminGate({
+  onSuccess,
+  onCancel,
+}) {
+  const [pass, setPass] =
+    useState("");
+
+  const [error, setError] =
+    useState(false);
+
   const submit = (e) => {
     e.preventDefault();
-    if (pass === ADMIN_PASSCODE) onSuccess();
-    else setError(true);
+
+    if (pass === ADMIN_PASSCODE) {
+      onSuccess();
+    } else {
+      setError(true);
+    }
   };
+
   return (
     <div className="anim-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-5 backdrop-blur-sm">
-      <form onSubmit={submit} className="saw-modal-panel-upgraded w-full max-w-sm rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-6 shadow-2xl">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#14161C] text-[#E3A73B]"><KeyRound /></div>
-        <h2 className="mt-5 text-center font-display text-2xl">Admin access</h2>
-        <p className="mt-1 text-center text-sm text-[#8A8F98]">Enter the admin passcode.</p>
-        <input autoFocus type="password" value={pass} onChange={(e) => { setPass(e.target.value); setError(false); }} className="mt-5 w-full rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 text-center outline-none" placeholder="Passcode" />
-        {error && <div className="mt-2 text-center text-sm text-[#F1A28F]">Incorrect passcode.</div>}
+
+      <form
+        onSubmit={submit}
+        className="saw-modal-panel-upgraded w-full max-w-sm rounded-3xl border border-[#3A3E48] bg-[#1E212A] p-6 shadow-2xl"
+      >
+
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#14161C] text-[#E3A73B]">
+          <KeyRound />
+        </div>
+
+        <h2 className="mt-5 text-center font-display text-2xl">
+          Admin access
+        </h2>
+
+        <p className="mt-1 text-center text-sm text-[#8A8F98]">
+          Enter the admin passcode.
+        </p>
+
+        <input
+          autoFocus
+          type="password"
+          value={pass}
+          onChange={(e) => {
+            setPass(
+              e.target.value
+            );
+            setError(false);
+          }}
+          className="mt-5 w-full rounded-2xl border border-[#3A3E48] bg-[#14161C] px-4 py-3 text-center outline-none"
+          placeholder="Passcode"
+        />
+
+        {error && (
+          <div className="mt-2 text-center text-sm text-[#F1A28F]">
+            Incorrect passcode.
+          </div>
+        )}
+
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <button type="button" onClick={onCancel} className="saw-button rounded-2xl border border-[#3A3E48] py-3 font-bold">Cancel</button>
-          <button className="saw-button rounded-2xl py-3 font-bold" style={{ background: C.highway, color: C.ink }}>Enter</button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="saw-button rounded-2xl border border-[#3A3E48] py-3 font-bold"
+          >
+            Cancel
+          </button>
+
+          <button
+            className="saw-button rounded-2xl py-3 font-bold"
+            style={{
+              background:
+                C.highway,
+              color: C.ink,
+            }}
+          >
+            Enter
+          </button>
+
         </div>
       </form>
     </div>
   );
 }
 
+/* =========================
+   APP
+========================= */
+
 export default function App() {
-  const [cars, setCars] = useState(seedCars);
-  const [cities, setCities] = useState(seedCities);
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [admin, setAdmin] = useState(false);
-  const [gate, setGate] = useState(false);
-  const [bookingCar, setBookingCar] = useState(null);
+  const [cars, setCars] =
+    useState(seedCars);
+
+  const [cities, setCities] =
+    useState(seedCities);
+
+  const [bookings, setBookings] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [admin, setAdmin] =
+    useState(false);
+
+  const [gate, setGate] =
+    useState(false);
+
+  const [bookingCar, setBookingCar] =
+    useState(null);
 
   useEffect(() => {
     (async () => {
-      const [storedCars, storedCities, storedBookings] = await Promise.all([
-        loadShared("cars", seedCars),
-        loadShared("cities", seedCities),
-        loadShared("bookings", []),
+      const [
+        storedCars,
+        storedCities,
+        storedBookings,
+      ] = await Promise.all([
+        loadShared(
+          "cars",
+          seedCars
+        ),
+        loadShared(
+          "cities",
+          seedCities
+        ),
+        loadShared(
+          "bookings",
+          []
+        ),
       ]);
+
       setCars(storedCars);
       setCities(storedCities);
       setBookings(storedBookings);
@@ -1023,51 +2212,175 @@ export default function App() {
     })();
   }, []);
 
-  useEffect(() => { if (!loading) saveShared("cars", cars); }, [cars, loading]);
-  useEffect(() => { if (!loading) saveShared("cities", cities); }, [cities, loading]);
-  useEffect(() => { if (!loading) saveShared("bookings", bookings); }, [bookings, loading]);
+  useEffect(() => {
+    if (!loading) {
+      saveShared(
+        "cars",
+        cars
+      );
+    }
+  }, [cars, loading]);
 
-  const confirmBooking = (booking) => {
-    setBookings((prev) => [...prev, booking]);
-    setCars((prev) => prev.map((c) => c.id === booking.carId ? { ...c, status: "rented" } : c));
+  useEffect(() => {
+    if (!loading) {
+      saveShared(
+        "cities",
+        cities
+      );
+    }
+  }, [cities, loading]);
+
+  useEffect(() => {
+    if (!loading) {
+      saveShared(
+        "bookings",
+        bookings
+      );
+    }
+  }, [bookings, loading]);
+
+  const confirmBooking = (
+    booking
+  ) => {
+    setBookings((prev) => [
+      ...prev,
+      booking,
+    ]);
+
+    setCars((prev) =>
+      prev.map((c) =>
+        c.id === booking.carId
+          ? {
+              ...c,
+              status: "rented",
+            }
+          : c
+      )
+    );
   };
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-[#14161C] text-[#E3A73B]"><div className="saw-live-dot font-display text-2xl tracking-widest">SAWARIYA</div></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#14161C] text-[#E3A73B]">
+        <div className="saw-live-dot font-display text-2xl tracking-widest">
+          SAWARIYA
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[#14161C] text-[#F2EDE1]">
+
       <header className="sticky top-0 z-40 border-b border-[#2B2E38] bg-[#14161C]/90 backdrop-blur-xl">
+
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <button onClick={() => setAdmin(false)} className="flex items-center gap-3 text-left">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E3A73B] text-[#14161C]"><Car size={22} /></div>
-            <div>
-              <div className="font-display text-xl tracking-wide">SAWARIYA RENTALS</div>
-              <div className="text-[10px] tracking-[.18em] text-[#8A8F98]">SELF DRIVE • YOUR WAY</div>
+
+          <button
+            onClick={() =>
+              setAdmin(false)
+            }
+            className="flex items-center gap-3 text-left"
+          >
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E3A73B] text-[#14161C]">
+              <Car size={22} />
             </div>
+
+            <div>
+              <div className="font-display text-xl tracking-wide">
+                SAWARIYA RENTALS
+              </div>
+
+              <div className="text-[10px] tracking-[.18em] text-[#8A8F98]">
+                SELF DRIVE • YOUR WAY
+              </div>
+            </div>
+
           </button>
-          <button onClick={() => admin ? setAdmin(false) : setGate(true)} className="saw-button flex items-center gap-2 rounded-xl border border-[#3A3E48] px-3 py-2 text-sm font-semibold">
-            {admin ? <><LayoutDashboard size={16} /> Customer</> : <><KeyRound size={16} /> Admin</>}
+
+          <button
+            onClick={() =>
+              admin
+                ? setAdmin(false)
+                : setGate(true)
+            }
+            className="saw-button flex items-center gap-2 rounded-xl border border-[#3A3E48] px-3 py-2 text-sm font-semibold"
+          >
+            {admin ? (
+              <>
+                <LayoutDashboard
+                  size={16}
+                />
+                Customer
+              </>
+            ) : (
+              <>
+                <KeyRound size={16} />
+                Admin
+              </>
+            )}
           </button>
+
         </div>
       </header>
 
       {admin ? (
-        <AdminView cars={cars} setCars={setCars} bookings={bookings} setBookings={setBookings} cities={cities} setCities={setCities} onLogout={() => setAdmin(false)} />
+        <AdminView
+          cars={cars}
+          setCars={setCars}
+          bookings={bookings}
+          setBookings={
+            setBookings
+          }
+          cities={cities}
+          setCities={setCities}
+          onLogout={() =>
+            setAdmin(false)
+          }
+        />
       ) : (
-        <CustomerView cars={cars} cities={cities} onBook={setBookingCar} />
+        <CustomerView
+          cars={cars}
+          cities={cities}
+          onBook={setBookingCar}
+        />
       )}
 
       <footer className="border-t border-[#2B2E38]">
+
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-[#8A8F98] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div><span className="font-display text-[#F2EDE1]">SAWARIYA RENTALS</span> • 24×7 rental service</div>
-          <div className="flex items-center gap-4"><span>Cars</span><span>Bike</span><span>Scooty</span><span>Support</span></div>
+
+          <div>
+            <span className="font-display text-[#F2EDE1]">
+              SAWARIYA RENTALS
+            </span>{" "}
+            • 24×7 rental service
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span>Cars</span>
+            <span>Bike</span>
+            <span>Scooty</span>
+            <span>Support</span>
+          </div>
+
         </div>
       </footer>
 
-      {bookingCar && <BookingModal car={bookingCar} onClose={() => setBookingCar(null)} onConfirm={confirmBooking} />}
-      {gate && <AdminGate onSuccess={() => { setGate(false); setAdmin(true); }} onCancel={() => setGate(false)} />}
-    </div>
-  );
-}
+      {bookingCar && (
+        <BookingModal
+          car={bookingCar}
+          onClose={() =>
+            setBookingCar(null)
+          }
+          onConfirm={
+            confirmBooking
+          }
+        />
+      )}
+
+      {gate && (
+        <AdminGate
+          onSuccess={() => {
+            setGate(false);
