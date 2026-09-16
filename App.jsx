@@ -21,6 +21,14 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import {
+  fetchCars,
+  upsertCar,
+  fetchCities,
+  fetchBookings,
+  insertBooking,
+  uploadPhoto,
+} from "./supabase";
 
 /* =========================================================
    CONFIG
