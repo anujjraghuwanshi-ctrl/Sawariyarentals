@@ -50,59 +50,17 @@ const ADMIN_PASSCODE = "1234";
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
-   INITIAL DATA
+   RENTAL DURATIONS
 ========================================================= */
 
-const seedCars = [
-  {
-    id: "car-1",
-    name: "Maruti Swift",
-    type: "Hatchback",
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    price: 1499,
-    city: "Bhopal",
-    photos: [],
-    available: true,
-  },
-  {
-    id: "car-2",
-    name: "Hyundai i20",
-    type: "Hatchback",
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    price: 1699,
-    city: "Bhopal",
-    photos: [],
-    available: true,
-  },
-  {
-    id: "car-3",
-    name: "Hyundai Aura",
-    type: "Sedan",
-    seats: 5,
-    fuel: "Petrol",
-    transmission: "Manual",
-    price: 1799,
-    city: "Bhopal",
-    photos: [],
-    available: true,
-  },
-  {
-    id: "car-4",
-    name: "Maruti Ertiga",
-    type: "MUV",
-    seats: 7,
-    fuel: "Petrol",
-    transmission: "Manual",
-    price: 2299,
-    city: "Bhopal",
-    photos: [],
-    available: true,
-  },
-];
+const RENTAL_DURATIONS = [8, 12];
+
+/* =========================================================
+   INITIAL DATA
+   NO CARS ARE HARDCODED
+========================================================= */
+
+const seedCars = [];
 
 const seedCities = [
   {
@@ -133,25 +91,6 @@ function todayISO() {
   return local.toISOString().slice(0, 10);
 }
 
-function addDaysISO(dateString, days) {
-  const d = new Date(`${dateString}T00:00:00`);
-  d.setDate(d.getDate() + Number(days || 0));
-
-  const offset = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - offset * 60000);
-
-  return local.toISOString().slice(0, 10);
-}
-
-function daysBetween(start, end) {
-  const a = new Date(`${start}T00:00:00`);
-  const b = new Date(`${end}T00:00:00`);
-
-  const diff = Math.ceil((b - a) / 86400000);
-
-  return Math.max(1, diff);
-}
-
 function loadShared(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -175,10 +114,39 @@ function saveShared(key, value) {
 }
 
 /* =========================================================
+   REMOVE OLD HARDCODED CARS
+========================================================= */
+
+function loadCars() {
+  const cars = loadShared("sawariya_cars", seedCars);
+
+  if (!Array.isArray(cars)) {
+    return [];
+  }
+
+  // Remove the old four hard-coded demo vehicles
+  // from previous versions of the app.
+  const oldDemoIds = [
+    "car-1",
+    "car-2",
+    "car-3",
+    "car-4",
+  ];
+
+  return cars.filter(
+    (car) => !oldDemoIds.includes(car.id)
+  );
+}
+
+/* =========================================================
    IMAGE COMPRESSION
 ========================================================= */
 
-function compressImage(file, maxWidth = 1200, quality = 0.75) {
+function compressImage(
+  file,
+  maxWidth = 1200,
+  quality = 0.75
+) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -190,20 +158,35 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
         let height = img.height;
 
         if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
+          height = Math.round(
+            (height * maxWidth) / width
+          );
+
           width = maxWidth;
         }
 
-        const canvas = document.createElement("canvas");
+        const canvas =
+          document.createElement("canvas");
 
         canvas.width = width;
         canvas.height = height;
 
         const ctx = canvas.getContext("2d");
 
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          width,
+          height
+        );
 
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        resolve(
+          canvas.toDataURL(
+            "image/jpeg",
+            quality
+          )
+        );
       };
 
       img.onerror = reject;
@@ -220,7 +203,10 @@ function compressImage(file, maxWidth = 1200, quality = 0.75) {
    UI COMPONENTS
 ========================================================= */
 
-function Badge({ children, color = C.blue }) {
+function Badge({
+  children,
+  color = C.blue,
+}) {
   return (
     <span
       style={{
@@ -241,7 +227,10 @@ function Badge({ children, color = C.blue }) {
   );
 }
 
-function CarThumb({ car, size = 150 }) {
+function CarThumb({
+  car,
+  size = 150,
+}) {
   const photo = car?.photos?.[0];
 
   return (
@@ -271,7 +260,11 @@ function CarThumb({ car, size = 150 }) {
           }}
         />
       ) : (
-        <Car size={48} color={C.blue} strokeWidth={1.5} />
+        <Car
+          size={48}
+          color={C.blue}
+          strokeWidth={1.5}
+        />
       )}
     </div>
   );
@@ -281,8 +274,12 @@ function CarThumb({ car, size = 150 }) {
    CAR CARD
 ========================================================= */
 
-function CarCard({ car, onBook }) {
-  const [photoIndex, setPhotoIndex] = useState(0);
+function CarCard({
+  car,
+  onBook,
+}) {
+  const [photoIndex, setPhotoIndex] =
+    useState(0);
 
   const photos = car.photos || [];
 
@@ -291,14 +288,26 @@ function CarCard({ car, onBook }) {
       ? photos[photoIndex % photos.length]
       : null;
 
+  const price8 =
+    Number(car.price8 || 0);
+
+  const price12 =
+    Number(
+      car.price12 ||
+        car.price ||
+        0
+    );
+
   return (
     <div
       style={{
         background: C.white,
-        border: `1px solid ${C.border}`,
+        border:
+          `1px solid ${C.border}`,
         borderRadius: 22,
         overflow: "hidden",
-        boxShadow: "0 8px 30px rgba(15,23,42,.06)",
+        boxShadow:
+          "0 8px 30px rgba(15,23,42,.06)",
       }}
     >
       <div
@@ -340,33 +349,25 @@ function CarCard({ car, onBook }) {
           </div>
         )}
 
-        {car.available ? (
-          <div
-            style={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-            }}
-          >
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+          }}
+        >
+          {car.available ? (
             <Badge color={C.green}>
               <CheckCircle2 size={13} />
               Available
             </Badge>
-          </div>
-        ) : (
-          <div
-            style={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-            }}
-          >
+          ) : (
             <Badge color={C.red}>
               <Clock3 size={13} />
               Rented
             </Badge>
-          </div>
-        )}
+          )}
+        </div>
 
         {photos.length > 1 && (
           <>
@@ -374,7 +375,9 @@ function CarCard({ car, onBook }) {
               type="button"
               onClick={() =>
                 setPhotoIndex(
-                  (photoIndex - 1 + photos.length) %
+                  (photoIndex -
+                    1 +
+                    photos.length) %
                     photos.length
                 )
               }
@@ -382,12 +385,14 @@ function CarCard({ car, onBook }) {
                 position: "absolute",
                 left: 10,
                 top: "50%",
-                transform: "translateY(-50%)",
+                transform:
+                  "translateY(-50%)",
                 width: 34,
                 height: 34,
                 borderRadius: 999,
                 border: "none",
-                background: "rgba(255,255,255,.9)",
+                background:
+                  "rgba(255,255,255,.9)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -401,19 +406,22 @@ function CarCard({ car, onBook }) {
               type="button"
               onClick={() =>
                 setPhotoIndex(
-                  (photoIndex + 1) % photos.length
+                  (photoIndex + 1) %
+                    photos.length
                 )
               }
               style={{
                 position: "absolute",
                 right: 10,
                 top: "50%",
-                transform: "translateY(-50%)",
+                transform:
+                  "translateY(-50%)",
                 width: 34,
                 height: 34,
                 borderRadius: 999,
                 border: "none",
-                background: "rgba(255,255,255,.9)",
+                background:
+                  "rgba(255,255,255,.9)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -431,7 +439,8 @@ function CarCard({ car, onBook }) {
           style={{
             display: "flex",
             alignItems: "flex-start",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             gap: 10,
           }}
         >
@@ -457,26 +466,75 @@ function CarCard({ car, onBook }) {
               {car.type} • {car.city}
             </div>
           </div>
+        </div>
 
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                color: C.blue,
-                fontWeight: 900,
-                fontSize: 19,
-              }}
-            >
-              {fmtINR(car.price)}
-            </div>
+        {/* DURATION PRICES */}
 
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(2, minmax(0,1fr))",
+            gap: 8,
+            marginTop: 14,
+          }}
+        >
+          <div
+            style={{
+              padding: 10,
+              borderRadius: 12,
+              background: C.sky,
+              border:
+                `1px solid #dbeafe`,
+            }}
+          >
             <div
               style={{
                 color: C.gray,
-                fontSize: 12,
+                fontSize: 11,
+                fontWeight: 700,
               }}
             >
-              per day
+              8 HOURS
             </div>
+
+            <strong
+              style={{
+                color: C.blue,
+                fontSize: 17,
+              }}
+            >
+              {fmtINR(price8)}
+            </strong>
+          </div>
+
+          <div
+            style={{
+              padding: 10,
+              borderRadius: 12,
+              background: C.greenLight,
+              border:
+                `1px solid #bbf7d0`,
+            }}
+          >
+            <div
+              style={{
+                color: C.gray,
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              12 HOURS
+            </div>
+
+            <strong
+              style={{
+                color: C.green,
+                fontSize: 17,
+              }}
+            >
+              {fmtINR(price12)}
+            </strong>
           </div>
         </div>
 
@@ -493,7 +551,9 @@ function CarCard({ car, onBook }) {
             {car.seats} Seats
           </Badge>
 
-          <Badge color={C.gray}>{car.fuel}</Badge>
+          <Badge color={C.gray}>
+            {car.fuel}
+          </Badge>
 
           <Badge color={C.gray}>
             {car.transmission}
@@ -508,11 +568,17 @@ function CarCard({ car, onBook }) {
             ...primaryButton,
             width: "100%",
             marginTop: 18,
-            opacity: car.available ? 1 : 0.5,
-            cursor: car.available ? "pointer" : "not-allowed",
+            opacity:
+              car.available ? 1 : 0.5,
+            cursor:
+              car.available
+                ? "pointer"
+                : "not-allowed",
           }}
         >
-          {car.available ? "Book This Car" : "Currently Rented"}
+          {car.available
+            ? "Book This Car"
+            : "Currently Rented"}
         </button>
       </div>
     </div>
@@ -523,51 +589,71 @@ function CarCard({ car, onBook }) {
    BOOKING MODAL
 ========================================================= */
 
-function BookingModal({ car, onClose, onConfirm }) {
+function BookingModal({
+  car,
+  onClose,
+  onConfirm,
+}) {
   const minDate = todayISO();
 
-  const [pickupDate, setPickupDate] = useState(minDate);
-  const [returnDate, setReturnDate] = useState(
-    addDaysISO(minDate, 1)
-  );
+  const [pickupDate, setPickupDate] =
+    useState(minDate);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [paymentType, setPaymentType] = useState("advance");
+  const [pickupTime, setPickupTime] =
+    useState("09:00");
 
-  const [loading, setLoading] = useState(false);
+  const [rentalDuration, setRentalDuration] =
+    useState(12);
 
-  const days = daysBetween(pickupDate, returnDate);
+  const [name, setName] =
+    useState("");
 
-  const total = days * Number(car.price || 0);
+  const [phone, setPhone] =
+    useState("");
 
-  const advanceAmount = Math.min(
-    BOOKING_ADVANCE,
-    total
-  );
+  const [paymentType, setPaymentType] =
+    useState("advance");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const price8 =
+    Number(car.price8 || 0);
+
+  const price12 =
+    Number(
+      car.price12 ||
+        car.price ||
+        0
+    );
+
+  const total =
+    rentalDuration === 8
+      ? price8
+      : price12;
+
+  const advanceAmount =
+    Math.min(
+      BOOKING_ADVANCE,
+      total
+    );
 
   const paymentAmount =
     paymentType === "advance"
       ? advanceAmount
       : total;
 
-  const remainingAmount = Math.max(
-    0,
-    total - paymentAmount
-  );
-
-  function handlePickupChange(value) {
-    setPickupDate(value);
-
-    if (returnDate <= value) {
-      setReturnDate(addDaysISO(value, 1));
-    }
-  }
+  const remainingAmount =
+    Math.max(
+      0,
+      total - paymentAmount
+    );
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone =
+      phone.replace(/\D/g, "");
 
     if (!name.trim()) {
       alert("Please enter your name.");
@@ -575,22 +661,39 @@ function BookingModal({ car, onClose, onConfirm }) {
     }
 
     if (!/^\d{10}$/.test(cleanPhone)) {
-      alert("Please enter a valid 10-digit mobile number.");
+      alert(
+        "Please enter a valid 10-digit mobile number."
+      );
       return;
     }
 
-    if (!pickupDate || !returnDate) {
-      alert("Please select pickup and return dates.");
+    if (!pickupDate) {
+      alert(
+        "Please select pickup date."
+      );
       return;
     }
 
-    if (returnDate <= pickupDate) {
-      alert("Return date must be after pickup date.");
+    if (!pickupTime) {
+      alert(
+        "Please select pickup time."
+      );
       return;
     }
 
-    if (paymentAmount <= 0) {
-      alert("Invalid payment amount.");
+    if (!RENTAL_DURATIONS.includes(
+      rentalDuration
+    )) {
+      alert(
+        "Please select 8 hours or 12 hours."
+      );
+      return;
+    }
+
+    if (total <= 0) {
+      alert(
+        "This vehicle does not have a valid price for the selected duration."
+      );
       return;
     }
 
@@ -599,42 +702,45 @@ function BookingModal({ car, onClose, onConfirm }) {
 
       /* -----------------------------------------------
          CREATE RAZORPAY ORDER
-         Backend expects amount in RUPEES.
       ------------------------------------------------ */
 
-      const orderResponse = await fetch(
-        "/api/create-order",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: paymentAmount,
-            carId: car.id,
-            carName: car.name,
-            name: name.trim(),
-            phone: cleanPhone,
-          }),
-        }
-      );
+      const orderResponse =
+        await fetch(
+          "/api/create-order",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              amount:
+                paymentAmount,
 
-      /* -----------------------------------------------
-         IMPORTANT FIX:
-         Backend may return either:
-         {
-           id: "order_xxx"
-         }
+              carId: car.id,
 
-         OR:
-         {
-           orderId: "order_xxx"
-         }
-      ------------------------------------------------ */
+              carName:
+                car.name,
 
-      const orderData = await orderResponse
-        .json()
-        .catch(() => ({}));
+              name:
+                name.trim(),
+
+              phone:
+                cleanPhone,
+
+              rentalDuration,
+
+              pickupDate,
+
+              pickupTime,
+            }),
+          }
+        );
+
+      const orderData =
+        await orderResponse
+          .json()
+          .catch(() => ({}));
 
       if (!orderResponse.ok) {
         throw new Error(
@@ -658,7 +764,7 @@ function BookingModal({ car, onClose, onConfirm }) {
 
       if (!window.Razorpay) {
         alert(
-          "Razorpay is not loaded. Please refresh the page and try again."
+          "Razorpay Checkout is not loaded. Please refresh the page and try again."
         );
 
         setLoading(false);
@@ -668,155 +774,195 @@ function BookingModal({ car, onClose, onConfirm }) {
       const options = {
         key:
           orderData?.key ||
-          import.meta.env.VITE_RAZORPAY_KEY_ID,
+          import.meta.env
+            .VITE_RAZORPAY_KEY_ID,
 
         amount:
           orderData?.amount ||
-          Math.round(paymentAmount * 100),
+          Math.round(
+            paymentAmount * 100
+          ),
 
         currency:
-          orderData?.currency || "INR",
+          orderData?.currency ||
+          "INR",
 
-        name: "SAWARIYA RENTALS",
+        name:
+          "SAWARIYA RENTALS",
 
         description:
           paymentType === "advance"
-            ? `₹${advanceAmount} Booking Advance - ${car.name}`
-            : `Full Payment - ${car.name}`,
+            ? `₹${advanceAmount} Booking Advance - ${car.name} - ${rentalDuration} Hours`
+            : `Full Payment - ${car.name} - ${rentalDuration} Hours`,
 
-        order_id: razorpayOrderId,
+        order_id:
+          razorpayOrderId,
 
         prefill: {
-          name: name.trim(),
-          contact: cleanPhone,
+          name:
+            name.trim(),
+
+          contact:
+            cleanPhone,
         },
 
         theme: {
           color: C.blue,
         },
 
-        handler: async function (response) {
-          try {
-            const verifyResponse = await fetch(
-              "/api/verify-payment",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  razorpay_order_id:
-                    response.razorpay_order_id,
+        handler:
+          async function (
+            response
+          ) {
+            try {
+              const verifyResponse =
+                await fetch(
+                  "/api/verify-payment",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+                    body: JSON.stringify(
+                      {
+                        razorpay_order_id:
+                          response.razorpay_order_id,
 
-                  razorpay_payment_id:
-                    response.razorpay_payment_id,
+                        razorpay_payment_id:
+                          response.razorpay_payment_id,
 
-                  razorpay_signature:
-                    response.razorpay_signature,
+                        razorpay_signature:
+                          response.razorpay_signature,
 
-                  amount: paymentAmount,
-                }),
+                        amount:
+                          paymentAmount,
+                      }
+                    ),
+                  }
+                );
+
+              const verifyData =
+                await verifyResponse
+                  .json()
+                  .catch(
+                    () => ({})
+                  );
+
+              if (
+                !verifyResponse.ok
+              ) {
+                throw new Error(
+                  verifyData?.message ||
+                    verifyData?.error ||
+                    "Payment verification failed."
+                );
               }
-            );
 
-            const verifyData =
-              await verifyResponse
-                .json()
-                .catch(() => ({}));
+              if (
+                verifyData?.success ===
+                  false ||
+                verifyData?.verified ===
+                  false
+              ) {
+                throw new Error(
+                  verifyData?.message ||
+                    "Payment could not be verified."
+                );
+              }
 
-            if (!verifyResponse.ok) {
-              throw new Error(
-                verifyData?.message ||
-                  verifyData?.error ||
-                  "Payment verification failed."
+              onConfirm({
+                carId:
+                  car.id,
+
+                carName:
+                  car.name,
+
+                city:
+                  car.city,
+
+                name:
+                  name.trim(),
+
+                phone:
+                  cleanPhone,
+
+                pickupDate,
+
+                pickupTime,
+
+                rentalDuration,
+
+                total,
+
+                paidAmount:
+                  paymentAmount,
+
+                advancePaid:
+                  paymentType ===
+                  "advance"
+                    ? paymentAmount
+                    : 0,
+
+                remainingAmount,
+
+                paymentType,
+
+                paymentId:
+                  response.razorpay_payment_id,
+
+                orderId:
+                  response.razorpay_order_id,
+
+                signature:
+                  response.razorpay_signature,
+
+                status:
+                  "Confirmed",
+              });
+
+              alert(
+                paymentType ===
+                  "advance"
+                  ? `Booking confirmed!\n\n₹${paymentAmount.toLocaleString(
+                      "en-IN"
+                    )} advance paid.\nRemaining ${fmtINR(
+                      remainingAmount
+                    )} payable later.`
+                  : `Booking confirmed!\n\nFull payment of ${fmtINR(
+                      total
+                    )} received.`
               );
-            }
 
-            if (
-              verifyData?.success === false ||
-              verifyData?.verified === false
-            ) {
-              throw new Error(
-                verifyData?.message ||
-                  "Payment could not be verified."
+              setLoading(false);
+              onClose();
+            } catch (error) {
+              console.error(
+                "Payment verification error:",
+                error
               );
+
+              alert(
+                error?.message ||
+                  "Payment verification failed. Please contact support."
+              );
+
+              setLoading(false);
             }
-
-            onConfirm({
-              carId: car.id,
-              carName: car.name,
-              city: car.city,
-
-              name: name.trim(),
-              phone: cleanPhone,
-
-              pickupDate,
-              returnDate,
-              days,
-
-              total,
-
-              paidAmount: paymentAmount,
-
-              advancePaid:
-                paymentType === "advance"
-                  ? paymentAmount
-                  : 0,
-
-              remainingAmount,
-
-              paymentType,
-
-              paymentId:
-                response.razorpay_payment_id,
-
-              orderId:
-                response.razorpay_order_id,
-
-              signature:
-                response.razorpay_signature,
-
-              status: "Confirmed",
-            });
-
-            alert(
-              paymentType === "advance"
-                ? `Booking confirmed!\n\n₹${paymentAmount.toLocaleString(
-                    "en-IN"
-                  )} advance paid.\nRemaining ${fmtINR(
-                    remainingAmount
-                  )} payable later.`
-                : `Booking confirmed!\n\nFull payment of ${fmtINR(
-                    total
-                  )} received.`
-            );
-
-            setLoading(false);
-            onClose();
-          } catch (error) {
-            console.error(
-              "Payment verification error:",
-              error
-            );
-
-            alert(
-              error?.message ||
-                "Payment verification failed. Please contact support."
-            );
-
-            setLoading(false);
-          }
-        },
+          },
 
         modal: {
-          ondismiss: function () {
-            setLoading(false);
-          },
+          ondismiss:
+            function () {
+              setLoading(false);
+            },
         },
       };
 
       const razorpay =
-        new window.Razorpay(options);
+        new window.Razorpay(
+          options
+        );
 
       razorpay.on(
         "payment.failed",
@@ -827,7 +973,8 @@ function BookingModal({ car, onClose, onConfirm }) {
           );
 
           alert(
-            response?.error?.description ||
+            response?.error
+              ?.description ||
               "Payment failed. Please try again."
           );
 
@@ -857,27 +1004,35 @@ function BookingModal({ car, onClose, onConfirm }) {
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(15,23,42,.65)",
+        background:
+          "rgba(15,23,42,.65)",
         display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
+        alignItems:
+          "flex-start",
+        justifyContent:
+          "center",
         padding: "16px",
         overflowY: "auto",
-        WebkitOverflowScrolling: "touch",
-        boxSizing: "border-box",
+        WebkitOverflowScrolling:
+          "touch",
+        boxSizing:
+          "border-box",
       }}
     >
       <div
         style={{
           width: "100%",
           maxWidth: 720,
-          boxSizing: "border-box",
-          background: C.white,
+          boxSizing:
+            "border-box",
+          background:
+            C.white,
           borderRadius: 24,
           boxShadow:
             "0 30px 80px rgba(0,0,0,.25)",
           overflow: "hidden",
-          margin: "0 auto 16px",
+          margin:
+            "0 auto 16px",
           flexShrink: 0,
         }}
       >
@@ -885,25 +1040,35 @@ function BookingModal({ car, onClose, onConfirm }) {
 
         <div
           style={{
-            padding: "18px 20px",
+            padding:
+              "18px 20px",
             background:
               "linear-gradient(135deg,#eff6ff,#ffffff)",
             borderBottom:
               `1px solid ${C.border}`,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            alignItems:
+              "center",
+            justifyContent:
+              "space-between",
             gap: 12,
           }}
         >
-          <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              minWidth: 0,
+            }}
+          >
             <div
               style={{
-                color: C.blue,
+                color:
+                  C.blue,
                 fontSize: 12,
                 fontWeight: 900,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                letterSpacing:
+                  0.5,
+                textTransform:
+                  "uppercase",
               }}
             >
               Book Your Car
@@ -911,12 +1076,15 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <h2
               style={{
-                margin: "4px 0 0",
-                color: C.navy,
+                margin:
+                  "4px 0 0",
+                color:
+                  C.navy,
                 fontSize: 22,
                 fontWeight: 900,
                 lineHeight: 1.2,
-                wordBreak: "break-word",
+                wordBreak:
+                  "break-word",
               }}
             >
               {car.name}
@@ -930,13 +1098,20 @@ function BookingModal({ car, onClose, onConfirm }) {
               width: 40,
               height: 40,
               flexShrink: 0,
-              borderRadius: 999,
-              border: `1px solid ${C.border}`,
-              background: C.white,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              borderRadius:
+                999,
+              border:
+                `1px solid ${C.border}`,
+              background:
+                C.white,
+              cursor:
+                "pointer",
+              display:
+                "flex",
+              alignItems:
+                "center",
+              justifyContent:
+                "center",
             }}
           >
             <X size={20} />
@@ -948,17 +1123,24 @@ function BookingModal({ car, onClose, onConfirm }) {
         <div
           style={{
             padding: 20,
-            boxSizing: "border-box",
+            boxSizing:
+              "border-box",
             width: "100%",
           }}
         >
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={
+              handleSubmit
+            }
+          >
             {/* CUSTOMER DETAILS */}
 
             <h3
               style={{
-                margin: "0 0 12px",
-                color: C.navy,
+                margin:
+                  "0 0 12px",
+                color:
+                  C.navy,
                 fontSize: 16,
                 fontWeight: 900,
               }}
@@ -968,16 +1150,23 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
                 gap: 14,
-                width: "100%",
-                boxSizing: "border-box",
+                width:
+                  "100%",
+                boxSizing:
+                  "border-box",
               }}
             >
               <div>
-                <label style={labelStyle}>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
                   <User size={14} />
                   Full Name
                 </label>
@@ -985,17 +1174,25 @@ function BookingModal({ car, onClose, onConfirm }) {
                 <input
                   value={name}
                   onChange={(e) =>
-                    setName(e.target.value)
+                    setName(
+                      e.target.value
+                    )
                   }
                   placeholder="Enter your name"
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                   autoComplete="name"
                   required
                 />
               </div>
 
               <div>
-                <label style={labelStyle}>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
                   <Phone size={14} />
                   Mobile Number
                 </label>
@@ -1005,12 +1202,20 @@ function BookingModal({ car, onClose, onConfirm }) {
                   onChange={(e) =>
                     setPhone(
                       e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10)
+                        .replace(
+                          /\D/g,
+                          ""
+                        )
+                        .slice(
+                          0,
+                          10
+                        )
                     )
                   }
                   placeholder="10-digit mobile number"
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                   inputMode="numeric"
                   autoComplete="tel"
                   maxLength={10}
@@ -1019,151 +1224,320 @@ function BookingModal({ car, onClose, onConfirm }) {
               </div>
             </div>
 
-            {/* DATE DETAILS */}
+            {/* RENTAL DATE */}
 
             <h3
               style={{
-                margin: "22px 0 12px",
-                color: C.navy,
+                margin:
+                  "22px 0 12px",
+                color:
+                  C.navy,
                 fontSize: 16,
                 fontWeight: 900,
               }}
             >
-              Rental Dates
+              Rental Details
             </h3>
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
                 gap: 14,
-                width: "100%",
-                boxSizing: "border-box",
               }}
             >
               <div>
-                <label style={labelStyle}>
-                  <CalendarDays size={14} />
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  <CalendarDays
+                    size={14}
+                  />
                   Pickup Date
                 </label>
 
                 <input
                   type="date"
                   min={minDate}
-                  value={pickupDate}
+                  value={
+                    pickupDate
+                  }
                   onChange={(e) =>
-                    handlePickupChange(
+                    setPickupDate(
                       e.target.value
                     )
                   }
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                   required
                 />
               </div>
 
               <div>
-                <label style={labelStyle}>
-                  <CalendarDays size={14} />
-                  Return Date
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  <Clock3 size={14} />
+                  Pickup Time
                 </label>
 
                 <input
-                  type="date"
-                  min={addDaysISO(
-                    pickupDate,
-                    1
-                  )}
-                  value={returnDate}
+                  type="time"
+                  value={
+                    pickupTime
+                  }
                   onChange={(e) =>
-                    setReturnDate(
+                    setPickupTime(
                       e.target.value
                     )
                   }
-                  style={inputStyle}
+                  style={
+                    inputStyle
+                  }
                   required
                 />
               </div>
+            </div>
+
+            {/* DURATION */}
+
+            <h3
+              style={{
+                margin:
+                  "22px 0 12px",
+                color:
+                  C.navy,
+                fontSize: 16,
+                fontWeight: 900,
+              }}
+            >
+              Select Rental Duration
+            </h3>
+
+            <div
+              style={{
+                display:
+                  "grid",
+                gridTemplateColumns:
+                  "repeat(2, minmax(0, 1fr))",
+                gap: 12,
+              }}
+            >
+              {RENTAL_DURATIONS.map(
+                (hours) => {
+                  const selected =
+                    rentalDuration ===
+                    hours;
+
+                  const price =
+                    hours === 8
+                      ? price8
+                      : price12;
+
+                  return (
+                    <button
+                      key={
+                        hours
+                      }
+                      type="button"
+                      onClick={() =>
+                        setRentalDuration(
+                          hours
+                        )
+                      }
+                      style={{
+                        textAlign:
+                          "left",
+                        padding:
+                          16,
+                        border:
+                          selected
+                            ? `2px solid ${C.blue}`
+                            : `1px solid ${C.border}`,
+                        borderRadius:
+                          18,
+                        background:
+                          selected
+                            ? C.sky
+                            : C.white,
+                        cursor:
+                          "pointer",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
+                          gap: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius:
+                              12,
+                            background:
+                              selected
+                                ? C.blue
+                                : C.grayLight,
+                            color:
+                              selected
+                                ? C.white
+                                : C.navy,
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            justifyContent:
+                              "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Clock3
+                            size={
+                              21
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <div
+                            style={{
+                              color:
+                                C.navy,
+                              fontWeight:
+                                900,
+                              fontSize:
+                                16,
+                            }}
+                          >
+                            {hours} Hours
+                          </div>
+
+                          <div
+                            style={{
+                              color:
+                                C.blue,
+                              fontWeight:
+                                900,
+                              fontSize:
+                                15,
+                              marginTop:
+                                3,
+                            }}
+                          >
+                            {fmtINR(
+                              price
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                }
+              )}
             </div>
 
             {/* RENTAL SUMMARY */}
 
             <div
               style={{
-                marginTop: 18,
+                marginTop:
+                  18,
                 padding: 16,
-                borderRadius: 18,
-                background: C.grayLight,
+                borderRadius:
+                  18,
+                background:
+                  C.grayLight,
                 border:
                   `1px solid ${C.border}`,
               }}
             >
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
                   gap: 10,
-                  marginBottom: 8,
+                  marginBottom:
+                    8,
                 }}
               >
                 <span
                   style={{
-                    color: C.gray,
-                    fontSize: 14,
+                    color:
+                      C.gray,
+                    fontSize:
+                      14,
                   }}
                 >
-                  Daily Rate
+                  Rental Duration
                 </span>
 
-                <strong
-                  style={{
-                    color: C.navy,
-                  }}
-                >
-                  {fmtINR(car.price)}
+                <strong>
+                  {rentalDuration} Hours
                 </strong>
               </div>
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
                   gap: 10,
-                  marginBottom: 8,
+                  marginBottom:
+                    8,
                 }}
               >
                 <span
                   style={{
-                    color: C.gray,
-                    fontSize: 14,
+                    color:
+                      C.gray,
+                    fontSize:
+                      14,
                   }}
                 >
-                  Rental Days
+                  Pickup
                 </span>
 
                 <strong
                   style={{
-                    color: C.navy,
+                    textAlign:
+                      "right",
                   }}
                 >
-                  {days} day
-                  {days > 1 ? "s" : ""}
+                  {pickupDate}
+                  <br />
+                  {pickupTime}
                 </strong>
               </div>
 
               <div
                 style={{
                   height: 1,
-                  background: C.border,
-                  margin: "10px 0",
+                  background:
+                    C.border,
+                  margin:
+                    "10px 0",
                 }}
               />
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
                   gap: 10,
@@ -1171,8 +1545,10 @@ function BookingModal({ car, onClose, onConfirm }) {
               >
                 <strong
                   style={{
-                    color: C.navy,
-                    fontSize: 16,
+                    color:
+                      C.navy,
+                    fontSize:
+                      16,
                   }}
                 >
                   Total Rental Amount
@@ -1180,11 +1556,15 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                 <strong
                   style={{
-                    color: C.blue,
-                    fontSize: 20,
+                    color:
+                      C.blue,
+                    fontSize:
+                      20,
                   }}
                 >
-                  {fmtINR(total)}
+                  {fmtINR(
+                    total
+                  )}
                 </strong>
               </div>
             </div>
@@ -1193,8 +1573,10 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <h3
               style={{
-                margin: "22px 0 12px",
-                color: C.navy,
+                margin:
+                  "22px 0 12px",
+                color:
+                  C.navy,
                 fontSize: 16,
                 fontWeight: 900,
               }}
@@ -1204,74 +1586,78 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(230px, 100%), 1fr))",
                 gap: 12,
-                width: "100%",
-                boxSizing: "border-box",
               }}
             >
               <button
                 type="button"
                 onClick={() =>
-                  setPaymentType("advance")
+                  setPaymentType(
+                    "advance"
+                  )
                 }
                 disabled={
-                  total < BOOKING_ADVANCE
+                  total <
+                  BOOKING_ADVANCE
                 }
                 style={{
-                  textAlign: "left",
-                  padding: 16,
-                  borderRadius: 18,
+                  textAlign:
+                    "left",
+                  padding:
+                    16,
                   border:
-                    paymentType === "advance"
+                    paymentType ===
+                    "advance"
                       ? `2px solid ${C.blue}`
                       : `1px solid ${C.border}`,
                   background:
-                    paymentType === "advance"
+                    paymentType ===
+                    "advance"
                       ? C.sky
                       : C.white,
+                  borderRadius:
+                    18,
                   cursor:
-                    total < BOOKING_ADVANCE
+                    total <
+                    BOOKING_ADVANCE
                       ? "not-allowed"
                       : "pointer",
                   opacity:
-                    total < BOOKING_ADVANCE
+                    total <
+                    BOOKING_ADVANCE
                       ? 0.5
                       : 1,
                 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
+                    display:
+                      "flex",
+                    alignItems:
+                      "center",
                     gap: 10,
                   }}
                 >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      background: C.white,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <CreditCard
-                      size={20}
-                      color={C.blue}
-                    />
-                  </div>
+                  <CreditCard
+                    size={20}
+                    color={
+                      C.blue
+                    }
+                  />
 
                   <div>
                     <div
                       style={{
-                        color: C.navy,
-                        fontWeight: 900,
-                        fontSize: 15,
+                        color:
+                          C.navy,
+                        fontWeight:
+                          900,
+                        fontSize:
+                          15,
                       }}
                     >
                       ₹500 Booking Advance
@@ -1279,9 +1665,12 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                     <div
                       style={{
-                        color: C.gray,
-                        fontSize: 12,
-                        marginTop: 3,
+                        color:
+                          C.gray,
+                        fontSize:
+                          12,
+                        marginTop:
+                          3,
                       }}
                     >
                       Pay only ₹500 now
@@ -1293,53 +1682,56 @@ function BookingModal({ car, onClose, onConfirm }) {
               <button
                 type="button"
                 onClick={() =>
-                  setPaymentType("full")
+                  setPaymentType(
+                    "full"
+                  )
                 }
                 style={{
-                  textAlign: "left",
-                  padding: 16,
-                  borderRadius: 18,
+                  textAlign:
+                    "left",
+                  padding:
+                    16,
                   border:
-                    paymentType === "full"
+                    paymentType ===
+                    "full"
                       ? `2px solid ${C.green}`
                       : `1px solid ${C.border}`,
                   background:
-                    paymentType === "full"
+                    paymentType ===
+                    "full"
                       ? C.greenLight
                       : C.white,
-                  cursor: "pointer",
+                  borderRadius:
+                    18,
+                  cursor:
+                    "pointer",
                 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
+                    display:
+                      "flex",
+                    alignItems:
+                      "center",
                     gap: 10,
                   }}
                 >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 12,
-                      background: C.white,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <IndianRupee
-                      size={20}
-                      color={C.green}
-                    />
-                  </div>
+                  <IndianRupee
+                    size={20}
+                    color={
+                      C.green
+                    }
+                  />
 
                   <div>
                     <div
                       style={{
-                        color: C.navy,
-                        fontWeight: 900,
-                        fontSize: 15,
+                        color:
+                          C.navy,
+                        fontWeight:
+                          900,
+                        fontSize:
+                          15,
                       }}
                     >
                       Pay Full Amount
@@ -1347,12 +1739,17 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                     <div
                       style={{
-                        color: C.gray,
-                        fontSize: 12,
-                        marginTop: 3,
+                        color:
+                          C.gray,
+                        fontSize:
+                          12,
+                        marginTop:
+                          3,
                       }}
                     >
-                      Pay {fmtINR(total)} now
+                      Pay {fmtINR(
+                        total
+                      )} now
                     </div>
                   </div>
                 </div>
@@ -1363,32 +1760,40 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <div
               style={{
-                marginTop: 14,
+                marginTop:
+                  14,
                 padding: 16,
-                borderRadius: 18,
+                borderRadius:
+                  18,
                 background:
-                  paymentType === "advance"
+                  paymentType ===
+                  "advance"
                     ? C.orangeLight
                     : C.greenLight,
                 border:
-                  paymentType === "advance"
-                    ? `1px solid #fed7aa`
-                    : `1px solid #bbf7d0`,
+                  paymentType ===
+                  "advance"
+                    ? "1px solid #fed7aa"
+                    : "1px solid #bbf7d0",
               }}
             >
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
                   gap: 10,
-                  marginBottom: 7,
+                  marginBottom:
+                    7,
                 }}
               >
                 <span
                   style={{
-                    color: C.gray,
-                    fontSize: 14,
+                    color:
+                      C.gray,
+                    fontSize:
+                      14,
                   }}
                 >
                   Pay Now
@@ -1397,19 +1802,24 @@ function BookingModal({ car, onClose, onConfirm }) {
                 <strong
                   style={{
                     color:
-                      paymentType === "advance"
+                      paymentType ===
+                      "advance"
                         ? C.orange
                         : C.green,
-                    fontSize: 18,
+                    fontSize:
+                      18,
                   }}
                 >
-                  {fmtINR(paymentAmount)}
+                  {fmtINR(
+                    paymentAmount
+                  )}
                 </strong>
               </div>
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
                   gap: 10,
@@ -1417,8 +1827,10 @@ function BookingModal({ car, onClose, onConfirm }) {
               >
                 <span
                   style={{
-                    color: C.gray,
-                    fontSize: 14,
+                    color:
+                      C.gray,
+                    fontSize:
+                      14,
                   }}
                 >
                   Remaining Payable Later
@@ -1426,27 +1838,39 @@ function BookingModal({ car, onClose, onConfirm }) {
 
                 <strong
                   style={{
-                    color: C.navy,
-                    fontSize: 16,
+                    color:
+                      C.navy,
+                    fontSize:
+                      16,
                   }}
                 >
-                  {fmtINR(remainingAmount)}
+                  {fmtINR(
+                    remainingAmount
+                  )}
                 </strong>
               </div>
 
-              {paymentType === "advance" && (
+              {paymentType ===
+                "advance" && (
                 <div
                   style={{
-                    marginTop: 10,
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    color: C.gray,
+                    marginTop:
+                      10,
+                    fontSize:
+                      12,
+                    lineHeight:
+                      1.5,
+                    color:
+                      C.gray,
                   }}
                 >
-                  Only ₹500 will be charged now.
-                  The remaining{" "}
-                  {fmtINR(remainingAmount)} will
-                  be payable later.
+                  Only ₹500 will be
+                  charged now. The
+                  remaining{" "}
+                  {fmtINR(
+                    remainingAmount
+                  )} will be payable
+                  later.
                 </div>
               )}
             </div>
@@ -1455,17 +1879,21 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(150px, 100%), 1fr))",
                 gap: 10,
-                marginTop: 18,
+                marginTop:
+                  18,
               }}
             >
               <button
                 type="button"
                 onClick={onClose}
-                style={secondaryButton}
+                style={
+                  secondaryButton
+                }
               >
                 Cancel
               </button>
@@ -1475,13 +1903,19 @@ function BookingModal({ car, onClose, onConfirm }) {
                 disabled={loading}
                 style={{
                   ...primaryButton,
-                  opacity: loading ? 0.7 : 1,
-                  cursor: loading
-                    ? "wait"
-                    : "pointer",
+                  opacity:
+                    loading
+                      ? 0.7
+                      : 1,
+                  cursor:
+                    loading
+                      ? "wait"
+                      : "pointer",
                 }}
               >
-                <CreditCard size={18} />
+                <CreditCard
+                  size={18}
+                />
 
                 {loading
                   ? "Processing..."
@@ -1493,18 +1927,27 @@ function BookingModal({ car, onClose, onConfirm }) {
 
             <div
               style={{
-                marginTop: 12,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
+                marginTop:
+                  12,
+                display:
+                  "flex",
+                justifyContent:
+                  "center",
+                alignItems:
+                  "center",
                 gap: 6,
-                color: C.gray,
-                fontSize: 12,
+                color:
+                  C.gray,
+                fontSize:
+                  12,
               }}
             >
-              <ShieldCheck size={14} />
+              <ShieldCheck
+                size={14}
+              />
 
-              Secure payment powered by Razorpay
+              Secure payment powered
+              by Razorpay
             </div>
           </form>
         </div>
@@ -1526,42 +1969,65 @@ function CustomerView({
   const [selectedCity, setSelectedCity] =
     useState("All");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
   const [bookingCar, setBookingCar] =
     useState(null);
 
-  const activeCities = cities.filter(
-    (city) => city.active
-  );
+  const activeCities =
+    cities.filter(
+      (city) => city.active
+    );
 
-  const filteredCars = useMemo(() => {
-    return cars.filter((car) => {
-      const cityMatch =
-        selectedCity === "All" ||
-        car.city === selectedCity;
+  const filteredCars =
+    useMemo(() => {
+      return cars.filter(
+        (car) => {
+          const cityMatch =
+            selectedCity ===
+              "All" ||
+            car.city ===
+              selectedCity;
 
-      const searchText = search
-        .trim()
-        .toLowerCase();
+          const searchText =
+            search
+              .trim()
+              .toLowerCase();
 
-      const searchMatch =
-        !searchText ||
-        car.name
-          .toLowerCase()
-          .includes(searchText) ||
-        car.type
-          .toLowerCase()
-          .includes(searchText) ||
-        car.city
-          .toLowerCase()
-          .includes(searchText);
+          const searchMatch =
+            !searchText ||
+            car.name
+              .toLowerCase()
+              .includes(
+                searchText
+              ) ||
+            car.type
+              .toLowerCase()
+              .includes(
+                searchText
+              ) ||
+            car.city
+              .toLowerCase()
+              .includes(
+                searchText
+              );
 
-      return cityMatch && searchMatch;
-    });
-  }, [cars, selectedCity, search]);
+          return (
+            cityMatch &&
+            searchMatch
+          );
+        }
+      );
+    }, [
+      cars,
+      selectedCity,
+      search,
+    ]);
 
-  function handleConfirmBooking(data) {
+  function handleConfirmBooking(
+    data
+  ) {
     onBook(data);
     setBookingCar(null);
   }
@@ -1569,31 +2035,42 @@ function CustomerView({
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: C.navy,
+        minHeight:
+          "100vh",
+        background:
+          "#f8fafc",
+        color:
+          C.navy,
       }}
     >
       {/* HEADER */}
 
       <header
         style={{
-          position: "sticky",
+          position:
+            "sticky",
           top: 0,
           zIndex: 50,
-          background: "rgba(255,255,255,.96)",
-          backdropFilter: "blur(12px)",
+          background:
+            "rgba(255,255,255,.96)",
+          backdropFilter:
+            "blur(12px)",
           borderBottom:
             `1px solid ${C.border}`,
         }}
       >
         <div
           style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: "14px 16px",
-            display: "flex",
-            alignItems: "center",
+            maxWidth:
+              1200,
+            margin:
+              "0 auto",
+            padding:
+              "14px 16px",
+            display:
+              "flex",
+            alignItems:
+              "center",
             justifyContent:
               "space-between",
             gap: 12,
@@ -1601,8 +2078,10 @@ function CustomerView({
         >
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
+              display:
+                "flex",
+              alignItems:
+                "center",
               gap: 10,
               minWidth: 0,
             }}
@@ -1611,11 +2090,16 @@ function CustomerView({
               style={{
                 width: 42,
                 height: 42,
-                borderRadius: 13,
-                background: C.blue,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                borderRadius:
+                  13,
+                background:
+                  C.blue,
+                display:
+                  "flex",
+                alignItems:
+                  "center",
+                justifyContent:
+                  "center",
                 flexShrink: 0,
               }}
             >
@@ -1625,13 +2109,20 @@ function CustomerView({
               />
             </div>
 
-            <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                minWidth: 0,
+              }}
+            >
               <div
                 style={{
-                  fontWeight: 1000,
+                  fontWeight:
+                    1000,
                   fontSize: 18,
-                  color: C.navy,
-                  lineHeight: 1.1,
+                  color:
+                    C.navy,
+                  lineHeight:
+                    1.1,
                 }}
               >
                 SAWARIYA
@@ -1640,9 +2131,12 @@ function CustomerView({
               <div
                 style={{
                   fontSize: 10,
-                  color: C.blue,
-                  fontWeight: 900,
-                  letterSpacing: 1,
+                  color:
+                    C.blue,
+                  fontWeight:
+                    900,
+                  letterSpacing:
+                    1,
                 }}
               >
                 RENTALS
@@ -1653,9 +2147,12 @@ function CustomerView({
           <a
             href="#cars"
             style={{
-              textDecoration: "none",
-              color: C.navy,
-              fontWeight: 800,
+              textDecoration:
+                "none",
+              color:
+                C.navy,
+              fontWeight:
+                800,
               fontSize: 14,
             }}
           >
@@ -1670,14 +2167,18 @@ function CustomerView({
         style={{
           background:
             "linear-gradient(135deg,#eff6ff 0%,#ffffff 55%,#f0fdf4 100%)",
-          padding: "48px 16px 38px",
+          padding:
+            "48px 16px 38px",
         }}
       >
         <div
           style={{
-            maxWidth: 1000,
-            margin: "0 auto",
-            textAlign: "center",
+            maxWidth:
+              1000,
+            margin:
+              "0 auto",
+            textAlign:
+              "center",
           }}
         >
           <Badge color={C.blue}>
@@ -1687,34 +2188,74 @@ function CustomerView({
 
           <h1
             style={{
-              margin: "16px auto 10px",
-              maxWidth: 760,
+              margin:
+                "16px auto 10px",
+              maxWidth:
+                760,
               fontSize:
                 "clamp(32px, 7vw, 58px)",
-              lineHeight: 1.05,
-              fontWeight: 1000,
-              color: C.navy,
+              lineHeight:
+                1.05,
+              fontWeight:
+                1000,
+              color:
+                C.navy,
             }}
           >
             Rent a Car.
             <br />
-            <span style={{ color: C.blue }}>
+            <span
+              style={{
+                color:
+                  C.blue,
+              }}
+            >
               Drive Your Way.
             </span>
           </h1>
 
           <p
             style={{
-              maxWidth: 650,
-              margin: "0 auto",
-              color: C.gray,
-              fontSize: 16,
-              lineHeight: 1.6,
+              maxWidth:
+                650,
+              margin:
+                "0 auto",
+              color:
+                C.gray,
+              fontSize:
+                16,
+              lineHeight:
+                1.6,
             }}
           >
-            Affordable and reliable self-drive
-            car rentals from SAWARIYA RENTALS.
+            Affordable and reliable
+            self-drive car rentals
+            from SAWARIYA RENTALS.
           </p>
+
+          <div
+            style={{
+              display:
+                "flex",
+              justifyContent:
+                "center",
+              flexWrap:
+                "wrap",
+              gap: 8,
+              marginTop:
+                18,
+            }}
+          >
+            <Badge color={C.blue}>
+              <Clock3 size={13} />
+              8 Hour Rentals
+            </Badge>
+
+            <Badge color={C.green}>
+              <Clock3 size={13} />
+              12 Hour Rentals
+            </Badge>
+          </div>
         </div>
       </section>
 
@@ -1723,25 +2264,37 @@ function CustomerView({
       <section
         id="cars"
         style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "22px 16px",
+          maxWidth:
+            1200,
+          margin:
+            "0 auto",
+          padding:
+            "22px 16px",
         }}
       >
         <div
           style={{
-            display: "grid",
+            display:
+              "grid",
             gridTemplateColumns:
               "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
             gap: 12,
           }}
         >
-          <div style={{ position: "relative" }}>
+          <div
+            style={{
+              position:
+                "relative",
+            }}
+          >
             <Search
               size={18}
-              color={C.gray}
+              color={
+                C.gray
+              }
               style={{
-                position: "absolute",
+                position:
+                  "absolute",
                 left: 14,
                 top: "50%",
                 transform:
@@ -1750,37 +2303,54 @@ function CustomerView({
             />
 
             <input
-              value={search}
+              value={
+                search
+              }
               onChange={(e) =>
-                setSearch(e.target.value)
+                setSearch(
+                  e.target.value
+                )
               }
               placeholder="Search cars..."
               style={{
                 ...inputStyle,
-                paddingLeft: 42,
+                paddingLeft:
+                  42,
               }}
             />
           </div>
 
           <select
-            value={selectedCity}
-            onChange={(e) =>
-              setSelectedCity(e.target.value)
+            value={
+              selectedCity
             }
-            style={inputStyle}
+            onChange={(e) =>
+              setSelectedCity(
+                e.target.value
+              )
+            }
+            style={
+              inputStyle
+            }
           >
             <option value="All">
               All Cities
             </option>
 
-            {activeCities.map((city) => (
-              <option
-                key={city.id}
-                value={city.name}
-              >
-                {city.name}
-              </option>
-            ))}
+            {activeCities.map(
+              (city) => (
+                <option
+                  key={
+                    city.id
+                  }
+                  value={
+                    city.name
+                  }
+                >
+                  {city.name}
+                </option>
+              )
+            )}
           </select>
         </div>
       </section>
@@ -1789,18 +2359,25 @@ function CustomerView({
 
       <main
         style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "0 16px 60px",
+          maxWidth:
+            1200,
+          margin:
+            "0 auto",
+          padding:
+            "0 16px 60px",
         }}
       >
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            display:
+              "flex",
+            justifyContent:
+              "space-between",
+            alignItems:
+              "center",
             gap: 12,
-            marginBottom: 18,
+            marginBottom:
+              18,
           }}
         >
           <div>
@@ -1808,7 +2385,8 @@ function CustomerView({
               style={{
                 margin: 0,
                 fontSize: 25,
-                fontWeight: 950,
+                fontWeight:
+                  950,
               }}
             >
               Available Cars
@@ -1816,13 +2394,18 @@ function CustomerView({
 
             <p
               style={{
-                margin: "5px 0 0",
-                color: C.gray,
-                fontSize: 13,
+                margin:
+                  "5px 0 0",
+                color:
+                  C.gray,
+                fontSize:
+                  13,
               }}
             >
-              {filteredCars.length} car
-              {filteredCars.length !== 1
+              {filteredCars.length}{" "}
+              car
+              {filteredCars.length !==
+              1
                 ? "s"
                 : ""}{" "}
               found
@@ -1830,48 +2413,103 @@ function CustomerView({
           </div>
         </div>
 
-        {filteredCars.length === 0 ? (
+        {filteredCars.length ===
+        0 ? (
           <div
             style={{
-              padding: 40,
-              background: C.white,
-              borderRadius: 20,
+              padding:
+                40,
+              background:
+                C.white,
               border:
                 `1px solid ${C.border}`,
-              textAlign: "center",
-              color: C.gray,
+              borderRadius:
+                20,
+              textAlign:
+                "center",
+              color:
+                C.gray,
             }}
           >
-            No cars found.
+            <Car
+              size={48}
+              color={
+                C.blue
+              }
+              strokeWidth={
+                1.3
+              }
+            />
+
+            <h3
+              style={{
+                color:
+                  C.navy,
+                margin:
+                  "12px 0 5px",
+              }}
+            >
+              No cars available yet
+            </h3>
+
+            <p
+              style={{
+                margin:
+                  0,
+                fontSize:
+                  13,
+              }}
+            >
+              Vehicles added by the
+              admin will appear here.
+            </p>
           </div>
         ) : (
           <div
             style={{
-              display: "grid",
+              display:
+                "grid",
               gridTemplateColumns:
                 "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
               gap: 18,
             }}
           >
-            {filteredCars.map((car) => (
-              <CarCard
-                key={car.id}
-                car={car}
-                onBook={setBookingCar}
-              />
-            ))}
+            {filteredCars.map(
+              (car) => (
+                <CarCard
+                  key={
+                    car.id
+                  }
+                  car={
+                    car
+                  }
+                  onBook={
+                    setBookingCar
+                  }
+                />
+              )
+            )}
           </div>
         )}
 
         {/* RECENT BOOKINGS */}
 
-        {bookings.length > 0 && (
-          <section style={{ marginTop: 40 }}>
+        {bookings.length >
+          0 && (
+          <section
+            style={{
+              marginTop:
+                40,
+            }}
+          >
             <h2
               style={{
-                margin: "0 0 14px",
-                fontSize: 22,
-                fontWeight: 950,
+                margin:
+                  "0 0 14px",
+                fontSize:
+                  22,
+                fontWeight:
+                  950,
               }}
             >
               Recent Bookings
@@ -1879,7 +2517,8 @@ function CustomerView({
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gap: 10,
               }}
             >
@@ -1887,89 +2526,119 @@ function CustomerView({
                 .slice()
                 .reverse()
                 .slice(0, 5)
-                .map((booking) => (
-                  <div
-                    key={booking.id}
-                    style={{
-                      background: C.white,
-                      border:
-                        `1px solid ${C.border}`,
-                      borderRadius: 16,
-                      padding: 15,
-                      display: "flex",
-                      flexWrap: "wrap",
-                      justifyContent:
-                        "space-between",
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <strong
-                        style={{
-                          color: C.navy,
-                        }}
-                      >
-                        {booking.carName}
-                      </strong>
-
-                      <div
-                        style={{
-                          color: C.gray,
-                          fontSize: 12,
-                          marginTop: 4,
-                        }}
-                      >
-                        {booking.name} •{" "}
-                        {booking.pickupDate} to{" "}
-                        {booking.returnDate}
-                      </div>
-                    </div>
-
+                .map(
+                  (
+                    booking
+                  ) => (
                     <div
+                      key={
+                        booking.id
+                      }
                       style={{
-                        textAlign: "right",
+                        background:
+                          C.white,
+                        border:
+                          `1px solid ${C.border}`,
+                        borderRadius:
+                          16,
+                        padding:
+                          15,
+                        display:
+                          "flex",
+                        flexWrap:
+                          "wrap",
+                        justifyContent:
+                          "space-between",
+                        gap: 12,
                       }}
                     >
-                      <div
-                        style={{
-                          fontWeight: 900,
-                          color: C.green,
-                        }}
-                      >
-                        Paid{" "}
-                        {fmtINR(
-                          booking.paidAmount
-                        )}
+                      <div>
+                        <strong>
+                          {
+                            booking.carName
+                          }
+                        </strong>
+
+                        <div
+                          style={{
+                            color:
+                              C.gray,
+                            fontSize:
+                              12,
+                            marginTop:
+                              4,
+                          }}
+                        >
+                          {
+                            booking.name
+                          }{" "}
+                          •{" "}
+                          {
+                            booking.pickupDate
+                          }{" "}
+                          •{" "}
+                          {
+                            booking.rentalDuration
+                          }{" "}
+                          hours
+                        </div>
                       </div>
 
                       <div
                         style={{
-                          color: C.gray,
-                          fontSize: 12,
+                          textAlign:
+                            "right",
                         }}
                       >
-                        Remaining{" "}
-                        {fmtINR(
-                          booking.remainingAmount
-                        )}
+                        <div
+                          style={{
+                            fontWeight:
+                              900,
+                            color:
+                              C.green,
+                          }}
+                        >
+                          Paid{" "}
+                          {fmtINR(
+                            booking.paidAmount
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            color:
+                              C.gray,
+                            fontSize:
+                              12,
+                          }}
+                        >
+                          Remaining{" "}
+                          {fmtINR(
+                            booking.remainingAmount
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
             </div>
           </section>
         )}
       </main>
 
-      {/* BOOKING MODAL */}
-
       {bookingCar && (
         <BookingModal
-          car={bookingCar}
-          onClose={() =>
-            setBookingCar(null)
+          car={
+            bookingCar
           }
-          onConfirm={handleConfirmBooking}
+          onClose={() =>
+            setBookingCar(
+              null
+            )
+          }
+          onConfirm={
+            handleConfirmBooking
+          }
         />
       )}
     </div>
@@ -1989,12 +2658,17 @@ function StatCard({
   return (
     <div
       style={{
-        background: C.white,
-        border: `1px solid ${C.border}`,
-        borderRadius: 18,
+        background:
+          C.white,
+        border:
+          `1px solid ${C.border}`,
+        borderRadius:
+          18,
         padding: 18,
-        display: "flex",
-        alignItems: "center",
+        display:
+          "flex",
+        alignItems:
+          "center",
         gap: 13,
       }}
     >
@@ -2002,24 +2676,36 @@ function StatCard({
         style={{
           width: 44,
           height: 44,
-          borderRadius: 14,
-          background: `${color}12`,
+          borderRadius:
+            14,
+          background:
+            `${color}12`,
           color,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
           flexShrink: 0,
         }}
       >
         {icon}
       </div>
 
-      <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          minWidth: 0,
+        }}
+      >
         <div
           style={{
-            color: C.gray,
-            fontSize: 12,
-            fontWeight: 700,
+            color:
+              C.gray,
+            fontSize:
+              12,
+            fontWeight:
+              700,
           }}
         >
           {label}
@@ -2027,11 +2713,16 @@ function StatCard({
 
         <div
           style={{
-            color: C.navy,
-            fontSize: 22,
-            fontWeight: 950,
-            marginTop: 2,
-            wordBreak: "break-word",
+            color:
+              C.navy,
+            fontSize:
+              22,
+            fontWeight:
+              950,
+            marginTop:
+              2,
+            wordBreak:
+              "break-word",
           }}
         >
           {value}
@@ -2065,7 +2756,8 @@ function AdminView({
       seats: 5,
       fuel: "Petrol",
       transmission: "Manual",
-      price: "",
+      price8: "",
+      price12: "",
       city: "",
       photos: [],
       available: true,
@@ -2074,15 +2766,20 @@ function AdminView({
   const [newCity, setNewCity] =
     useState("");
 
-  const totalCars = cars.length;
+  const totalCars =
+    cars.length;
 
-  const availableCars = cars.filter(
-    (car) => car.available
-  ).length;
+  const availableCars =
+    cars.filter(
+      (car) =>
+        car.available
+    ).length;
 
-  const rentedCars = cars.filter(
-    (car) => !car.available
-  ).length;
+  const rentedCars =
+    cars.filter(
+      (car) =>
+        !car.available
+    ).length;
 
   const totalRevenue =
     bookings.reduce(
@@ -2101,7 +2798,8 @@ function AdminView({
       (sum, booking) =>
         sum +
         Number(
-          booking.remainingAmount ?? 0
+          booking.remainingAmount ??
+            0
         ),
       0
     );
@@ -2115,30 +2813,60 @@ function AdminView({
       seats: 5,
       fuel: "Petrol",
       transmission: "Manual",
-      price: "",
+      price8: "",
+      price12: "",
       city:
-        cities.find((c) => c.active)?.name ||
-        "",
+        cities.find(
+          (c) => c.active
+        )?.name || "",
       photos: [],
       available: true,
     });
   }
 
   function editCar(car) {
-    setEditingCar(car.id);
+    setEditingCar(
+      car.id
+    );
 
     setCarForm({
-      name: car.name || "",
-      type: car.type || "Hatchback",
-      seats: car.seats || 5,
-      fuel: car.fuel || "Petrol",
+      name:
+        car.name || "",
+
+      type:
+        car.type ||
+        "Hatchback",
+
+      seats:
+        car.seats || 5,
+
+      fuel:
+        car.fuel ||
+        "Petrol",
+
       transmission:
-        car.transmission || "Manual",
-      price: car.price || "",
-      city: car.city || "",
-      photos: car.photos || [],
+        car.transmission ||
+        "Manual",
+
+      price8:
+        car.price8 ||
+        car.price ||
+        "",
+
+      price12:
+        car.price12 ||
+        car.price ||
+        "",
+
+      city:
+        car.city || "",
+
+      photos:
+        car.photos || [],
+
       available:
-        car.available !== false,
+        car.available !==
+        false,
     });
 
     setTab("cars");
@@ -2148,55 +2876,90 @@ function AdminView({
     e.preventDefault();
 
     if (!carForm.name.trim()) {
-      alert("Enter car name.");
+      alert(
+        "Enter car name."
+      );
       return;
     }
 
     if (!carForm.city) {
-      alert("Select a city.");
+      alert(
+        "Select a city."
+      );
       return;
     }
 
     if (
-      !carForm.price ||
-      Number(carForm.price) <= 0
+      !carForm.price8 ||
+      Number(
+        carForm.price8
+      ) <= 0
     ) {
-      alert("Enter a valid daily price.");
+      alert(
+        "Enter a valid 8-hour price."
+      );
       return;
     }
 
-    if (editingCar) {
-      setCars((prev) =>
-        prev.map((car) =>
-          car.id === editingCar
-            ? {
-                ...car,
-                ...carForm,
-                name: carForm.name.trim(),
-                seats: Number(
-                  carForm.seats
-                ),
-                price: Number(
-                  carForm.price
-                ),
-              }
-            : car
-        )
+    if (
+      !carForm.price12 ||
+      Number(
+        carForm.price12
+      ) <= 0
+    ) {
+      alert(
+        "Enter a valid 12-hour price."
       );
-    } else {
-      setCars((prev) => [
-        ...prev,
-        {
-          id: uid("car"),
-          ...carForm,
-          name: carForm.name.trim(),
-          seats: Number(carForm.seats),
-          price: Number(carForm.price),
-        },
-      ]);
+      return;
     }
 
-    const wasEditing = Boolean(editingCar);
+    const vehicleData = {
+      ...carForm,
+      name:
+        carForm.name.trim(),
+      seats: Number(
+        carForm.seats
+      ),
+      price8:
+        Number(
+          carForm.price8
+        ),
+      price12:
+        Number(
+          carForm.price12
+        ),
+    };
+
+    if (editingCar) {
+      setCars(
+        (prev) =>
+          prev.map(
+            (car) =>
+              car.id ===
+              editingCar
+                ? {
+                    ...car,
+                    ...vehicleData,
+                  }
+                : car
+          )
+      );
+    } else {
+      setCars(
+        (prev) => [
+          ...prev,
+          {
+            id: uid("car"),
+            ...vehicleData,
+          },
+        ]
+      );
+    }
+
+    const wasEditing =
+      Boolean(
+        editingCar
+      );
 
     resetCarForm();
 
@@ -2208,33 +2971,46 @@ function AdminView({
   }
 
   function deleteCar(id) {
-    const car = cars.find(
-      (item) => item.id === id
-    );
+    const car =
+      cars.find(
+        (item) =>
+          item.id === id
+      );
 
     if (!car) return;
 
-    const confirmed = window.confirm(
-      `Delete ${car.name}?`
-    );
+    if (
+      !window.confirm(
+        `Delete ${car.name}?`
+      )
+    ) {
+      return;
+    }
 
-    if (!confirmed) return;
-
-    setCars((prev) =>
-      prev.filter((item) => item.id !== id)
+    setCars(
+      (prev) =>
+        prev.filter(
+          (item) =>
+            item.id !== id
+        )
     );
   }
 
-  function toggleAvailability(id) {
-    setCars((prev) =>
-      prev.map((car) =>
-        car.id === id
-          ? {
-              ...car,
-              available: !car.available,
-            }
-          : car
-      )
+  function toggleAvailability(
+    id
+  ) {
+    setCars(
+      (prev) =>
+        prev.map(
+          (car) =>
+            car.id === id
+              ? {
+                  ...car,
+                  available:
+                    !car.available,
+                }
+              : car
+        )
     );
   }
 
@@ -2242,142 +3018,193 @@ function AdminView({
     e,
     carId = null
   ) {
-    const files = Array.from(
-      e.target.files || []
-    );
+    const files =
+      Array.from(
+        e.target.files ||
+          []
+      );
 
-    if (!files.length) return;
+    if (!files.length)
+      return;
 
     try {
-      const compressed = [];
+      const compressed =
+        [];
 
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) {
+      for (
+        const file of files
+      ) {
+        if (
+          !file.type.startsWith(
+            "image/"
+          )
+        ) {
           continue;
         }
 
         const image =
-          await compressImage(file);
+          await compressImage(
+            file
+          );
 
-        compressed.push(image);
+        compressed.push(
+          image
+        );
       }
 
       if (carId) {
-        setCars((prev) =>
-          prev.map((car) =>
-            car.id === carId
-              ? {
-                  ...car,
-                  photos: [
-                    ...(car.photos || []),
-                    ...compressed,
-                  ],
-                }
-              : car
-          )
+        setCars(
+          (prev) =>
+            prev.map(
+              (car) =>
+                car.id ===
+                carId
+                  ? {
+                      ...car,
+                      photos: [
+                        ...(car.photos ||
+                          []),
+                        ...compressed,
+                      ],
+                    }
+                  : car
+            )
         );
       } else {
-        setCarForm((prev) => ({
-          ...prev,
-          photos: [
-            ...(prev.photos || []),
-            ...compressed,
-          ],
-        }));
+        setCarForm(
+          (prev) => ({
+            ...prev,
+            photos: [
+              ...(prev.photos ||
+                []),
+              ...compressed,
+            ],
+          })
+        );
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        error
+      );
 
       alert(
         "Unable to process the selected image."
       );
     }
 
-    e.target.value = "";
+    e.target.value =
+      "";
   }
 
-  function removeFormPhoto(index) {
-    setCarForm((prev) => ({
-      ...prev,
-      photos: prev.photos.filter(
-        (_, i) => i !== index
-      ),
-    }));
+  function removeFormPhoto(
+    index
+  ) {
+    setCarForm(
+      (prev) => ({
+        ...prev,
+        photos:
+          prev.photos.filter(
+            (_, i) =>
+              i !== index
+          ),
+      })
+    );
   }
 
   function removeCarPhoto(
     carId,
     index
   ) {
-    setCars((prev) =>
-      prev.map((car) =>
-        car.id === carId
-          ? {
-              ...car,
-              photos: (
-                car.photos || []
-              ).filter(
-                (_, i) => i !== index
-              ),
-            }
-          : car
-      )
+    setCars(
+      (prev) =>
+        prev.map(
+          (car) =>
+            car.id === carId
+              ? {
+                  ...car,
+                  photos:
+                    (
+                      car.photos ||
+                      []
+                    ).filter(
+                      (_, i) =>
+                        i !==
+                        index
+                    ),
+                }
+              : car
+        )
     );
   }
 
   function addCity(e) {
     e.preventDefault();
 
-    const name = newCity.trim();
+    const name =
+      newCity.trim();
 
     if (!name) return;
 
-    const exists = cities.some(
-      (city) =>
-        city.name.toLowerCase() ===
-        name.toLowerCase()
-    );
+    const exists =
+      cities.some(
+        (city) =>
+          city.name
+            .toLowerCase() ===
+          name.toLowerCase()
+      );
 
     if (exists) {
-      alert("City already exists.");
+      alert(
+        "City already exists."
+      );
       return;
     }
 
-    setCities((prev) => [
-      ...prev,
-      {
-        id: uid("city"),
-        name,
-        active: true,
-      },
-    ]);
+    setCities(
+      (prev) => [
+        ...prev,
+        {
+          id: uid("city"),
+          name,
+          active: true,
+        },
+      ]
+    );
 
     setNewCity("");
   }
 
   function toggleCity(id) {
-    setCities((prev) =>
-      prev.map((city) =>
-        city.id === id
-          ? {
-              ...city,
-              active: !city.active,
-            }
-          : city
-      )
+    setCities(
+      (prev) =>
+        prev.map(
+          (city) =>
+            city.id === id
+              ? {
+                  ...city,
+                  active:
+                    !city.active,
+                }
+              : city
+        )
     );
   }
 
   function deleteCity(id) {
-    const city = cities.find(
-      (item) => item.id === id
-    );
+    const city =
+      cities.find(
+        (item) =>
+          item.id === id
+      );
 
     if (!city) return;
 
-    const used = cars.some(
-      (car) => car.city === city.name
-    );
+    const used =
+      cars.some(
+        (car) =>
+          car.city ===
+          city.name
+      );
 
     if (used) {
       alert(
@@ -2394,37 +3221,49 @@ function AdminView({
       return;
     }
 
-    setCities((prev) =>
-      prev.filter(
-        (item) => item.id !== id
-      )
+    setCities(
+      (prev) =>
+        prev.filter(
+          (item) =>
+            item.id !== id
+        )
     );
   }
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#f8fafc",
-        color: C.navy,
+        minHeight:
+          "100vh",
+        background:
+          "#f8fafc",
+        color:
+          C.navy,
       }}
     >
       {/* ADMIN HEADER */}
 
       <header
         style={{
-          background: C.navy,
-          color: C.white,
+          background:
+            C.navy,
+          color:
+            C.white,
         }}
       >
         <div
           style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: "16px",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
+            maxWidth:
+              1200,
+            margin:
+              "0 auto",
+            padding: 16,
+            display:
+              "flex",
+            flexWrap:
+              "wrap",
+            alignItems:
+              "center",
             justifyContent:
               "space-between",
             gap: 12,
@@ -2432,18 +3271,24 @@ function AdminView({
         >
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
+              display:
+                "flex",
+              alignItems:
+                "center",
               gap: 10,
             }}
           >
-            <Settings size={22} />
+            <Settings
+              size={22}
+            />
 
             <div>
               <div
                 style={{
-                  fontWeight: 950,
-                  fontSize: 18,
+                  fontWeight:
+                    950,
+                  fontSize:
+                    18,
                 }}
               >
                 SAWARIYA ADMIN
@@ -2451,8 +3296,10 @@ function AdminView({
 
               <div
                 style={{
-                  opacity: 0.7,
-                  fontSize: 11,
+                  opacity:
+                    0.7,
+                  fontSize:
+                    11,
                 }}
               >
                 Fleet & Booking Management
@@ -2461,7 +3308,9 @@ function AdminView({
           </div>
 
           <Badge color="#38bdf8">
-            <ShieldCheck size={13} />
+            <ShieldCheck
+              size={13}
+            />
             Admin Mode
           </Badge>
         </div>
@@ -2471,74 +3320,126 @@ function AdminView({
 
       <div
         style={{
-          background: C.white,
+          background:
+            C.white,
           borderBottom:
             `1px solid ${C.border}`,
-          position: "sticky",
+          position:
+            "sticky",
           top: 0,
           zIndex: 40,
         }}
       >
         <div
           style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: "10px 16px",
-            display: "flex",
+            maxWidth:
+              1200,
+            margin:
+              "0 auto",
+            padding:
+              "10px 16px",
+            display:
+              "flex",
             gap: 8,
-            overflowX: "auto",
+            overflowX:
+              "auto",
           }}
         >
           {[
-            ["dashboard", "Dashboard"],
-            ["cars", "Vehicles"],
-            ["bookings", "Bookings"],
-            ["cities", "Cities"],
-          ].map(([value, label]) => (
-            <button
-              type="button"
-              key={value}
-              onClick={() => setTab(value)}
-              style={{
-                border: "none",
-                borderRadius: 12,
-                padding: "10px 14px",
-                background:
-                  tab === value
-                    ? C.blue
-                    : C.grayLight,
-                color:
-                  tab === value
-                    ? C.white
-                    : C.navy,
-                fontWeight: 850,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {label}
-            </button>
-          ))}
+            [
+              "dashboard",
+              "Dashboard",
+            ],
+            [
+              "cars",
+              "Vehicles",
+            ],
+            [
+              "bookings",
+              "Bookings",
+            ],
+            [
+              "cities",
+              "Cities",
+            ],
+          ].map(
+            ([
+              value,
+              label,
+            ]) => (
+              <button
+                type="button"
+                key={
+                  value
+                }
+                onClick={() =>
+                  setTab(
+                    value
+                  )
+                }
+                style={{
+                  border:
+                    "none",
+                  borderRadius:
+                    12,
+                  padding:
+                    "10px 14px",
+                  background:
+                    tab ===
+                    value
+                      ? C.blue
+                      : C.grayLight,
+                  color:
+                    tab ===
+                    value
+                      ? C.white
+                      : C.navy,
+                  fontWeight:
+                    850,
+                  cursor:
+                    "pointer",
+                  whiteSpace:
+                    "nowrap",
+                }}
+              >
+                {
+                  label
+                }
+              </button>
+            )
+          )}
         </div>
       </div>
 
       <main
         style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "22px 16px 60px",
+          maxWidth:
+            1200,
+          margin:
+            "0 auto",
+          padding:
+            "22px 16px 60px",
         }}
       >
         {/* DASHBOARD */}
 
-        {tab === "dashboard" && (
+        {tab ===
+          "dashboard" && (
           <>
-            <div style={{ marginBottom: 18 }}>
+            <div
+              style={{
+                marginBottom:
+                  18,
+              }}
+            >
               <h1
                 style={{
-                  margin: 0,
-                  fontSize: 28,
-                  fontWeight: 950,
+                  margin:
+                    0,
+                  fontSize:
+                    28,
+                  fontWeight:
+                    950,
                 }}
               >
                 Dashboard
@@ -2546,8 +3447,10 @@ function AdminView({
 
               <p
                 style={{
-                  color: C.gray,
-                  margin: "5px 0 0",
+                  color:
+                    C.gray,
+                  margin:
+                    "5px 0 0",
                 }}
               >
                 Overview of your rental
@@ -2557,64 +3460,99 @@ function AdminView({
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
                 gap: 12,
               }}
             >
               <StatCard
-                icon={<Car size={21} />}
+                icon={
+                  <Car size={21} />
+                }
                 label="Total Vehicles"
-                value={totalCars}
-                color={C.blue}
+                value={
+                  totalCars
+                }
+                color={
+                  C.blue
+                }
               />
 
               <StatCard
                 icon={
-                  <CheckCircle2 size={21} />
+                  <CheckCircle2
+                    size={21}
+                  />
                 }
                 label="Available"
-                value={availableCars}
-                color={C.green}
-              />
-
-              <StatCard
-                icon={<Clock3 size={21} />}
-                label="Rented"
-                value={rentedCars}
-                color={C.orange}
+                value={
+                  availableCars
+                }
+                color={
+                  C.green
+                }
               />
 
               <StatCard
                 icon={
-                  <IndianRupee size={21} />
+                  <Clock3
+                    size={21}
+                  />
+                }
+                label="Rented"
+                value={
+                  rentedCars
+                }
+                color={
+                  C.orange
+                }
+              />
+
+              <StatCard
+                icon={
+                  <IndianRupee
+                    size={21}
+                  />
                 }
                 label="Money Collected"
                 value={fmtINR(
                   totalRevenue
                 )}
-                color={C.green}
+                color={
+                  C.green
+                }
               />
 
               <StatCard
                 icon={
-                  <CreditCard size={21} />
+                  <CreditCard
+                    size={21}
+                  />
                 }
                 label="Pending Later"
                 value={fmtINR(
                   totalPending
                 )}
-                color={C.orange}
+                color={
+                  C.orange
+                }
               />
 
               <StatCard
                 icon={
-                  <CalendarDays size={21} />
+                  <CalendarDays
+                    size={21}
+                  />
                 }
                 label="Total Bookings"
-                value={bookings.length}
-                color={C.blue}
+                value={
+                  bookings.length
+                }
+                color={
+                  C.blue
+                }
               />
             </div>
           </>
@@ -2626,21 +3564,28 @@ function AdminView({
           <>
             <div
               style={{
-                display: "flex",
-                flexWrap: "wrap",
+                display:
+                  "flex",
+                flexWrap:
+                  "wrap",
                 justifyContent:
                   "space-between",
-                alignItems: "center",
+                alignItems:
+                  "center",
                 gap: 12,
-                marginBottom: 18,
+                marginBottom:
+                  18,
               }}
             >
               <div>
                 <h1
                   style={{
-                    margin: 0,
-                    fontSize: 28,
-                    fontWeight: 950,
+                    margin:
+                      0,
+                    fontSize:
+                      28,
+                    fontWeight:
+                      950,
                   }}
                 >
                   Vehicles
@@ -2648,20 +3593,29 @@ function AdminView({
 
                 <p
                   style={{
-                    color: C.gray,
-                    margin: "5px 0 0",
+                    color:
+                      C.gray,
+                    margin:
+                      "5px 0 0",
                   }}
                 >
-                  Add cars, prices and photos.
+                  Add cars, 8/12 hour
+                  prices and photos.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={resetCarForm}
-                style={primaryButton}
+                onClick={
+                  resetCarForm
+                }
+                style={
+                  primaryButton
+                }
               >
-                <Plus size={17} />
+                <Plus
+                  size={17}
+                />
                 Add Vehicle
               </button>
             </div>
@@ -2670,29 +3624,38 @@ function AdminView({
 
             <div
               style={{
-                background: C.white,
+                background:
+                  C.white,
                 border:
                   `1px solid ${C.border}`,
-                borderRadius: 20,
+                borderRadius:
+                  20,
                 padding: 18,
-                marginBottom: 20,
+                marginBottom:
+                  20,
               }}
             >
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   justifyContent:
                     "space-between",
-                  alignItems: "center",
+                  alignItems:
+                    "center",
                   gap: 10,
-                  marginBottom: 14,
+                  marginBottom:
+                    14,
                 }}
               >
                 <h2
                   style={{
-                    margin: 0,
-                    fontSize: 18,
-                    fontWeight: 950,
+                    margin:
+                      0,
+                    fontSize:
+                      18,
+                    fontWeight:
+                      950,
                   }}
                 >
                   {editingCar
@@ -2703,73 +3666,126 @@ function AdminView({
                 {editingCar && (
                   <button
                     type="button"
-                    onClick={resetCarForm}
-                    style={smallButton}
+                    onClick={
+                      resetCarForm
+                    }
+                    style={
+                      smallButton
+                    }
                   >
-                    <X size={14} />
+                    <X
+                      size={14}
+                    />
                     Cancel
                   </button>
                 )}
               </div>
 
-              <form onSubmit={saveCar}>
+              <form
+                onSubmit={
+                  saveCar
+                }
+              >
                 <div
                   style={{
-                    display: "grid",
+                    display:
+                      "grid",
                     gridTemplateColumns:
                       "repeat(auto-fit, minmax(min(180px, 100%), 1fr))",
                     gap: 13,
                   }}
                 >
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Car Name
                     </label>
 
                     <input
-                      value={carForm.name}
-                      onChange={(e) =>
+                      value={
+                        carForm.name
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             name:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
                       placeholder="Maruti Swift"
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Type
                     </label>
 
                     <select
-                      value={carForm.type}
-                      onChange={(e) =>
+                      value={
+                        carForm.type
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             type:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     >
-                      <option>Hatchback</option>
-                      <option>Sedan</option>
-                      <option>SUV</option>
-                      <option>MUV</option>
-                      <option>Luxury</option>
+                      <option>
+                        Hatchback
+                      </option>
+                      <option>
+                        Sedan
+                      </option>
+                      <option>
+                        SUV
+                      </option>
+                      <option>
+                        MUV
+                      </option>
+                      <option>
+                        Luxury
+                      </option>
                     </select>
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Seats
                     </label>
 
@@ -2777,47 +3793,83 @@ function AdminView({
                       type="number"
                       min="2"
                       max="12"
-                      value={carForm.seats}
-                      onChange={(e) =>
+                      value={
+                        carForm.seats
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             seats:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Fuel
                     </label>
 
                     <select
-                      value={carForm.fuel}
-                      onChange={(e) =>
+                      value={
+                        carForm.fuel
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             fuel:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     >
-                      <option>Petrol</option>
-                      <option>Diesel</option>
-                      <option>CNG</option>
-                      <option>Electric</option>
+                      <option>
+                        Petrol
+                      </option>
+                      <option>
+                        Diesel
+                      </option>
+                      <option>
+                        CNG
+                      </option>
+                      <option>
+                        Electric
+                      </option>
                     </select>
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       Transmission
                     </label>
 
@@ -2825,62 +3877,143 @@ function AdminView({
                       value={
                         carForm.transmission
                       }
-                      onChange={(e) =>
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             transmission:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     >
-                      <option>Manual</option>
-                      <option>Automatic</option>
+                      <option>
+                        Manual
+                      </option>
+                      <option>
+                        Automatic
+                      </option>
                     </select>
                   </div>
 
+                  {/* 8 HOUR PRICE */}
+
                   <div>
-                    <label style={labelStyle}>
-                      Daily Price
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      8 Hour Price
                     </label>
 
                     <input
                       type="number"
                       min="1"
-                      value={carForm.price}
-                      onChange={(e) =>
+                      value={
+                        carForm.price8
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
-                            price:
-                              e.target.value,
+                            price8:
+                              e
+                                .target
+                                .value,
+                          })
+                        )
+                      }
+                      placeholder="999"
+                      style={
+                        inputStyle
+                      }
+                    />
+                  </div>
+
+                  {/* 12 HOUR PRICE */}
+
+                  <div>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
+                      12 Hour Price
+                    </label>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={
+                        carForm.price12
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setCarForm(
+                          (
+                            prev
+                          ) => ({
+                            ...prev,
+                            price12:
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
                       placeholder="1499"
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     />
                   </div>
 
                   <div>
-                    <label style={labelStyle}>
+                    <label
+                      style={
+                        labelStyle
+                      }
+                    >
                       City
                     </label>
 
                     <select
-                      value={carForm.city}
-                      onChange={(e) =>
+                      value={
+                        carForm.city
+                      }
+                      onChange={(
+                        e
+                      ) =>
                         setCarForm(
-                          (prev) => ({
+                          (
+                            prev
+                          ) => ({
                             ...prev,
                             city:
-                              e.target.value,
+                              e
+                                .target
+                                .value,
                           })
                         )
                       }
-                      style={inputStyle}
+                      style={
+                        inputStyle
+                      }
                     >
                       <option value="">
                         Select City
@@ -2888,19 +4021,29 @@ function AdminView({
 
                       {cities
                         .filter(
-                          (city) =>
+                          (
+                            city
+                          ) =>
                             city.active
                         )
-                        .map((city) => (
-                          <option
-                            key={city.id}
-                            value={
-                              city.name
-                            }
-                          >
-                            {city.name}
-                          </option>
-                        ))}
+                        .map(
+                          (
+                            city
+                          ) => (
+                            <option
+                              key={
+                                city.id
+                              }
+                              value={
+                                city.name
+                              }
+                            >
+                              {
+                                city.name
+                              }
+                            </option>
+                          )
+                        )}
                     </select>
                   </div>
                 </div>
@@ -2909,9 +4052,12 @@ function AdminView({
 
                 <div
                   style={{
-                    marginTop: 18,
-                    padding: 15,
-                    borderRadius: 17,
+                    marginTop:
+                      18,
+                    padding:
+                      15,
+                    borderRadius:
+                      17,
                     background:
                       C.grayLight,
                     border:
@@ -2920,9 +4066,12 @@ function AdminView({
                 >
                   <div
                     style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
+                      display:
+                        "flex",
+                      flexWrap:
+                        "wrap",
+                      alignItems:
+                        "center",
                       justifyContent:
                         "space-between",
                       gap: 10,
@@ -2931,8 +4080,10 @@ function AdminView({
                     <div>
                       <div
                         style={{
-                          fontWeight: 900,
-                          color: C.navy,
+                          fontWeight:
+                            900,
+                          color:
+                            C.navy,
                         }}
                       >
                         Vehicle Photos
@@ -2940,48 +4091,66 @@ function AdminView({
 
                       <div
                         style={{
-                          fontSize: 12,
-                          color: C.gray,
-                          marginTop: 3,
+                          fontSize:
+                            12,
+                          color:
+                            C.gray,
+                          marginTop:
+                            3,
                         }}
                       >
-                        Add one or more photos.
-                        JPG/PNG supported.
+                        Add one or more
+                        photos. JPG/PNG
+                        supported.
                       </div>
                     </div>
 
                     <label
                       style={{
                         ...smallButton,
-                        cursor: "pointer",
+                        cursor:
+                          "pointer",
                       }}
                     >
-                      <ImagePlus size={15} />
+                      <ImagePlus
+                        size={
+                          15
+                        }
+                      />
                       Add Photos
 
                       <input
                         type="file"
                         accept="image/*"
                         multiple
-                        onChange={(e) =>
-                          handlePhotoUpload(e)
+                        onChange={(
+                          e
+                        ) =>
+                          handlePhotoUpload(
+                            e
+                          )
                         }
                         style={{
-                          display: "none",
+                          display:
+                            "none",
                         }}
                       />
                     </label>
                   </div>
 
-                  {carForm.photos.length >
+                  {carForm
+                    .photos
+                    .length >
                     0 && (
                     <div
                       style={{
-                        display: "grid",
+                        display:
+                          "grid",
                         gridTemplateColumns:
                           "repeat(auto-fill, minmax(110px, 1fr))",
                         gap: 10,
-                        marginTop: 14,
+                        marginTop:
+                          14,
                       }}
                     >
                       {carForm.photos.map(
@@ -3005,9 +4174,12 @@ function AdminView({
                             }}
                           >
                             <img
-                              src={photo}
+                              src={
+                                photo
+                              }
                               alt={`Vehicle ${
-                                index + 1
+                                index +
+                                1
                               }`}
                               style={{
                                 width:
@@ -3051,7 +4223,11 @@ function AdminView({
                                   "center",
                               }}
                             >
-                              <X size={15} />
+                              <X
+                                size={
+                                  15
+                                }
+                              />
                             </button>
                           </div>
                         )
@@ -3062,17 +4238,27 @@ function AdminView({
 
                 <div
                   style={{
-                    display: "flex",
-                    flexWrap: "wrap",
+                    display:
+                      "flex",
+                    flexWrap:
+                      "wrap",
                     gap: 10,
-                    marginTop: 16,
+                    marginTop:
+                      16,
                   }}
                 >
                   <button
                     type="submit"
-                    style={primaryButton}
+                    style={
+                      primaryButton
+                    }
                   >
-                    <CheckCircle2 size={17} />
+                    <CheckCircle2
+                      size={
+                        17
+                      }
+                    />
+
                     {editingCar
                       ? "Update Vehicle"
                       : "Save Vehicle"}
@@ -3085,262 +4271,424 @@ function AdminView({
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gap: 12,
               }}
             >
-              {cars.map((car) => (
+              {cars.length ===
+                0 && (
                 <div
-                  key={car.id}
                   style={{
-                    background: C.white,
+                    padding:
+                      35,
+                    textAlign:
+                      "center",
+                    background:
+                      C.white,
                     border:
                       `1px solid ${C.border}`,
-                    borderRadius: 18,
-                    padding: 12,
-                    display: "grid",
-                    gridTemplateColumns:
-                      "90px minmax(0,1fr)",
-                    gap: 13,
+                    borderRadius:
+                      18,
+                    color:
+                      C.gray,
                   }}
                 >
-                  <CarThumb
-                    car={car}
-                    size={90}
+                  <Car
+                    size={
+                      45
+                    }
+                    color={
+                      C.blue
+                    }
                   />
 
                   <div
                     style={{
-                      minWidth: 0,
+                      marginTop:
+                        10,
+                      fontWeight:
+                        900,
+                      color:
+                        C.navy,
                     }}
                   >
+                    No vehicles added
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize:
+                        12,
+                      marginTop:
+                        4,
+                    }}
+                  >
+                    Use "Add Vehicle" to
+                    add your first car.
+                  </div>
+                </div>
+              )}
+
+              {cars.map(
+                (car) => (
+                  <div
+                    key={
+                      car.id
+                    }
+                    style={{
+                      background:
+                        C.white,
+                      border:
+                        `1px solid ${C.border}`,
+                      borderRadius:
+                        18,
+                      padding:
+                        12,
+                      display:
+                        "grid",
+                      gridTemplateColumns:
+                        "90px minmax(0,1fr)",
+                      gap: 13,
+                    }}
+                  >
+                    <CarThumb
+                      car={
+                        car
+                      }
+                      size={
+                        90
+                      }
+                    />
+
                     <div
                       style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        justifyContent:
-                          "space-between",
-                        gap: 8,
+                        minWidth:
+                          0,
                       }}
                     >
                       <div
                         style={{
-                          minWidth: 0,
+                          display:
+                            "flex",
+                          flexWrap:
+                            "wrap",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "space-between",
+                          gap: 8,
                         }}
                       >
-                        <strong
-                          style={{
-                            fontSize: 16,
-                            wordBreak:
-                              "break-word",
-                          }}
-                        >
-                          {car.name}
-                        </strong>
+                        <div>
+                          <strong
+                            style={{
+                              fontSize:
+                                16,
+                              wordBreak:
+                                "break-word",
+                            }}
+                          >
+                            {
+                              car.name
+                            }
+                          </strong>
 
-                        <div
-                          style={{
-                            color: C.gray,
-                            fontSize: 12,
-                            marginTop: 3,
-                          }}
-                        >
-                          {car.type} •{" "}
-                          {car.city} •{" "}
-                          {fmtINR(
-                            car.price
-                          )}
-                          /day
+                          <div
+                            style={{
+                              color:
+                                C.gray,
+                              fontSize:
+                                12,
+                              marginTop:
+                                3,
+                            }}
+                          >
+                            {
+                              car.type
+                            }{" "}
+                            •{" "}
+                            {
+                              car.city
+                            }
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              gap: 6,
+                              flexWrap:
+                                "wrap",
+                              marginTop:
+                                7,
+                            }}
+                          >
+                            <Badge
+                              color={
+                                C.blue
+                              }
+                            >
+                              8H{" "}
+                              {fmtINR(
+                                car.price8 ||
+                                  car.price
+                              )}
+                            </Badge>
+
+                            <Badge
+                              color={
+                                C.green
+                              }
+                            >
+                              12H{" "}
+                              {fmtINR(
+                                car.price12 ||
+                                  car.price
+                              )}
+                            </Badge>
+                          </div>
                         </div>
+
+                        <Badge
+                          color={
+                            car.available
+                              ? C.green
+                              : C.red
+                          }
+                        >
+                          {car.available
+                            ? "Available"
+                            : "Rented"}
+                        </Badge>
                       </div>
 
-                      <Badge
-                        color={
-                          car.available
-                            ? C.green
-                            : C.red
-                        }
-                      >
-                        {car.available
-                          ? "Available"
-                          : "Rented"}
-                      </Badge>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 7,
-                        marginTop: 10,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleAvailability(
-                            car.id
-                          )
-                        }
-                        style={smallButton}
-                      >
-                        <Clock3 size={14} />
-                        {car.available
-                          ? "Mark Rented"
-                          : "Mark Available"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editCar(car)
-                        }
-                        style={smallButton}
-                      >
-                        <Pencil size={14} />
-                        Edit
-                      </button>
-
-                      <label
+                      <div
                         style={{
-                          ...smallButton,
-                          cursor: "pointer",
+                          display:
+                            "flex",
+                          flexWrap:
+                            "wrap",
+                          gap: 7,
+                          marginTop:
+                            10,
                         }}
                       >
-                        <Camera size={14} />
-                        Add Photo
-
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) =>
-                            handlePhotoUpload(
-                              e,
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toggleAvailability(
                               car.id
                             )
                           }
+                          style={
+                            smallButton
+                          }
+                        >
+                          <Clock3
+                            size={
+                              14
+                            }
+                          />
+
+                          {car.available
+                            ? "Mark Rented"
+                            : "Mark Available"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            editCar(
+                              car
+                            )
+                          }
+                          style={
+                            smallButton
+                          }
+                        >
+                          <Pencil
+                            size={
+                              14
+                            }
+                          />
+                          Edit
+                        </button>
+
+                        <label
                           style={{
-                            display: "none",
+                            ...smallButton,
+                            cursor:
+                              "pointer",
                           }}
-                        />
-                      </label>
+                        >
+                          <Camera
+                            size={
+                              14
+                            }
+                          />
+                          Add Photo
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteCar(car.id)
-                        }
-                        style={dangerButton}
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
-                    </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(
+                              e
+                            ) =>
+                              handlePhotoUpload(
+                                e,
+                                car.id
+                              )
+                            }
+                            style={{
+                              display:
+                                "none",
+                            }}
+                          />
+                        </label>
 
-                    {/* EXISTING PHOTOS */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            deleteCar(
+                              car.id
+                            )
+                          }
+                          style={
+                            dangerButton
+                          }
+                        >
+                          <Trash2
+                            size={
+                              14
+                            }
+                          />
+                          Delete
+                        </button>
+                      </div>
 
-                    {car.photos?.length >
-                      0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 8,
-                          marginTop: 12,
-                        }}
-                      >
-                        {car.photos.map(
-                          (
-                            photo,
-                            index
-                          ) => (
-                            <div
-                              key={`${car.id}-${index}`}
-                              style={{
-                                position:
-                                  "relative",
-                                width: 75,
-                                height: 55,
-                                borderRadius:
-                                  9,
-                                overflow:
-                                  "hidden",
-                              }}
-                            >
-                              <img
-                                src={photo}
-                                alt={`${car.name} ${
-                                  index + 1
-                                }`}
-                                style={{
-                                  width:
-                                    "100%",
-                                  height:
-                                    "100%",
-                                  objectFit:
-                                    "cover",
-                                }}
-                              />
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeCarPhoto(
-                                    car.id,
-                                    index
-                                  )
-                                }
+                      {car.photos
+                        ?.length >
+                        0 && (
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            flexWrap:
+                              "wrap",
+                            gap: 8,
+                            marginTop:
+                              12,
+                          }}
+                        >
+                          {car.photos.map(
+                            (
+                              photo,
+                              index
+                            ) => (
+                              <div
+                                key={`${car.id}-${index}`}
                                 style={{
                                   position:
-                                    "absolute",
-                                  right: 3,
-                                  top: 3,
-                                  width: 21,
-                                  height: 21,
+                                    "relative",
+                                  width: 75,
+                                  height: 55,
                                   borderRadius:
-                                    999,
-                                  border:
-                                    "none",
-                                  background:
-                                    "rgba(220,38,38,.9)",
-                                  color:
-                                    "white",
-                                  display:
-                                    "flex",
-                                  alignItems:
-                                    "center",
-                                  justifyContent:
-                                    "center",
-                                  cursor:
-                                    "pointer",
+                                    9,
+                                  overflow:
+                                    "hidden",
                                 }}
                               >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
+                                <img
+                                  src={
+                                    photo
+                                  }
+                                  alt={`${car.name} ${
+                                    index +
+                                    1
+                                  }`}
+                                  style={{
+                                    width:
+                                      "100%",
+                                    height:
+                                      "100%",
+                                    objectFit:
+                                      "cover",
+                                  }}
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeCarPhoto(
+                                      car.id,
+                                      index
+                                    )
+                                  }
+                                  style={{
+                                    position:
+                                      "absolute",
+                                    right: 3,
+                                    top: 3,
+                                    width: 21,
+                                    height: 21,
+                                    borderRadius:
+                                      999,
+                                    border:
+                                      "none",
+                                    background:
+                                      "rgba(220,38,38,.9)",
+                                    color:
+                                      "white",
+                                    display:
+                                      "flex",
+                                    alignItems:
+                                      "center",
+                                    justifyContent:
+                                      "center",
+                                    cursor:
+                                      "pointer",
+                                  }}
+                                >
+                                  <X
+                                    size={
+                                      12
+                                    }
+                                  />
+                                </button>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </>
         )}
 
         {/* BOOKINGS */}
 
-        {tab === "bookings" && (
+        {tab ===
+          "bookings" && (
           <>
-            <div style={{ marginBottom: 18 }}>
+            <div
+              style={{
+                marginBottom:
+                  18,
+              }}
+            >
               <h1
                 style={{
-                  margin: 0,
-                  fontSize: 28,
-                  fontWeight: 950,
+                  margin:
+                    0,
+                  fontSize:
+                    28,
+                  fontWeight:
+                    950,
                 }}
               >
                 Bookings
@@ -3348,24 +4696,33 @@ function AdminView({
 
               <p
                 style={{
-                  color: C.gray,
-                  margin: "5px 0 0",
+                  color:
+                    C.gray,
+                  margin:
+                    "5px 0 0",
                 }}
               >
-                Payment and customer records.
+                Payment and customer
+                records.
               </p>
             </div>
 
-            {bookings.length === 0 ? (
+            {bookings.length ===
+            0 ? (
               <div
                 style={{
-                  background: C.white,
+                  background:
+                    C.white,
                   border:
                     `1px solid ${C.border}`,
-                  borderRadius: 18,
-                  padding: 40,
-                  textAlign: "center",
-                  color: C.gray,
+                  borderRadius:
+                    18,
+                  padding:
+                    40,
+                  textAlign:
+                    "center",
+                  color:
+                    C.gray,
                 }}
               >
                 No bookings yet.
@@ -3373,177 +4730,259 @@ function AdminView({
             ) : (
               <div
                 style={{
-                  display: "grid",
+                  display:
+                    "grid",
                   gap: 12,
                 }}
               >
                 {bookings
                   .slice()
                   .reverse()
-                  .map((booking) => (
-                    <div
-                      key={booking.id}
-                      style={{
-                        background: C.white,
-                        border:
-                          `1px solid ${C.border}`,
-                        borderRadius: 18,
-                        padding: 16,
-                      }}
-                    >
+                  .map(
+                    (
+                      booking
+                    ) => (
                       <div
+                        key={
+                          booking.id
+                        }
                         style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          justifyContent:
-                            "space-between",
-                          gap: 12,
+                          background:
+                            C.white,
+                          border:
+                            `1px solid ${C.border}`,
+                          borderRadius:
+                            18,
+                          padding:
+                            16,
                         }}
                       >
-                        <div>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              alignItems:
-                                "center",
-                              gap: 8,
-                            }}
-                          >
-                            <strong
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            flexWrap:
+                              "wrap",
+                            justifyContent:
+                              "space-between",
+                            gap: 12,
+                          }}
+                        >
+                          <div>
+                            <div
                               style={{
-                                fontSize: 18,
+                                display:
+                                  "flex",
+                                flexWrap:
+                                  "wrap",
+                                alignItems:
+                                  "center",
+                                gap: 8,
                               }}
                             >
-                              {booking.carName}
-                            </strong>
+                              <strong
+                                style={{
+                                  fontSize:
+                                    18,
+                                }}
+                              >
+                                {
+                                  booking.carName
+                                }
+                              </strong>
 
-                            <Badge
-                              color={C.green}
+                              <Badge
+                                color={
+                                  C.green
+                                }
+                              >
+                                {
+                                  booking.status
+                                }
+                              </Badge>
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  7,
+                                color:
+                                  C.gray,
+                                fontSize:
+                                  13,
+                              }}
                             >
-                              {booking.status}
-                            </Badge>
+                              {
+                                booking.name
+                              }{" "}
+                              •{" "}
+                              {
+                                booking.phone
+                              }
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  5,
+                                color:
+                                  C.gray,
+                                fontSize:
+                                  13,
+                              }}
+                            >
+                              Pickup:{" "}
+                              {
+                                booking.pickupDate
+                              }{" "}
+                              at{" "}
+                              {
+                                booking.pickupTime
+                              }
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  5,
+                                color:
+                                  C.blue,
+                                fontWeight:
+                                  800,
+                                fontSize:
+                                  13,
+                              }}
+                            >
+                              Duration:{" "}
+                              {
+                                booking.rentalDuration
+                              }{" "}
+                              Hours
+                            </div>
                           </div>
 
                           <div
                             style={{
-                              marginTop: 7,
-                              color: C.gray,
-                              fontSize: 13,
+                              textAlign:
+                                "right",
                             }}
                           >
-                            {booking.name} •{" "}
-                            {booking.phone}
-                          </div>
+                            <div
+                              style={{
+                                color:
+                                  C.green,
+                                fontWeight:
+                                  950,
+                                fontSize:
+                                  18,
+                              }}
+                            >
+                              Paid{" "}
+                              {fmtINR(
+                                booking.paidAmount
+                              )}
+                            </div>
 
-                          <div
-                            style={{
-                              marginTop: 5,
-                              color: C.gray,
-                              fontSize: 13,
-                            }}
-                          >
-                            {booking.pickupDate}{" "}
-                            →{" "}
-                            {booking.returnDate}{" "}
-                            • {booking.days} day
-                            {booking.days !==
-                            1
-                              ? "s"
-                              : ""}
+                            <div
+                              style={{
+                                color:
+                                  C.navy,
+                                fontWeight:
+                                  800,
+                                fontSize:
+                                  13,
+                                marginTop:
+                                  4,
+                              }}
+                            >
+                              Total{" "}
+                              {fmtINR(
+                                booking.total
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                color:
+                                  C.orange,
+                                fontSize:
+                                  13,
+                                marginTop:
+                                  4,
+                              }}
+                            >
+                              Remaining{" "}
+                              {fmtINR(
+                                booking.remainingAmount
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         <div
                           style={{
-                            textAlign: "right",
+                            marginTop:
+                              13,
+                            paddingTop:
+                              12,
+                            borderTop:
+                              `1px solid ${C.border}`,
+                            display:
+                              "flex",
+                            flexWrap:
+                              "wrap",
+                            gap: 8,
                           }}
                         >
-                          <div
-                            style={{
-                              color: C.green,
-                              fontWeight: 950,
-                              fontSize: 18,
-                            }}
+                          <Badge
+                            color={
+                              booking.paymentType ===
+                              "advance"
+                                ? C.orange
+                                : C.green
+                            }
                           >
-                            Paid{" "}
-                            {fmtINR(
-                              booking.paidAmount
-                            )}
-                          </div>
+                            <CreditCard
+                              size={
+                                12
+                              }
+                            />
 
-                          <div
-                            style={{
-                              color: C.navy,
-                              fontWeight: 800,
-                              fontSize: 13,
-                              marginTop: 4,
-                            }}
-                          >
-                            Total{" "}
-                            {fmtINR(
-                              booking.total
-                            )}
-                          </div>
+                            {booking.paymentType ===
+                            "advance"
+                              ? "₹500 Advance"
+                              : "Full Payment"}
+                          </Badge>
 
-                          <div
-                            style={{
-                              color: C.orange,
-                              fontSize: 13,
-                              marginTop: 4,
-                            }}
-                          >
-                            Remaining{" "}
-                            {fmtINR(
-                              booking.remainingAmount
-                            )}
-                          </div>
+                          {booking.orderId && (
+                            <Badge
+                              color={
+                                C.gray
+                              }
+                            >
+                              Order:{" "}
+                              {
+                                booking.orderId
+                              }
+                            </Badge>
+                          )}
+
+                          {booking.paymentId && (
+                            <Badge
+                              color={
+                                C.gray
+                              }
+                            >
+                              Payment:{" "}
+                              {
+                                booking.paymentId
+                              }
+                            </Badge>
+                          )}
                         </div>
                       </div>
-
-                      <div
-                        style={{
-                          marginTop: 13,
-                          paddingTop: 12,
-                          borderTop:
-                            `1px solid ${C.border}`,
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 8,
-                        }}
-                      >
-                        <Badge
-                          color={
-                            booking.paymentType ===
-                            "advance"
-                              ? C.orange
-                              : C.green
-                          }
-                        >
-                          <CreditCard size={12} />
-
-                          {booking.paymentType ===
-                          "advance"
-                            ? "₹500 Advance"
-                            : "Full Payment"}
-                        </Badge>
-
-                        {booking.orderId && (
-                          <Badge color={C.gray}>
-                            Order:{" "}
-                            {booking.orderId}
-                          </Badge>
-                        )}
-
-                        {booking.paymentId && (
-                          <Badge color={C.gray}>
-                            Payment:{" "}
-                            {booking.paymentId}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  )}
               </div>
             )}
           </>
@@ -3553,12 +4992,20 @@ function AdminView({
 
         {tab === "cities" && (
           <>
-            <div style={{ marginBottom: 18 }}>
+            <div
+              style={{
+                marginBottom:
+                  18,
+              }}
+            >
               <h1
                 style={{
-                  margin: 0,
-                  fontSize: 28,
-                  fontWeight: 950,
+                  margin:
+                    0,
+                  fontSize:
+                    28,
+                  fontWeight:
+                    950,
                 }}
               >
                 Cities
@@ -3566,8 +5013,10 @@ function AdminView({
 
               <p
                 style={{
-                  color: C.gray,
-                  margin: "5px 0 0",
+                  color:
+                    C.gray,
+                  margin:
+                    "5px 0 0",
                 }}
               >
                 Manage rental locations.
@@ -3575,122 +5024,179 @@ function AdminView({
             </div>
 
             <form
-              onSubmit={addCity}
+              onSubmit={
+                addCity
+              }
               style={{
-                background: C.white,
+                background:
+                  C.white,
                 border:
                   `1px solid ${C.border}`,
-                borderRadius: 18,
-                padding: 16,
-                display: "flex",
-                flexWrap: "wrap",
+                borderRadius:
+                  18,
+                padding:
+                  16,
+                display:
+                  "flex",
+                flexWrap:
+                  "wrap",
                 gap: 10,
               }}
             >
               <input
-                value={newCity}
-                onChange={(e) =>
-                  setNewCity(e.target.value)
+                value={
+                  newCity
+                }
+                onChange={(
+                  e
+                ) =>
+                  setNewCity(
+                    e.target
+                      .value
+                  )
                 }
                 placeholder="Enter city name"
                 style={{
                   ...inputStyle,
-                  flex: "1 1 220px",
+                  flex:
+                    "1 1 220px",
                 }}
               />
 
               <button
                 type="submit"
-                style={primaryButton}
+                style={
+                  primaryButton
+                }
               >
-                <Plus size={16} />
+                <Plus
+                  size={
+                    16
+                  }
+                />
                 Add City
               </button>
             </form>
 
             <div
               style={{
-                display: "grid",
+                display:
+                  "grid",
                 gap: 10,
-                marginTop: 16,
+                marginTop:
+                  16,
               }}
             >
-              {cities.map((city) => (
-                <div
-                  key={city.id}
-                  style={{
-                    background: C.white,
-                    border:
-                      `1px solid ${C.border}`,
-                    borderRadius: 16,
-                    padding: 14,
-                    display: "flex",
-                    flexWrap: "wrap",
-                    justifyContent:
-                      "space-between",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
-                >
+              {cities.map(
+                (city) => (
                   <div
+                    key={
+                      city.id
+                    }
                     style={{
-                      display: "flex",
-                      alignItems: "center",
+                      background:
+                        C.white,
+                      border:
+                        `1px solid ${C.border}`,
+                      borderRadius:
+                        16,
+                      padding:
+                        14,
+                      display:
+                        "flex",
+                      flexWrap:
+                        "wrap",
+                      justifyContent:
+                        "space-between",
+                      alignItems:
+                        "center",
                       gap: 10,
                     }}
                   >
-                    <MapPin
-                      size={19}
-                      color={C.blue}
-                    />
-
-                    <strong>{city.name}</strong>
-
-                    <Badge
-                      color={
-                        city.active
-                          ? C.green
-                          : C.gray
-                      }
+                    <div
+                      style={{
+                        display:
+                          "flex",
+                        alignItems:
+                          "center",
+                        gap: 10,
+                      }}
                     >
-                      {city.active
-                        ? "Active"
-                        : "Inactive"}
-                    </Badge>
+                      <MapPin
+                        size={
+                          19
+                        }
+                        color={
+                          C.blue
+                        }
+                      />
+
+                      <strong>
+                        {
+                          city.name
+                        }
+                      </strong>
+
+                      <Badge
+                        color={
+                          city.active
+                            ? C.green
+                            : C.gray
+                        }
+                      >
+                        {city.active
+                          ? "Active"
+                          : "Inactive"}
+                      </Badge>
+                    </div>
+
+                    <div
+                      style={{
+                        display:
+                          "flex",
+                        flexWrap:
+                          "wrap",
+                        gap: 7,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleCity(
+                            city.id
+                          )
+                        }
+                        style={
+                          smallButton
+                        }
+                      >
+                        {city.active
+                          ? "Disable"
+                          : "Enable"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deleteCity(
+                            city.id
+                          )
+                        }
+                        style={
+                          dangerButton
+                        }
+                      >
+                        <Trash2
+                          size={
+                            14
+                          }
+                        />
+                        Delete
+                      </button>
+                    </div>
                   </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 7,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toggleCity(city.id)
-                      }
-                      style={smallButton}
-                    >
-                      {city.active
-                        ? "Disable"
-                        : "Enable"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        deleteCity(city.id)
-                      }
-                      style={dangerButton}
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </>
         )}
@@ -3719,22 +5225,37 @@ function AdminGate({
   function login(e) {
     e.preventDefault();
 
-    if (passcode === ADMIN_PASSCODE) {
+    if (
+      passcode ===
+      ADMIN_PASSCODE
+    ) {
       setLoggedIn(true);
       setPasscode("");
     } else {
-      alert("Incorrect admin passcode.");
+      alert(
+        "Incorrect admin passcode."
+      );
     }
   }
 
   if (loggedIn) {
     return (
       <AdminView
-        cars={cars}
-        setCars={setCars}
-        cities={cities}
-        setCities={setCities}
-        bookings={bookings}
+        cars={
+          cars
+        }
+        setCars={
+          setCars
+        }
+        cities={
+          cities
+        }
+        setCities={
+          setCities
+        }
+        bookings={
+          bookings
+        }
       />
     );
   }
@@ -3742,53 +5263,81 @@ function AdminGate({
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight:
+          "100vh",
         background:
           "linear-gradient(135deg,#eff6ff,#f8fafc)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display:
+          "flex",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
         padding: 16,
-        boxSizing: "border-box",
+        boxSizing:
+          "border-box",
       }}
     >
       <form
-        onSubmit={login}
+        onSubmit={
+          login
+        }
         style={{
-          width: "100%",
-          maxWidth: 420,
-          background: C.white,
+          width:
+            "100%",
+          maxWidth:
+            420,
+          background:
+            C.white,
           border:
             `1px solid ${C.border}`,
-          borderRadius: 24,
-          padding: 24,
+          borderRadius:
+            24,
+          padding:
+            24,
           boxShadow:
             "0 20px 60px rgba(15,23,42,.10)",
-          boxSizing: "border-box",
+          boxSizing:
+            "border-box",
         }}
       >
         <div
           style={{
             width: 52,
             height: 52,
-            borderRadius: 16,
-            background: C.navy,
-            color: C.white,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 16,
+            borderRadius:
+              16,
+            background:
+              C.navy,
+            color:
+              C.white,
+            display:
+              "flex",
+            alignItems:
+              "center",
+            justifyContent:
+              "center",
+            marginBottom:
+              16,
           }}
         >
-          <ShieldCheck size={27} />
+          <ShieldCheck
+            size={
+              27
+            }
+          />
         </div>
 
         <h1
           style={{
-            margin: 0,
-            fontSize: 25,
-            fontWeight: 950,
-            color: C.navy,
+            margin:
+              0,
+            fontSize:
+              25,
+            fontWeight:
+              950,
+            color:
+              C.navy,
           }}
         >
           Admin Login
@@ -3796,27 +5345,43 @@ function AdminGate({
 
         <p
           style={{
-            color: C.gray,
-            fontSize: 13,
-            lineHeight: 1.5,
+            color:
+              C.gray,
+            fontSize:
+              13,
+            lineHeight:
+              1.5,
           }}
         >
           Enter your admin passcode to manage
           vehicles, bookings and cities.
         </p>
 
-        <label style={labelStyle}>
+        <label
+          style={
+            labelStyle
+          }
+        >
           Admin Passcode
         </label>
 
         <input
           type="password"
-          value={passcode}
-          onChange={(e) =>
-            setPasscode(e.target.value)
+          value={
+            passcode
+          }
+          onChange={(
+            e
+          ) =>
+            setPasscode(
+              e.target
+                .value
+            )
           }
           placeholder="Enter passcode"
-          style={inputStyle}
+          style={
+            inputStyle
+          }
           autoFocus
         />
 
@@ -3824,20 +5389,30 @@ function AdminGate({
           type="submit"
           style={{
             ...primaryButton,
-            width: "100%",
-            marginTop: 14,
+            width:
+              "100%",
+            marginTop:
+              14,
           }}
         >
-          <ShieldCheck size={18} />
+          <ShieldCheck
+            size={
+              18
+            }
+          />
           Login
         </button>
 
         <div
           style={{
-            marginTop: 12,
-            textAlign: "center",
-            color: C.gray,
-            fontSize: 11,
+            marginTop:
+              12,
+            textAlign:
+              "center",
+            color:
+              C.gray,
+            fontSize:
+              11,
           }}
         >
           SAWARIYA RENTALS
@@ -3852,12 +5427,10 @@ function AdminGate({
 ========================================================= */
 
 function App() {
-  const [cars, setCars] = useState(() =>
-    loadShared(
-      "sawariya_cars",
-      seedCars
-    )
-  );
+  const [cars, setCars] =
+    useState(() =>
+      loadCars()
+    );
 
   const [cities, setCities] =
     useState(() =>
@@ -3883,12 +5456,18 @@ function App() {
   ------------------------------------------------ */
 
   useEffect(() => {
-    document.body.style.margin = "0";
-    document.body.style.overflowX = "hidden";
+    document.body.style.margin =
+      "0";
+
+    document.body.style.overflowX =
+      "hidden";
 
     return () => {
-      document.body.style.margin = "";
-      document.body.style.overflowX = "";
+      document.body.style.margin =
+        "";
+
+      document.body.style.overflowX =
+        "";
     };
   }, []);
 
@@ -3921,28 +5500,38 @@ function App() {
      CONFIRM BOOKING
   ------------------------------------------------ */
 
-  function confirmBooking(data) {
+  function confirmBooking(
+    data
+  ) {
     const booking = {
       id: uid("booking"),
+
       createdAt:
         new Date().toISOString(),
+
       ...data,
     };
 
-    setBookings((prev) => [
-      ...prev,
-      booking,
-    ]);
+    setBookings(
+      (prev) => [
+        ...prev,
+        booking,
+      ]
+    );
 
-    setCars((prev) =>
-      prev.map((car) =>
-        car.id === data.carId
-          ? {
-              ...car,
-              available: false,
-            }
-          : car
-      )
+    setCars(
+      (prev) =>
+        prev.map(
+          (car) =>
+            car.id ===
+            data.carId
+              ? {
+                  ...car,
+                  available:
+                    false,
+                }
+              : car
+        )
     );
   }
 
@@ -3955,7 +5544,8 @@ function App() {
       <div>
         <div
           style={{
-            position: "fixed",
+            position:
+              "fixed",
             right: 14,
             bottom: 14,
             zIndex: 2000,
@@ -3964,7 +5554,9 @@ function App() {
           <button
             type="button"
             onClick={() =>
-              setIsAdmin(false)
+              setIsAdmin(
+                false
+              )
             }
             style={{
               ...secondaryButton,
@@ -3972,17 +5564,31 @@ function App() {
                 "0 10px 30px rgba(0,0,0,.15)",
             }}
           >
-            <X size={16} />
+            <X
+              size={
+                16
+              }
+            />
             Exit Admin
           </button>
         </div>
 
         <AdminGate
-          cars={cars}
-          setCars={setCars}
-          cities={cities}
-          setCities={setCities}
-          bookings={bookings}
+          cars={
+            cars
+          }
+          setCars={
+            setCars
+          }
+          cities={
+            cities
+          }
+          setCities={
+            setCities
+          }
+          bookings={
+            bookings
+          }
         />
       </div>
     );
@@ -3991,40 +5597,63 @@ function App() {
   return (
     <div>
       <CustomerView
-        cars={cars}
-        cities={cities}
-        bookings={bookings}
-        onBook={confirmBooking}
+        cars={
+          cars
+        }
+        cities={
+          cities
+        }
+        bookings={
+          bookings
+        }
+        onBook={
+          confirmBooking
+        }
       />
 
       {/* SECRET / ADMIN BUTTON */}
 
       <button
         type="button"
-        onClick={() => setIsAdmin(true)}
+        onClick={() =>
+          setIsAdmin(
+            true
+          )
+        }
         title="Admin"
         style={{
-          position: "fixed",
+          position:
+            "fixed",
           right: 12,
           bottom: 12,
           width: 42,
           height: 42,
-          borderRadius: 999,
+          borderRadius:
+            999,
           border:
             `1px solid ${C.border}`,
           background:
             "rgba(255,255,255,.94)",
-          color: C.gray,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
+          color:
+            C.gray,
+          display:
+            "flex",
+          alignItems:
+            "center",
+          justifyContent:
+            "center",
+          cursor:
+            "pointer",
           boxShadow:
             "0 8px 25px rgba(15,23,42,.12)",
           zIndex: 100,
         }}
       >
-        <Settings size={18} />
+        <Settings
+          size={
+            18
+          }
+        />
       </button>
     </div>
   );
@@ -4035,99 +5664,164 @@ function App() {
 ========================================================= */
 
 const labelStyle = {
-  display: "flex",
-  alignItems: "center",
+  display:
+    "flex",
+  alignItems:
+    "center",
   gap: 6,
-  color: C.navy,
-  fontSize: 12,
-  fontWeight: 850,
-  marginBottom: 7,
+  color:
+    C.navy,
+  fontSize:
+    12,
+  fontWeight:
+    850,
+  marginBottom:
+    7,
 };
 
 const inputStyle = {
-  width: "100%",
-  minWidth: 0,
-  height: 46,
-  boxSizing: "border-box",
+  width:
+    "100%",
+  minWidth:
+    0,
+  height:
+    46,
+  boxSizing:
+    "border-box",
   border:
     `1px solid ${C.border}`,
-  borderRadius: 12,
-  padding: "0 13px",
-  background: C.white,
-  color: C.navy,
-  fontSize: 14,
-  outline: "none",
+  borderRadius:
+    12,
+  padding:
+    "0 13px",
+  background:
+    C.white,
+  color:
+    C.navy,
+  fontSize:
+    14,
+  outline:
+    "none",
 };
 
 const primaryButton = {
-  minHeight: 44,
-  border: "none",
-  borderRadius: 12,
-  padding: "10px 15px",
-  background: C.blue,
-  color: C.white,
-  fontSize: 14,
-  fontWeight: 900,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
+  minHeight:
+    44,
+  border:
+    "none",
+  borderRadius:
+    12,
+  padding:
+    "10px 15px",
+  background:
+    C.blue,
+  color:
+    C.white,
+  fontSize:
+    14,
+  fontWeight:
+    900,
+  display:
+    "inline-flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
   gap: 7,
-  cursor: "pointer",
-  boxSizing: "border-box",
+  cursor:
+    "pointer",
+  boxSizing:
+    "border-box",
 };
 
 const secondaryButton = {
-  minHeight: 44,
+  minHeight:
+    44,
   border:
     `1px solid ${C.border}`,
-  borderRadius: 12,
-  padding: "10px 15px",
-  background: C.white,
-  color: C.navy,
-  fontSize: 14,
-  fontWeight: 850,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
+  borderRadius:
+    12,
+  padding:
+    "10px 15px",
+  background:
+    C.white,
+  color:
+    C.navy,
+  fontSize:
+    14,
+  fontWeight:
+    850,
+  display:
+    "inline-flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
   gap: 7,
-  cursor: "pointer",
-  boxSizing: "border-box",
+  cursor:
+    "pointer",
+  boxSizing:
+    "border-box",
 };
 
 const dangerButton = {
-  minHeight: 38,
+  minHeight:
+    38,
   border:
-    `1px solid #fecaca`,
-  borderRadius: 10,
-  padding: "8px 11px",
-  background: C.redLight,
-  color: C.red,
-  fontSize: 12,
-  fontWeight: 850,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
+    "1px solid #fecaca",
+  borderRadius:
+    10,
+  padding:
+    "8px 11px",
+  background:
+    C.redLight,
+  color:
+    C.red,
+  fontSize:
+    12,
+  fontWeight:
+    850,
+  display:
+    "inline-flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
   gap: 6,
-  cursor: "pointer",
-  boxSizing: "border-box",
+  cursor:
+    "pointer",
+  boxSizing:
+    "border-box",
 };
 
 const smallButton = {
-  minHeight: 38,
+  minHeight:
+    38,
   border:
     `1px solid ${C.border}`,
-  borderRadius: 10,
-  padding: "8px 11px",
-  background: C.white,
-  color: C.navy,
-  fontSize: 12,
-  fontWeight: 850,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
+  borderRadius:
+    10,
+  padding:
+    "8px 11px",
+  background:
+    C.white,
+  color:
+    C.navy,
+  fontSize:
+    12,
+  fontWeight:
+    850,
+  display:
+    "inline-flex",
+  alignItems:
+    "center",
+  justifyContent:
+    "center",
   gap: 6,
-  cursor: "pointer",
-  boxSizing: "border-box",
+  cursor:
+    "pointer",
+  boxSizing:
+    "border-box",
 };
 
 /* =========================================================
