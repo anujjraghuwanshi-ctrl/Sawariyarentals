@@ -100,6 +100,13 @@ function todayISO() {
   return local.toISOString().slice(0, 10);
 }
 
+function daysBetween(start, end) {
+  const a = new Date(start);
+  const b = new Date(end);
+  const diff = Math.round((b - a) / (1000 * 60 * 60 * 24));
+  return Math.max(1, diff);
+}
+
 function loadShared(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -640,6 +647,9 @@ function BookingModal({
   const [pickupDate, setPickupDate] =
     useState(minDate);
 
+  const [returnDate, setReturnDate] =
+    useState(minDate);
+
   const [pickupTime, setPickupTime] =
     useState("09:00");
 
@@ -671,12 +681,20 @@ function BookingModal({
   const price24 =
     Number(car.price24 || 0);
 
-  const total =
-    rentalDuration === 8
-      ? price8
-      : rentalDuration === 12
-      ? price12
-      : price24;
+  const isMultiDay =
+    returnDate && returnDate > pickupDate;
+
+  const dayCount = isMultiDay
+    ? daysBetween(pickupDate, returnDate)
+    : 1;
+
+  const total = isMultiDay
+    ? dayCount * price24
+    : rentalDuration === 8
+    ? price8
+    : rentalDuration === 12
+    ? price12
+    : price24;
 
   const advanceAmount =
     Math.min(
@@ -934,6 +952,10 @@ function BookingModal({
                   cleanPhone,
 
                 pickupDate,
+
+                returnDate,
+
+                dayCount,
 
                 pickupTime,
 
@@ -1312,15 +1334,53 @@ function BookingModal({
                   value={
                     pickupDate
                   }
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setPickupDate(
+                      e.target.value
+                    );
+                    if (
+                      returnDate &&
+                      returnDate <
+                        e.target.value
+                    ) {
+                      setReturnDate(
+                        e.target.value
+                      );
+                    }
+                  }}
+                  style={
+                    inputStyle
+                  }
+                  required
+                />
+              </div>
+
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  <CalendarDays
+                    size={14}
+                  />
+                  Return Date
+                </label>
+
+                <input
+                  type="date"
+                  min={pickupDate}
+                  value={
+                    returnDate
+                  }
+                  onChange={(e) =>
+                    setReturnDate(
                       e.target.value
                     )
                   }
                   style={
                     inputStyle
                   }
-                  required
                 />
               </div>
 
@@ -1534,7 +1594,9 @@ function BookingModal({
                 </span>
 
                 <strong>
-                  {rentalDuration} Hours
+                  {isMultiDay
+                    ? `${dayCount} Days`
+                    : `${rentalDuration} Hours`}
                 </strong>
               </div>
 
@@ -3238,7 +3300,7 @@ function AdminView({
     );
   }
 
-  function addCity(e) {
+  async function addCity(e) {
     e.preventDefault();
 
     const name =
@@ -3261,13 +3323,27 @@ function AdminView({
       return;
     }
 
+    const city = {
+      name,
+      active: true,
+    };
+
+    try {
+      await upsertCity(city);
+    } catch (err) {
+      alert(
+        "City save failed: " +
+          (err.message || err)
+      );
+      return;
+    }
+
     setCities(
       (prev) => [
         ...prev,
         {
           id: uid("city"),
-          name,
-          active: true,
+          ...city,
         },
       ]
     );
