@@ -2273,7 +2273,41 @@ function CustomerView({
                     1,
                 }}
               >
-                RENTALS
+                                RENTALS
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  lineHeight: 1.4,
+                }}
+              >
+                <a href="tel:+917415228011" style={{ color: C.blue, textDecoration: "none" }}>
+                  74152 28011
+                </a>
+                {" · "}
+                <a href="tel:+918982802145" style={{ color: C.blue, textDecoration: "none" }}>
+                  89828 02145
+                </a>
+                <br />
+                <a
+                  href="https://wa.me/917415228011"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: C.green, textDecoration: "none" }}
+                >
+                  WhatsApp
+                </a>
+                {" · "}
+                <a
+                  href="https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: C.navy, textDecoration: "none" }}
+                >
+                  Sawariya Rentals location
+                </a>
               </div>
             </div>
           </div>
