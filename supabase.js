@@ -150,3 +150,12 @@ export async function insertLead(lead) {
   });
   if (error) throw error;
 }
+
+export async function fetchLeads() {
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
