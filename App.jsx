@@ -28,7 +28,8 @@ import {
   fetchCities,
   fetchBookings,
   insertBooking,
-  uploadPhoto,
+    uploadPhoto,
+  insertLead,
 } from "./supabase";
 
 /* =========================================================
