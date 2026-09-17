@@ -2940,6 +2940,21 @@ function AdminView({
   const [tab, setTab] =
     useState("dashboard");
 
+    const [leadList, setLeadList] = useState(leads || []);
+
+  useEffect(() => {
+    if (tab !== "leads") return;
+    (async () => {
+      try {
+        const rows = await fetchLeads();
+        setLeadList(rows || []);
+      } catch (err) {
+        console.error(err);
+        setLeadList([]);
+      }
+    })();
+  }, [tab]);
+  
   const [editingCar, setEditingCar] =
     useState(null);
 
@@ -5298,7 +5313,7 @@ function AdminView({
               </p>
             </div>
 
-            {(leads || []).length === 0 ? (
+             {(leadList || []).length === 0 ? (
               <div
                 style={{
                   background: C.white,
