@@ -139,7 +139,6 @@ export async function uploadPhoto(fileOrDataUrl) {
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(name);
   return data.publicUrl;
 }
-}
 
 export async function insertLead(lead) {
   const { error } = await supabase.from("leads").insert({
