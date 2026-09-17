@@ -5328,7 +5328,7 @@ function AdminView({
               </div>
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
-                {(leads || []).map((lead) => (
+              {(leadList || []).map((lead) => (
                   <div
                     key={lead.id}
                     style={{
