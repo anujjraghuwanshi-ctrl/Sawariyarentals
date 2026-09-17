@@ -150,7 +150,6 @@ export async function insertLead(lead) {
   });
   if (error) throw error;
 }
-
 export async function fetchLeads() {
   const { data, error } = await supabase
     .from("leads")
@@ -158,4 +157,14 @@ export async function fetchLeads() {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data || [];
+}
+export async function fetchLeads() {
+  const { data, error } = await supabase.from("leads").select("*");
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return (data || []).sort((a, b) =>
+    String(b.created_at || "").localeCompare(String(a.created_at || ""))
+  );
 }
