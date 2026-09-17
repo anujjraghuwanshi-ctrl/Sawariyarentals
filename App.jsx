@@ -2795,8 +2795,27 @@ function CustomerView({
                   )
                 )}
             </div>
-          </section>
+                    </section>
         )}
+
+        <div style={{ maxWidth: 1000, margin: "8px auto 36px", padding: "0 16px" }}>
+          <h3 style={{ margin: "0 0 10px", color: C.navy, fontWeight: 900 }}>
+            Sawariya Rentals location
+          </h3>
+          <p style={{ margin: "0 0 12px", color: C.gray, fontSize: 14 }}>
+            Indore · Call 74152 28011 / 89828 02145
+          </p>
+          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
+            <iframe
+              title="Sawariya Rentals location"
+              src="https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&output=embed"
+              width="100%"
+              height="260"
+              style={{ border: 0 }}
+              loading="lazy"
+            />
+          </div>
+        </div>
       </main>
 
       {bookingCar && (
