@@ -139,3 +139,15 @@ export async function uploadPhoto(fileOrDataUrl) {
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(name);
   return data.publicUrl;
 }
+}
+
+export async function insertLead(lead) {
+  const { error } = await supabase.from("leads").insert({
+    name: lead.name || "",
+    phone: lead.phone,
+    city: lead.city || "",
+    car_name: lead.carName || lead.car_name || "",
+    message: lead.message || "",
+  });
+  if (error) throw error;
+}
