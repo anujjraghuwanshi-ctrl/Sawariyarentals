@@ -661,7 +661,30 @@ function BookingModal({
 
   const [phone, setPhone] =
     useState("");
+  const [leadSaved, setLeadSaved] = useState(false);
 
+  useEffect(() => {
+    const clean = phone.replace(/\D/g, "");
+    if (clean.length !== 10 || leadSaved) return;
+
+    const t = setTimeout(async () => {
+      try {
+        await insertLead({
+          name: name.trim() || "Website lead",
+          phone: clean,
+          city: car.city,
+          carName: car.name,
+          message: "Auto-saved from booking form",
+        });
+        setLeadSaved(true);
+        alert("Number saved. We will call you.");
+      } catch (err) {
+        console.error(err);
+      }
+    }, 800);
+
+    return () => clearTimeout(t);
+  }, [phone, name, car.city, car.name, leadSaved]);
   const [paymentType, setPaymentType] =
     useState("advance");
 
