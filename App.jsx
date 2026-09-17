@@ -30,6 +30,7 @@ import {
   insertBooking,
     uploadPhoto,
   insertLead,
+  fetchLeads,
 } from "./supabase";
 
 /* =========================================================
@@ -2934,6 +2935,7 @@ function AdminView({
   cities,
   setCities,
   bookings,
+  leads,
 }) {
   const [tab, setTab] =
     useState("dashboard");
@@ -3611,6 +3613,10 @@ function AdminView({
             [
               "bookings",
               "Bookings",
+            ],
+            [
+              "leads",
+              "Leads",
             ],
             [
               "cities",
@@ -5281,6 +5287,66 @@ function AdminView({
 
         {/* CITIES */}
 
+        {tab === "leads" && (
+          <>
+            <div style={{ marginBottom: 18 }}>
+              <h1 style={{ margin: 0, fontSize: 28, fontWeight: 950 }}>
+                Leads
+              </h1>
+              <p style={{ color: C.gray, margin: "5px 0 0" }}>
+                Numbers saved from the booking form.
+              </p>
+            </div>
+
+            {(leads || []).length === 0 ? (
+              <div
+                style={{
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 18,
+                  padding: 40,
+                  textAlign: "center",
+                  color: C.gray,
+                }}
+              >
+                No leads yet.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 12 }}>
+                {(leads || []).map((lead) => (
+                  <div
+                    key={lead.id}
+                    style={{
+                      background: C.white,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 18,
+                      padding: 16,
+                    }}
+                  >
+                    <strong style={{ fontSize: 18 }}>{lead.phone}</strong>
+                    <div style={{ color: C.gray, fontSize: 13, marginTop: 6 }}>
+                      {lead.name || "—"} · {lead.city || "—"} · {lead.car_name || "—"}
+                    </div>
+                    <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+                      <a href={`tel:+91${String(lead.phone || "").replace(/\D/g, "")}`} style={{ color: C.blue, fontWeight: 800 }}>
+                        Call
+                      </a>
+                      <a
+                        href={`https://wa.me/91${String(lead.phone || "").replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: C.green, fontWeight: 800 }}
+                      >
+                        WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {tab === "cities" && (
           <>
             <div
@@ -5506,6 +5572,7 @@ function AdminGate({
   cities,
   setCities,
   bookings,
+  leads,
 }) {
   const [passcode, setPasscode] =
     useState("");
@@ -5546,6 +5613,9 @@ function AdminGate({
         }
         bookings={
           bookings
+        }
+        leads={
+          leads
         }
       />
     );
@@ -5739,6 +5809,8 @@ function App() {
       )
     );
 
+  const [leads, setLeads] = useState([]);
+
   const [isAdmin, setIsAdmin] =
     useState(false);
 
@@ -5769,14 +5841,16 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [c, ci, b] = await Promise.all([
+        const [c, ci, b, l] = await Promise.all([
           fetchCars(),
           fetchCities(),
           fetchBookings(),
+          fetchLeads(),
         ]);
         setCars(c);
         if (ci.length) setCities(ci);
         if (b.length) setBookings(b);
+        setLeads(l || []);
       } catch (err) {
         console.error(err);
       }
@@ -5896,6 +5970,9 @@ function App() {
         }
         bookings={
           bookings
+        }
+        leads={
+          leads
         }
         onBook={
           confirmBooking
