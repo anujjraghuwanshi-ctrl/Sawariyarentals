@@ -2919,6 +2919,10 @@ const [zoom, setZoom] = useState(null);
                 We arrange pickup or drop with the booked car.
               </p>
             </div>
+            <button type="button" onClick={() => setPage("app")} style={{ width: "100%", padding: 14, border: 0, borderRadius: 12, background: "#2563eb", color: "#fff", fontWeight: 800 }}>
+              Book this car
+            </button>
+          </div>
 
             <a href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals" style={{ display: "block", textAlign: "center", background: "#25D366", color: "#fff", padding: 14, borderRadius: 12, fontWeight: 800, textDecoration: "none", marginTop: 14 }}>
               WhatsApp us · 74152 28011
@@ -2938,11 +2942,6 @@ const [zoom, setZoom] = useState(null);
                 </div>
               ))}
             </div>
-
-            <button type="button" onClick={() => setPage("app")} style={{ width: "100%", padding: 14, border: 0, borderRadius: 12, background: "#2563eb", color: "#fff", fontWeight: 800 }}>
-              Book this car
-            </button>
-          </div>
 
           {zoom && (
             <div onClick={() => setZoom(null)} style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99 }}>
