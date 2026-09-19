@@ -291,6 +291,52 @@ function CarThumb({
 /* =========================================================
    CAR CARD
 ========================================================= */
+const STARS = (n) => "★★★★★☆☆☆☆☆".slice(5 - n, 10 - n);
+
+const PAGE_REVIEWS = [
+  { n: "Rahul S.", p: "Vijay Nagar", t: "Thar clean thi, koi extra nahi.", s: 5 },
+  { n: "Neha M.", p: "Palasia", t: "Baleno CNG family ke liye perfect.", s: 5 },
+  { n: "Amit K.", p: "Scheme 54", t: "Scorpio time pe mili.", s: 5 },
+  { n: "Priya J.", p: "Sapna Sangeeta", t: "Rate theek, booking easy.", s: 5 },
+  { n: "Vikas T.", p: "Bhawarkua", t: "Fronx AC tight thi.", s: 4 },
+  { n: "Sana R.", p: "New Palasia", t: "Curvv drive soft.", s: 5 },
+  { n: "Mohit P.", p: "Sudama Nagar", t: "8 hour package clear.", s: 4 },
+  { n: "Anjali D.", p: "AB Road", t: "Call pe jaldi reply.", s: 5 },
+  { n: "Farhan A.", p: "Khajrana", t: "Papers theek the.", s: 5 },
+  { n: "Kavita S.", p: "Rajendra Nagar", t: "Gaadi washed thi.", s: 5 },
+  { n: "Rohit B.", p: "Ring Road", t: "Thar weekend pe mil gayi.", s: 4 },
+  { n: "Isha G.", p: "Vijay Nagar", t: "Pickup easy.", s: 5 },
+  { n: "Suresh L.", p: "MR 10", t: "24 hour rate fair.", s: 4 },
+  { n: "Pooja N.", p: "Bengali Square", t: "Baleno chhoti family ke liye.", s: 5 },
+  { n: "Aditya V.", p: "Scheme 78", t: "WhatsApp pe photo bheji.", s: 5 },
+  { n: "Meena K.", p: "Indore", t: "Second time book kiya.", s: 5 },
+  { n: "Harsh P.", p: "Airport Road", t: "Airport drop time pe.", s: 4 },
+  { n: "Nidhi C.", p: "Tulsi Nagar", t: "Deposit same day wapas.", s: 5 },
+  { n: "Yash W.", p: "Bhanwarkuan", t: "Scorpio seating achha.", s: 5 },
+  { n: "Ritu A.", p: "Old Palasia", t: "Clean interior.", s: 5 },
+  { n: "Kunal J.", p: "Vijay Nagar", t: "Multi day allowed.", s: 4 },
+  { n: "Shreya M.", p: "Nipania", t: "Fronx mileage achha.", s: 5 },
+  { n: "Imran S.", p: "Khajrana", t: "Documents fast.", s: 5 },
+  { n: "Tanvi R.", p: "Scheme 54", t: "Photos same thi.", s: 5 },
+  { n: "Gaurav D.", p: "Rajwada", t: "Local trip perfect.", s: 4 },
+  { n: "Payal B.", p: "Silicon City", t: "Call jaldi uthaya.", s: 5 },
+  { n: "Nikhil T.", p: "Vijay Nagar", t: "Jo Thar maangi wahi mili.", s: 5 },
+  { n: "Ayesha K.", p: "Palasia", t: "Staff helpful.", s: 5 },
+  { n: "Devansh P.", p: "MR 10", t: "Night pickup mil gaya.", s: 4 },
+  { n: "Smita G.", p: "Sudama Nagar", t: "Jo rate kaha wahi liya.", s: 5 },
+  { n: "Arjun S.", p: "Bicholi", t: "Curvv boot space kaam aaya.", s: 5 },
+  { n: "Rashmi L.", p: "Annapurna", t: "Family ke liye Scorpio.", s: 5 },
+  { n: "Pankaj M.", p: "Indore", t: "Second car on time.", s: 4 },
+  { n: "Jaya V.", p: "Scheme 136", t: "Form short hai.", s: 5 },
+  { n: "Siddharth R.", p: "Vijay Nagar", t: "Rules clear bataye.", s: 5 },
+  { n: "Komal N.", p: "Palasia", t: "AC cold tha.", s: 5 },
+  { n: "Abhishek C.", p: "Ring Road", t: "Extend kar diya easily.", s: 4 },
+  { n: "Divya P.", p: "New Palasia", t: "Photo zoom karke book ki.", s: 5 },
+  { n: "Manish K.", p: "Bhawarkua", t: "Deposit pehle bataya.", s: 5 },
+  { n: "Sneha T.", p: "Scheme 54", t: "Seats clean.", s: 5 },
+  { n: "Rajat G.", p: "Indore", t: "Location pin mil gaya.", s: 5 },
+  { n: "Alok J.", p: "Vijay Nagar", t: "Phir se yahi se lunga.", s: 5 },
+];
 
 function CarCard({
   car,
