@@ -2970,43 +2970,7 @@ const [zoom, setZoom] = useState(null);
           </div>
         </div>
       )}
-  <div style={{ position: "fixed", inset: 0, background: "#0b1220", color: "#fff", overflow: "auto", zIndex: 80, padding: 16 }}>
-    <button type="button" onClick={() => { setPage("app"); setBookingCar(null); }} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-    <h2>{bookingCar.name}</h2>
-    <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-      {(bookingCar.photos || []).map((src) => (
-        <img key={src} src={src} alt="" onClick={() => setZoom(src)} style={{ height: 160, borderRadius: 12 }} />
-      ))}
-    </div>
-    <p>✓ Saaf gaadi · sasta rate · Indore</p>
-    <div style={{ display: "flex", overflowX: "auto", gap: 10 }}>
-      {PAGE_REVIEWS.slice(0, 42).map((r, i) => (
-        <div key={i} style={{ minWidth: 220, background: "#152038", padding: 12, borderRadius: 12 }}>
-          <div style={{ color: "#f5c518" }}>{STARS(r.s)}</div>
-          <div>{r.t}</div>
-          <small>{r.n}</small>
-        </div>
-      ))}
-    </div>
-    <button type="button" onClick={() => setPage("reviews")}>Sab reviews</button>
-    <button type="button" onClick={() => setPage("app")} style={{ width: "100%", marginTop: 12, padding: 14, background: "#e11d48", color: "#fff", border: 0, borderRadius: 12 }}>Book this car</button>
-    {zoom && <div onClick={() => setZoom(null)} style={{ position: "fixed", inset: 0, background: "#000c", display: "flex", alignItems: "center", justifyContent: "center" }}><img src={zoom} alt="" style={{ maxWidth: "94%", maxHeight: "90%" }} /></div>}
-  </div>
-)}
-
-{page === "reviews" && (
-  <div style={{ position: "fixed", inset: 0, background: "#0b1220", color: "#fff", overflow: "auto", zIndex: 80, padding: 16 }}>
-    <button type="button" onClick={() => setPage("story")} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-    <h2>Reviews</h2>
-    {PAGE_REVIEWS.map((r, i) => (
-      <div key={i} style={{ background: "#152038", padding: 12, borderRadius: 12, marginBottom: 8 }}>
-        <div style={{ color: "#f5c518" }}>{STARS(r.s)}</div>
-        <div>{r.t}</div>
-        <small>{r.n} · {r.p}</small>
-      </div>
-    ))}
-  </div>
-)}
+  
       {page === "app" && bookingCar && (
         <BookingModal
           car={
