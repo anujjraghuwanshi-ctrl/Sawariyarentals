@@ -2867,7 +2867,109 @@ const [zoom, setZoom] = useState(null);
           </div>
         </div>
       </main>
-      {page === "story" && bookingCar && (
+            {page === "story" && bookingCar && (
+        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
+          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button type="button" onClick={() => { setPage("app"); setBookingCar(null); }} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
+            <strong>Sawariya Rentals</strong>
+            <a href="https://wa.me/917415228011" style={{ color: "#fff", textDecoration: "none", fontSize: 13 }}>WhatsApp</a>
+          </div>
+
+          <div style={{ padding: 16, maxWidth: 720, margin: "0 auto 40px" }}>
+            <h2 style={{ margin: "8px 0 4px" }}>{bookingCar.name}</h2>
+            <p style={{ color: "#64748b", margin: "0 0 12px" }}>{bookingCar.type} · Indore · Self drive</p>
+
+            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+              {(bookingCar.photos || []).map((src) => (
+                <img key={src} src={src} alt="" onClick={() => setZoom(src)} style={{ height: 170, borderRadius: 14 }} />
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: "#64748b" }}>Tap photo to zoom</p>
+
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 14 }}>
+              <h3 style={{ margin: "0 0 8px" }}>About Sawariya Rentals</h3>
+              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
+                Self-drive car rental in Indore. Clean cars, clear rates, WhatsApp support.
+                Book 8 / 12 / 24 hours or several days.
+              </p>
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
+              <h3 style={{ margin: "0 0 8px" }}>Why we are best</h3>
+              <div>✓ Clean, maintained cars</div>
+              <div>✓ Fair Indore pricing</div>
+              <div>✓ 24×7 customer service</div>
+              <div>✓ Same-day booking if available</div>
+              <div>✓ Easy extend on WhatsApp</div>
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
+              <h3 style={{ margin: "0 0 8px" }}>Our services</h3>
+              <div>• Self drive hatchback, SUV, CNG</div>
+              <div>• 8 / 12 / 24 hour packages</div>
+              <div>• Multi-day outstation</div>
+              <div>• Airport pickup and drop (IDR)</div>
+              <div>• 24×7 call / WhatsApp help</div>
+            </div>
+
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
+              <h3 style={{ margin: "0 0 8px" }}>Airport pickup & drop</h3>
+              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
+                Devi Ahilya Bai Holkar Airport (IDR). Share flight time on WhatsApp.
+                We arrange pickup or drop with the booked car.
+              </p>
+            </div>
+
+            <a href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals" style={{ display: "block", textAlign: "center", background: "#25D366", color: "#fff", padding: 14, borderRadius: 12, fontWeight: 800, textDecoration: "none", marginTop: 14 }}>
+              WhatsApp us · 74152 28011
+            </a>
+            <p style={{ textAlign: "center", fontSize: 13, color: "#64748b" }}>or call 89828 02145</p>
+
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
+              <h3 style={{ margin: 0 }}>Reviews</h3>
+              <button type="button" onClick={() => setPage("reviews")} style={{ background: "none", border: 0, color: "#2563eb", fontWeight: 700 }}>Sab reviews →</button>
+            </div>
+            <div style={{ display: "flex", overflowX: "auto", gap: 10, padding: "8px 0 16px" }}>
+              {PAGE_REVIEWS.map((r, i) => (
+                <div key={i} style={{ minWidth: 230, background: "#fff", border: "1px solid #e2e8f0", padding: 12, borderRadius: 14 }}>
+                  <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
+                  <div style={{ fontSize: 14, margin: "8px 0" }}>{r.t}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{r.n} · {r.p}</div>
+                </div>
+              ))}
+            </div>
+
+            <button type="button" onClick={() => setPage("app")} style={{ width: "100%", padding: 14, border: 0, borderRadius: 12, background: "#2563eb", color: "#fff", fontWeight: 800 }}>
+              Book this car
+            </button>
+          </div>
+
+          {zoom && (
+            <div onClick={() => setZoom(null)} style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99 }}>
+              <img src={zoom} alt="" style={{ maxWidth: "94%", maxHeight: "90%" }} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {page === "reviews" && (
+        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
+          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px" }}>
+            <button type="button" onClick={() => setPage("story")} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
+          </div>
+          <div style={{ padding: 16 }}>
+            <h2>Customer reviews</h2>
+            <p style={{ color: "#64748b" }}>Sawariya Rentals · Indore</p>
+            {PAGE_REVIEWS.map((r, i) => (
+              <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: 14, borderRadius: 14, marginBottom: 10 }}>
+                <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
+                <div style={{ margin: "8px 0" }}>{r.t}</div>
+                <div style={{ fontSize: 13, color: "#64748b" }}>{r.n} · {r.p}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
   <div style={{ position: "fixed", inset: 0, background: "#0b1220", color: "#fff", overflow: "auto", zIndex: 80, padding: 16 }}>
     <button type="button" onClick={() => { setPage("app"); setBookingCar(null); }} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
     <h2>{bookingCar.name}</h2>
