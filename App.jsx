@@ -1363,9 +1363,34 @@ function BookingModal({
                   maxLength={10}
                   required
                 />
+                            </div>
+
+              <div>
+                <label
+                  style={
+                    labelStyle
+                  }
+                >
+                  Email Address
+                </label>
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Enter your email"
+                  style={
+                    inputStyle
+                  }
+                  autoComplete="email"
+                  required
+                />
               </div>
             </div>
-
             {/* RENTAL DATE */}
 
             <h3
