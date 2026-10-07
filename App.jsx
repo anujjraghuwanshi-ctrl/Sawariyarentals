@@ -709,6 +709,9 @@ function BookingModal({
 
   const [phone, setPhone] =
     useState("");
+
+  const [email, setEmail] = useState("");
+  
   const [leadSaved, setLeadSaved] = useState(false);
 
   useEffect(() => {
