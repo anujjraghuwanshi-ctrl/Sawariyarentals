@@ -838,293 +838,166 @@ function BookingModal({
     try {
       setLoading(true);
 
-      /* -----------------------------------------------
-         CREATE RAZORPAY ORDER
+            /* -----------------------------------------------
+         CREATE PAYU PAYMENT
       ------------------------------------------------ */
 
-      const orderResponse =
+      const customerEmail =
+        email.trim().toLowerCase();
+
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          customerEmail
+        )
+      ) {
+        throw new Error(
+          "Please enter a valid email address."
+        );
+      }
+
+      /*
+        Save the booking temporarily.
+
+        PayU will take the customer away from our
+        website. After successful payment, PayU will
+        return the customer to our callback and then
+        back to the website.
+      */
+      const pendingBooking = {
+        carId: car.id,
+        carName: car.name,
+        city: car.city,
+
+        name: name.trim(),
+        phone: cleanPhone,
+        email: customerEmail,
+
+        pickupDate,
+        returnDate,
+        dayCount,
+        pickupTime,
+        rentalDuration,
+
+        total,
+        paidAmount: paymentAmount,
+
+        advancePaid:
+          paymentType === "advance"
+            ? paymentAmount
+            : 0,
+
+        remainingAmount,
+        paymentType,
+
+        status: "Pending",
+      };
+
+      localStorage.setItem(
+        "sawariya_pending_booking",
+        JSON.stringify(
+          pendingBooking
+        )
+      );
+
+      const paymentResponse =
         await fetch(
-          "/api/create-order",
+          "/api/payu-create-payment",
           {
             method: "POST",
+
             headers: {
               "Content-Type":
                 "application/json",
             },
+
             body: JSON.stringify({
               amount:
                 paymentAmount,
 
-              carId: car.id,
+              productinfo:
+                paymentType === "advance"
+                  ? `Booking Advance - ${car.name}`
+                  : `Full Payment - ${car.name}`,
 
-              carName:
-                car.name,
-
-              name:
+              firstname:
                 name.trim(),
+
+              email:
+                customerEmail,
 
               phone:
                 cleanPhone,
 
-              rentalDuration,
-
-              pickupDate,
-
-              pickupTime,
+              reference:
+                `${car.id}-${Date.now()}`,
             }),
           }
         );
 
-      const orderData =
-        await orderResponse
+      const paymentData =
+        await paymentResponse
           .json()
           .catch(() => ({}));
 
-      if (!orderResponse.ok) {
+      if (!paymentResponse.ok) {
         throw new Error(
-          orderData?.message ||
-            orderData?.error ||
-            "Unable to create payment order."
+          paymentData?.message ||
+            "Unable to create PayU payment."
         );
       }
 
-      const razorpayOrderId =
-        orderData?.id ||
-        orderData?.orderId;
-
-      if (!razorpayOrderId) {
+      if (
+        !paymentData?.success ||
+        !paymentData?.paymentUrl ||
+        !paymentData?.formData
+      ) {
         throw new Error(
-          orderData?.message ||
-            orderData?.error ||
-            "Payment order was not created."
+          paymentData?.message ||
+            "PayU payment could not be created."
         );
       }
 
-      if (!window.Razorpay) {
-        alert(
-          "Razorpay Checkout is not loaded. Please refresh the page and try again."
+      /*
+        Submit the payment form directly to PayU.
+      */
+      const form =
+        document.createElement(
+          "form"
         );
 
-        setLoading(false);
-        return;
-      }
+      form.method = "POST";
+      form.action =
+        paymentData.paymentUrl;
 
-      const options = {
-        key:
-          orderData?.key ||
-          import.meta.env
-            .VITE_RAZORPAY_KEY_ID,
+      form.style.display =
+        "none";
 
-        amount:
-          orderData?.amount ||
-          Math.round(
-            paymentAmount * 100
-          ),
+      Object.entries(
+        paymentData.formData
+      ).forEach(
+        ([key, value]) => {
+          const input =
+            document.createElement(
+              "input"
+            );
 
-        currency:
-          orderData?.currency ||
-          "INR",
+          input.type = "hidden";
+          input.name = key;
+          input.value =
+            value ?? "";
 
-        name:
-          "SAWARIYA RENTALS",
-
-        description:
-          paymentType === "advance"
-            ? `₹${advanceAmount} Booking Advance - ${car.name} - ${rentalDuration} Hours`
-            : `Full Payment - ${car.name} - ${rentalDuration} Hours`,
-
-        order_id:
-          razorpayOrderId,
-
-        prefill: {
-          name:
-            name.trim(),
-
-          contact:
-            cleanPhone,
-        },
-
-        theme: {
-          color: C.blue,
-        },
-
-        handler:
-          async function (
-            response
-          ) {
-            try {
-              const verifyResponse =
-                await fetch(
-                  "/api/verify-payment",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type":
-                        "application/json",
-                    },
-                    body: JSON.stringify(
-                      {
-                        razorpay_order_id:
-                          response.razorpay_order_id,
-
-                        razorpay_payment_id:
-                          response.razorpay_payment_id,
-
-                        razorpay_signature:
-                          response.razorpay_signature,
-
-                        amount:
-                          paymentAmount,
-                      }
-                    ),
-                  }
-                );
-
-              const verifyData =
-                await verifyResponse
-                  .json()
-                  .catch(
-                    () => ({})
-                  );
-
-              if (
-                !verifyResponse.ok
-              ) {
-                throw new Error(
-                  verifyData?.message ||
-                    verifyData?.error ||
-                    "Payment verification failed."
-                );
-              }
-
-              if (
-                verifyData?.success ===
-                  false ||
-                verifyData?.verified ===
-                  false
-              ) {
-                throw new Error(
-                  verifyData?.message ||
-                    "Payment could not be verified."
-                );
-              }
-
-              onConfirm({
-                carId:
-                  car.id,
-
-                carName:
-                  car.name,
-
-                city:
-                  car.city,
-
-                name:
-                  name.trim(),
-
-                phone:
-                  cleanPhone,
-
-                pickupDate,
-
-                returnDate,
-
-                dayCount,
-
-                pickupTime,
-
-                rentalDuration,
-
-                total,
-
-                paidAmount:
-                  paymentAmount,
-
-                advancePaid:
-                  paymentType ===
-                  "advance"
-                    ? paymentAmount
-                    : 0,
-
-                remainingAmount,
-
-                paymentType,
-
-                paymentId:
-                  response.razorpay_payment_id,
-
-                orderId:
-                  response.razorpay_order_id,
-
-                signature:
-                  response.razorpay_signature,
-
-                status:
-                  "Confirmed",
-              });
-
-              alert(
-                paymentType ===
-                  "advance"
-                  ? `Booking confirmed!\n\n₹${paymentAmount.toLocaleString(
-                      "en-IN"
-                    )} advance paid.\nRemaining ${fmtINR(
-                      remainingAmount
-                    )} payable later.`
-                  : `Booking confirmed!\n\nFull payment of ${fmtINR(
-                      total
-                    )} received.`
-              );
-
-              setLoading(false);
-              onClose();
-            } catch (error) {
-              console.error(
-                "Payment verification error:",
-                error
-              );
-
-              alert(
-                error?.message ||
-                  "Payment verification failed. Please contact support."
-              );
-
-              setLoading(false);
-            }
-          },
-
-        modal: {
-          ondismiss:
-            function () {
-              setLoading(false);
-            },
-        },
-      };
-
-      const razorpay =
-        new window.Razorpay(
-          options
-        );
-
-      razorpay.on(
-        "payment.failed",
-        function (response) {
-          console.error(
-            "Payment failed:",
-            response
+          form.appendChild(
+            input
           );
-
-          alert(
-            response?.error
-              ?.description ||
-              "Payment failed. Please try again."
-          );
-
-          setLoading(false);
         }
       );
 
-      razorpay.open();
+      document.body.appendChild(
+        form
+      );
+
+      form.submit();
+      
     } catch (error) {
       console.error(
         "Payment start error:",
@@ -6093,7 +5966,127 @@ function App() {
         )
     );
   }
+  /* -----------------------------------------------
+     PAYU PAYMENT RETURN
+  ------------------------------------------------ */
 
+  useEffect(() => {
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const payuStatus =
+      params.get("payu");
+
+    if (!payuStatus) {
+      return;
+    }
+
+    const pendingRaw =
+      localStorage.getItem(
+        "sawariya_pending_booking"
+      );
+
+    if (payuStatus === "success") {
+      if (!pendingRaw) {
+        alert(
+          "Payment was successful, but the booking information was not found. Please contact Sawariya Rentals."
+        );
+
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        return;
+      }
+
+      try {
+        const pendingBooking =
+          JSON.parse(
+            pendingRaw
+          );
+
+        const txnid =
+          params.get("txnid");
+
+        const mihpayid =
+          params.get("mihpayid");
+
+        confirmBooking({
+          ...pendingBooking,
+
+          paymentId:
+            mihpayid || null,
+
+          orderId:
+            txnid || null,
+
+          status:
+            "Confirmed",
+        });
+
+        localStorage.removeItem(
+          "sawariya_pending_booking"
+        );
+
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        alert(
+          pendingBooking.paymentType ===
+            "advance"
+            ? `Booking confirmed!\n\n₹${Number(
+                pendingBooking.paidAmount || 0
+              ).toLocaleString(
+                "en-IN"
+              )} advance paid.\nRemaining ${fmtINR(
+                pendingBooking.remainingAmount
+              )} payable later.`
+            : `Booking confirmed!\n\nFull payment of ${fmtINR(
+                pendingBooking.total
+              )} received.`
+        );
+      } catch (error) {
+        console.error(
+          "PayU booking confirmation error:",
+          error
+        );
+
+        alert(
+          "Payment was successful, but we could not confirm the booking. Please contact Sawariya Rentals."
+        );
+      }
+
+      return;
+    }
+
+    if (payuStatus === "failure") {
+      localStorage.removeItem(
+        "sawariya_pending_booking"
+      );
+
+      const message =
+        params.get("message") ||
+        "Payment failed or was cancelled.";
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      alert(
+        `Payment failed.\n\n${message}`
+      );
+    }
+  }, []);
+  
   /* -----------------------------------------------
      ADMIN TOGGLE
   ------------------------------------------------ */
