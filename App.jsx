@@ -5193,17 +5193,24 @@ function App() {
      ADMIN TOGGLE
   ------------------------------------------------ */
 
-  if (isAdmin) {
+    if (isAdmin) {
     return (
-      <div>
-        <div
-          style={{
-            position:
-              "fixed",
-            right: 14,
-            bottom: 14,
-            zIndex: 2000,
-          }}
+      <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", padding: 20 }}>
+        <h1 style={{ marginTop: 0 }}>SAWARIYA ADMIN</h1>
+        <p>Admin shell OK (no login gate).</p>
+        <p><b>Cars:</b> {Array.isArray(cars) ? cars.length : 0}</p>
+        <p><b>Bookings:</b> {Array.isArray(bookings) ? bookings.length : 0}</p>
+        <p><b>Cities:</b> {Array.isArray(cities) ? cities.length : 0}</p>
+        <button
+          type="button"
+          onClick={() => setIsAdmin(false)}
+          style={{ marginTop: 16, padding: "12px 16px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 12, fontWeight: 800 }}
+        >
+          Exit Admin
+        </button>
+      </div>
+    );
+  }
         >
           <button
             type="button"
