@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
   MapPin,
@@ -20,6 +20,15 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
+  ChevronDown,
+  Fuel,
+  Users,
+  Home,
+  Wrench,
+  Headphones,
+  Menu,
+  Gauge,
 } from "lucide-react";
 import {
   fetchCars,
@@ -753,927 +762,1224 @@ function Field({ label, children }) { return <div><div style={labelStyle}>{label
    ADMIN STAT CARD
 ========================================================= */
 
-/* =========================================================
-   CUSTOMER VIEW
-========================================================= */
+const PHONE_1 = { show: "74152 28011", href: "tel:+917415228011" };
+const PHONE_2 = { show: "89828 02145", href: "tel:+918982802145" };
+const WHATSAPP = "https://wa.me/917415228011";
+const MAPS = "https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic";
+const MAP_EMBED = "https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&output=embed";
 
-function CustomerView({
-  cars,
-  cities,
-  bookings,
-  onBook,
-}) {
-  const [selectedCity, setSelectedCity] =
-    useState("All");
+const inr = (v) => fmtINR(v);
+const carPrice = (c) =>
+  Number(c.price24 || c.dailyRate || c.price12 || c.price8 || c.price || 0);
 
-  const [search, setSearch] =
-    useState("");
-
-  const [bookingCar, setBookingCar] =
-    useState(null);
-  const [page, setPage] = useState("app");
-const [zoom, setZoom] = useState(null);
-
-    const [loginOpen, setLoginOpen] = useState(false);
-  const [customerProfile, setCustomerProfile] = useState(() =>
-    loadShared("sawariya_customer_profile", null)
-  );
-  
-  const activeCities =
-    cities.filter(
-      (city) => city.active
-    );
-
-  const filteredCars =
-    useMemo(() => {
-      return cars.filter(
-        (car) => {
-          const cityMatch =
-            selectedCity ===
-              "All" ||
-            car.city ===
-              selectedCity;
-
-          const searchText =
-            search
-              .trim()
-              .toLowerCase();
-
-          const searchMatch =
-            !searchText ||
-            car.name
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            car.type
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            car.city
-              .toLowerCase()
-              .includes(
-                searchText
-              );
-
-          return (
-            cityMatch &&
-            searchMatch
-          );
+function useSeen() {
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!("IntersectionObserver" in window)) return setSeen(true);
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setSeen(true);
+          io.disconnect();
         }
-      );
-    }, [
-      cars,
-      selectedCity,
-      search,
-    ]);
+      },
+      { threshold: 0.3 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, seen];
+}
 
-  function handleConfirmBooking(
-    data
-  ) {
-    onBook(data);
-    setBookingCar(null);
+function CountUp({ to, prefix = "", suffix = "" }) {
+  const [ref, seen] = useSeen();
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (!seen) return;
+    let raf;
+    const t0 = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / 1100);
+      setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [seen, to]);
+  return (
+    <span ref={ref}>
+      {prefix}
+      {v.toLocaleString("en-IN")}
+      {suffix}
+    </span>
+  );
+}
+
+/* ------------------------------ logo ------------------------------ */
+function Logo({ id = "a", dark }) {
+  return (
+    <span className="sw-logo">
+      <svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
+        <defs>
+          <linearGradient id={`swg-${id}`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#0e7c86" />
+            <stop offset="1" stopColor="#f59e0b" />
+          </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx="14" fill={`url(#swg-${id})`} />
+        <path
+          d="M33 15c-3-3-12-3-14 2s4 7 8 8 9 3 7 9-11 6-15 2"
+          fill="none"
+          stroke="#fff"
+          strokeWidth="4.6"
+          strokeLinecap="round"
+        />
+        <path
+          className="sw-logo-dash"
+          d="M33 15c-3-3-12-3-14 2s4 7 8 8 9 3 7 9-11 6-15 2"
+          fill="none"
+          stroke="#0b1b2b"
+          strokeOpacity=".45"
+          strokeWidth="1.5"
+          strokeDasharray="1 5"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="sw-logo-text" style={{ color: dark ? "#fff" : undefined }}>
+        <b>Sawariya</b>
+        <i>Rentals</i>
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------ header ------------------------------ */
+function SiteHeader({ profile, onLogin }) {
+  const [open, setOpen] = useState(false);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const f = () => setStuck(window.scrollY > 8);
+    f();
+    window.addEventListener("scroll", f, { passive: true });
+    return () => window.removeEventListener("scroll", f);
+  }, []);
+  const links = [
+    ["Rent a car", "#cars"],
+    ["Plans", "#plans"],
+    ["Why Sawariya", "#why"],
+    ["FAQs", "#faqs"],
+  ];
+  return (
+    <header className={`sw-header ${stuck ? "stuck" : ""}`}>
+      <div className="sw-wrap sw-header-in">
+        <a href="#top" aria-label="Sawariya Rentals home">
+          <Logo id="h" />
+        </a>
+        <nav className={`sw-nav ${open ? "open" : ""}`}>
+          {links.map(([t, h]) => (
+            <a key={h} href={h} onClick={() => setOpen(false)}>
+              {t}
+            </a>
+          ))}
+        </nav>
+        <div className="sw-header-cta">
+          <a className="sw-call" href={PHONE_1.href}>
+            <Phone size={16} /> {PHONE_1.show}
+          </a>
+          <button className="sw-login" onClick={onLogin}>
+            {profile?.name ? `Hi, ${profile.name.split(" ")[0]}` : "Login"}
+          </button>
+          <button className="sw-burger" aria-label="Menu" onClick={() => setOpen((v) => !v)}>
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ------------------------------ hero ------------------------------ */
+function CarSilhouette() {
+  const Wheel = ({ cx }) => (
+    <g>
+      <circle cx={cx} cy="62" r="13" fill="#0b1b2b" />
+      <g className="sw-wheel" style={{ transformOrigin: `${cx}px 62px` }}>
+        <circle cx={cx} cy="62" r="7" fill="#cbd5e1" />
+        <path d={`M${cx} 55v14M${cx - 7} 62h14`} stroke="#0b1b2b" strokeWidth="2" />
+      </g>
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 220 80" className="sw-car" aria-hidden="true">
+      <path
+        d="M8 58c0-11 8-15 20-16l24-2c10-16 30-22 52-22h22c20 1 34 12 42 24l18 3c14 3 20 8 20 20v5H8z"
+        fill="#fff"
+      />
+      <path d="M64 40c8-9 20-13 36-13h12v13z" fill="#0e7c86" opacity=".4" />
+      <path d="M120 27h12c12 1 22 6 28 13h-40z" fill="#0e7c86" opacity=".4" />
+      <rect x="196" y="48" width="14" height="5" rx="2.5" fill="#f59e0b" />
+      <Wheel cx={58} />
+      <Wheel cx={164} />
+    </svg>
+  );
+}
+
+function Hero({ cities, settings, onSearch }) {
+  const today = todayISO();
+  const [city, setCity] = useState(cities[0]?.name || "");
+  const [pd, setPd] = useState(today);
+  const [pt, setPt] = useState("09:00");
+  const [dd, setDd] = useState(today);
+  const [dt, setDt] = useState("18:00");
+
+  useEffect(() => {
+    if (!cities.find((c) => c.name === city) && cities[0]) setCity(cities[0].name);
+  }, [cities]); // eslint-disable-line
+
+  const names = cities.map((c) => c.name);
+  const cityText =
+    names.length === 0
+      ? "your city"
+      : names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+  function submit(e) {
+    e.preventDefault();
+    onSearch({ city, pd, pt, dd, dt });
+    document.getElementById("cars")?.scrollIntoView({ behavior: "smooth" });
   }
 
   return (
-    <div
-      style={{
-        minHeight:
-          "100vh",
-        background:
-          "#f8fafc",
-        color:
-          C.navy,
-      }}
-    >
-      {/* HEADER */}
-
-      <header
-        style={{
-          position:
-            "sticky",
-          top: 0,
-          zIndex: 50,
-          background:
-            "rgba(255,255,255,.96)",
-          backdropFilter:
-            "blur(12px)",
-          borderBottom:
-            `1px solid ${C.border}`,
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1200,
-            margin:
-              "0 auto",
-            padding:
-              "14px 16px",
-            display:
-              "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "space-between",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              display:
-                "flex",
-              alignItems:
-                "center",
-              gap: 10,
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius:
-                  13,
-                background:
-                  C.blue,
-                display:
-                  "flex",
-                alignItems:
-                  "center",
-                justifyContent:
-                  "center",
-                flexShrink: 0,
-              }}
-            >
-              <Car
-                color="white"
-                size={23}
-              />
-            </div>
-
-            <div
-              style={{
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:
-                    1000,
-                  fontSize: 18,
-                  color:
-                    C.navy,
-                  lineHeight:
-                    1.1,
-                }}
-              >
-                SAWARIYA
-              </div>
-
-              <div
-                style={{
-                  fontSize: 10,
-                  color:
-                    C.blue,
-                  fontWeight:
-                    900,
-                  letterSpacing:
-                    1,
-                }}
-              >
-                                RENTALS
-              </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  fontWeight: 800,
-                  lineHeight: 1.4,
-                }}
-              >
-                <a href="tel:+917415228011" style={{ color: C.blue, textDecoration: "none" }}>
-                  74152 28011
-                </a>
-                {" · "}
-                <a href="tel:+918982802145" style={{ color: C.blue, textDecoration: "none" }}>
-                  89828 02145
-                </a>
-                <br />
-                <a
-                  href="https://wa.me/917415228011"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: C.green, textDecoration: "none" }}
-                >
-                  WhatsApp
-                </a>
-                {" · "}
-                <a
-                  href="https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: C.navy, textDecoration: "none" }}
-                >
-                  Sawariya Rentals location
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <a href="#cars" style={{ textDecoration: "none", color: C.navy, fontWeight: 800, fontSize: 14 }}>Browse Cars</a>
-            <button type="button" onClick={() => setLoginOpen(true)} style={secondaryButton}>
-              {customerProfile?.name ? `Hi, ${customerProfile.name.split(" ")[0]}` : "Login"}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* HERO */}
-
-      <section
-        style={{
-          background:
-            "linear-gradient(135deg,#eff6ff 0%,#ffffff 55%,#f0fdf4 100%)",
-          padding:
-            "48px 16px 38px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1000,
-            margin:
-              "0 auto",
-            textAlign:
-              "center",
-          }}
-        >
-          <Badge color={C.blue}>
-            <Car size={13} />
-            Easy Car Rental
-          </Badge>
-
-          <h1
-            style={{
-              margin:
-                "16px auto 10px",
-              maxWidth:
-                760,
-              fontSize:
-                "clamp(32px, 7vw, 58px)",
-              lineHeight:
-                1.05,
-              fontWeight:
-                1000,
-              color:
-                C.navy,
-            }}
-          >
-            Rent a Car.
-            <br />
-            <span
-              style={{
-                color:
-                  C.blue,
-              }}
-            >
-              Drive Your Way.
-            </span>
+    <>
+      <section className="sw-hero" id="top">
+        <span className="sw-blob b1" />
+        <span className="sw-blob b2" />
+        <div className="sw-wrap sw-hero-copy">
+          <h1>
+            <span>Self-drive cars,</span>
+            <span>ready when you are.</span>
           </h1>
-
-          <p
-            style={{
-              maxWidth:
-                650,
-              margin:
-                "0 auto",
-              color:
-                C.gray,
-              fontSize:
-                16,
-              lineHeight:
-                1.6,
-            }}
-          >
-            Affordable and reliable
-            self-drive car rentals
-            from SAWARIYA RENTALS.
+          <p>
+            Rent by the hour, day, week or month in {cityText}. You see the full price
+            before you pay.
           </p>
-
-          <div
-            style={{
-              display:
-                "flex",
-              justifyContent:
-                "center",
-              flexWrap:
-                "wrap",
-              gap: 8,
-              marginTop:
-                18,
-            }}
-          >
-            <Badge color={C.blue}>
-              <Clock3 size={13} />
-              8 Hour Rentals
-            </Badge>
-
-            <Badge color={C.green}>
-              <Clock3 size={13} />
-              12 Hour Rentals
-            </Badge>
-
-            <Badge color={C.orange}>
-              <Clock3 size={13} />
-              24 Hour Rentals
-            </Badge>
+          <ul className="sw-hero-points">
+            <li><CheckCircle2 size={16} /> 18+ with a valid licence</li>
+            <li><CheckCircle2 size={16} /> Advance from {inr(settings.bookingAdvance || BOOKING_ADVANCE)}</li>
+            <li><CheckCircle2 size={16} /> Driver and guide on request</li>
+          </ul>
+        </div>
+        <div className="sw-road" aria-hidden="true">
+          <div className="sw-road-line" />
+          <div className="sw-car-wrap">
+            <CarSilhouette />
           </div>
         </div>
       </section>
 
-      {/* REVV-STYLE PLAN STRIP */}
-      {(() => {
-        const business = loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS);
-        const packages = loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES);
-        const decorations = loadShared("sawariya_decorations", DEFAULT_DECORATIONS);
-        return (
-          <>
-            <section style={{ maxWidth: 1200, margin: "0 auto", padding: "8px 16px 18px" }}>
-              <div style={{ display: "flex", overflowX: "auto", gap: 10, paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
-                {[
-                  ["Hourly", fmtINR(business.hourlyStartingPrice) + "/hr", `${business.hourlyIncludedKm} km included`],
-                  ["Daily", fmtINR(business.dailyStartingPrice) + "/day", `${business.dailyIncludedKm} km included`],
-                  ["Weekly", fmtINR(business.weeklyStartingPrice) + "/week", "Best for longer trips"],
-                  ["Monthly", fmtINR(business.monthlyStartingPrice) + "/month", "1-month plan"],
-                  ["2-Year Offer", fmtINR(business.longTermMonthlyPrice) + "/month", `${business.longTermMonths}-month commitment`],
-                ].map(([title, price, note]) => (
-                  <div key={title} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 16, boxShadow: "0 8px 25px rgba(15,23,42,.05)", minWidth: 150, flex: "0 0 auto" }}>
-                    <div style={{ color: C.gray, fontSize: 12, fontWeight: 800 }}>{title}</div>
-                    <div style={{ fontSize: 22, fontWeight: 950, marginTop: 5 }}>{price}</div>
-                    <div style={{ color: C.gray, fontSize: 12, marginTop: 4 }}>{note}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px 18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "end", marginBottom: 12 }}><div><h2 style={{ margin: 0, fontSize: 24 }}>Travel packages</h2><p style={{ margin: "4px 0 0", color: C.gray, fontSize: 13 }}>Ujjain, Omkareshwar, Mandu and more — self-drive, driver or guide.</p></div></div>
-                            <div style={{ display: "flex", overflowX: "auto", gap: 10, paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
-                {packages.map((item) => (
-                  <div key={item.id} style={{ ...whiteCard, padding: 16, minWidth: 150, flex: "0 0 auto" }}>
-                    <Badge color={C.blue}>{item.days} day{item.days === 1 ? "" : "s"}</Badge>
-                    <h3 style={{ margin: "10px 0 5px" }}>{item.name}</h3>
-                    <p style={{ margin: 0, color: C.gray, fontSize: 13, lineHeight: 1.5 }}>{item.description}</p>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                      <Badge color={C.green}>Self drive</Badge>
-                      <Badge color={C.orange}>Driver</Badge>
-                      <Badge color={C.blue}>Guide</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px 22px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "end", marginBottom: 12 }}><div><h2 style={{ margin: 0, fontSize: 24 }}>Decorated cars</h2><p style={{ margin: "4px 0 0", color: C.gray, fontSize: 13 }}>Birthday, wedding, anniversary, proposal and custom.</p></div></div>
-                            <div style={{ display: "flex", overflowX: "auto", gap: 10, paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
-                {decorations.map((item) => (
-                  <div key={item.id} style={{ ...whiteCard, padding: 16, minWidth: 150, flex: "0 0 auto" }}>
-                    <div style={{ fontSize: 32 }}>🎉</div>
-                    <h3 style={{ margin: "8px 0 5px" }}>{item.name}</h3>
-                    <p style={{ margin: 0, color: C.gray, fontSize: 13 }}>{item.description}</p>
-                    <div style={{ marginTop: 10, fontWeight: 900 }}>
-                      {item.price ? `From ${fmtINR(item.price)}` : "Custom price"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        );
-      })()}
-
-{/* SEARCH / FILTER */}
-
-      <section
-        id="cars"
-        style={{
-          maxWidth:
-            1200,
-          margin:
-            "0 auto",
-          padding:
-            "22px 16px",
-        }}
-      >
-        <div
-          style={{
-            display:
-              "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              position:
-                "relative",
-            }}
-          >
-            <Search
-              size={18}
-              color={
-                C.gray
-              }
-              style={{
-                position:
-                  "absolute",
-                left: 14,
-                top: "50%",
-                transform:
-                  "translateY(-50%)",
-              }}
-            />
-
-            <input
-              value={
-                search
-              }
-              onChange={(e) =>
-                setSearch(
-                  e.target.value
-                )
-              }
-              placeholder="Search cars..."
-              style={{
-                ...inputStyle,
-                paddingLeft:
-                  42,
-              }}
-            />
-          </div>
-
-          <select
-            value={
-              selectedCity
-            }
-            onChange={(e) =>
-              setSelectedCity(
-                e.target.value
-              )
-            }
-            style={
-              inputStyle
-            }
-          >
-            <option value="All">
-              All Cities
-            </option>
-
-            {activeCities.map(
-              (city) => (
-                <option
-                  key={
-                    city.id
-                  }
-                  value={
-                    city.name
-                  }
-                >
-                  {city.name}
-                </option>
-              )
-            )}
-          </select>
-        </div>
-      </section>
-
-      {/* CARS */}
-
-      <main
-        style={{
-          maxWidth:
-            1200,
-          margin:
-            "0 auto",
-          padding:
-            "0 16px 60px",
-        }}
-      >
-        <div
-          style={{
-            display:
-              "flex",
-            justifyContent:
-              "space-between",
-            alignItems:
-              "center",
-            gap: 12,
-            marginBottom:
-              18,
-          }}
-        >
+      <form className="sw-search sw-wrap" onSubmit={submit}>
+        <label>
+          <span>City</span>
           <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 25,
-                fontWeight:
-                  950,
-              }}
-            >
-              Available Cars
-            </h2>
-
-            <p
-              style={{
-                margin:
-                  "5px 0 0",
-                color:
-                  C.gray,
-                fontSize:
-                  13,
-              }}
-            >
-              {filteredCars.length}{" "}
-              car
-              {filteredCars.length !==
-              1
-                ? "s"
-                : ""}{" "}
-              found
-            </p>
+            <MapPin size={17} />
+            <select value={city} onChange={(e) => setCity(e.target.value)}>
+              {cities.map((c) => (
+                <option key={c.id || c.name}>{c.name}</option>
+              ))}
+            </select>
           </div>
-        </div>
-
-        {filteredCars.length ===
-        0 ? (
-          <div
-            style={{
-              padding:
-                40,
-              background:
-                C.white,
-              border:
-                `1px solid ${C.border}`,
-              borderRadius:
-                20,
-              textAlign:
-                "center",
-              color:
-                C.gray,
-            }}
-          >
-            <Car
-              size={48}
-              color={
-                C.blue
-              }
-              strokeWidth={
-                1.3
-              }
-            />
-
-            <h3
-              style={{
-                color:
-                  C.navy,
-                margin:
-                  "12px 0 5px",
+        </label>
+        <label>
+          <span>Pickup date</span>
+          <div>
+            <CalendarDays size={17} />
+            <input
+              type="date"
+              min={today}
+              value={pd}
+              onChange={(e) => {
+                setPd(e.target.value);
+                if (dd < e.target.value) setDd(e.target.value);
               }}
-            >
-              No cars available yet
-            </h3>
-
-            <p
-              style={{
-                margin:
-                  0,
-                fontSize:
-                  13,
-              }}
-            >
-              Vehicles added by the
-              admin will appear here.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              display:
-                "grid",
-              gridTemplateColumns: "1fr",
-              gap: 12
-            }}
-          >
-            {filteredCars.map(
-              (car) => (
-                <CarCard
-                  key={
-                    car.id
-                  }
-                  car={
-                    car
-                  }
-                  onBook={(car) => {
-  setBookingCar(car);
-  setPage("story");
-}}
-                />
-              )
-            )}
-          </div>
-        )}
-
-        {/* RECENT BOOKINGS */}
-
-        {bookings.length >
-          0 && (
-          <section
-            style={{
-              marginTop:
-                40,
-            }}
-          >
-            <h2
-              style={{
-                margin:
-                  "0 0 14px",
-                fontSize:
-                  22,
-                fontWeight:
-                  950,
-              }}
-            >
-              Recent Bookings
-            </h2>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gap: 10,
-              }}
-            >
-              {bookings
-                .slice()
-                .reverse()
-                .slice(0, 5)
-                .map(
-                  (
-                    booking
-                  ) => (
-                    <div
-                      key={
-                        booking.id
-                      }
-                      style={{
-                        background:
-                          C.white,
-                        border:
-                          `1px solid ${C.border}`,
-                        borderRadius:
-                          16,
-                        padding:
-                          15,
-                        display:
-                          "flex",
-                        flexWrap:
-                          "wrap",
-                        justifyContent:
-                          "space-between",
-                        gap: 12,
-                      }}
-                    >
-                      <div>
-                        <strong>
-                          {
-                            booking.carName
-                          }
-                        </strong>
-
-                        <div
-                          style={{
-                            color:
-                              C.gray,
-                            fontSize:
-                              12,
-                            marginTop:
-                              4,
-                          }}
-                        >
-                          {
-                            booking.name
-                          }{" "}
-                          •{" "}
-                          {
-                            booking.pickupDate
-                          }{" "}
-                          •{" "}
-                          {
-                            booking.rentalDuration
-                          }{" "}
-                          hours
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          textAlign:
-                            "right",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight:
-                              900,
-                            color:
-                              C.green,
-                          }}
-                        >
-                          Paid{" "}
-                          {fmtINR(
-                            booking.paidAmount
-                          )}
-                        </div>
-
-                        <div
-                          style={{
-                            color:
-                              C.gray,
-                            fontSize:
-                              12,
-                          }}
-                        >
-                          Remaining{" "}
-                          {fmtINR(
-                            booking.remainingAmount
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                )}
-            </div>
-                    </section>
-        )}
-
-        <div style={{ maxWidth: 1000, margin: "8px auto 36px", padding: "0 16px" }}>
-          <h3 style={{ margin: "0 0 10px", color: C.navy, fontWeight: 900 }}>
-            Sawariya Rentals location
-          </h3>
-          <p style={{ margin: "0 0 12px", color: C.gray, fontSize: 14 }}>
-            Indore · Call 74152 28011 / 89828 02145
-          </p>
-          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
-            <iframe
-              title="Sawariya Rentals location"
-              src="https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&output=embed"
-              width="100%"
-              height="260"
-              style={{ border: 0 }}
-              loading="lazy"
             />
           </div>
-        </div>
-      </main>
-            {page === "story" && bookingCar && (
-        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
-          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <button type="button" onClick={() => { setPage("app"); setBookingCar(null); }} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-            <strong>Sawariya Rentals</strong>
-            <a href="https://wa.me/917415228011" style={{ color: "#fff", textDecoration: "none", fontSize: 13 }}>WhatsApp</a>
+        </label>
+        <label>
+          <span>Pickup time</span>
+          <div>
+            <Clock3 size={17} />
+            <input type="time" value={pt} onChange={(e) => setPt(e.target.value)} />
           </div>
+        </label>
+        <label>
+          <span>Drop date</span>
+          <div>
+            <CalendarDays size={17} />
+            <input type="date" min={pd} value={dd} onChange={(e) => setDd(e.target.value)} />
+          </div>
+        </label>
+        <label>
+          <span>Drop time</span>
+          <div>
+            <Clock3 size={17} />
+            <input type="time" value={dt} onChange={(e) => setDt(e.target.value)} />
+          </div>
+        </label>
+        <button className="sw-btn sw-btn-pea sw-search-btn" type="submit">
+          <Search size={18} /> Find cars
+        </button>
+      </form>
 
-          <div style={{ padding: 16, maxWidth: 720, margin: "0 auto 40px" }}>
-            <h2 style={{ margin: "8px 0 4px" }}>{bookingCar.name}</h2>
-            <p style={{ color: "#64748b", margin: "0 0 12px" }}>{bookingCar.type} · Indore · Self drive</p>
-
-            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-              {(bookingCar.photos || []).map((src) => (
-                <img key={src} src={src} alt="" onClick={() => setZoom(src)} style={{ height: 170, borderRadius: 14 }} />
+      <div className="sw-marquee" aria-hidden="true">
+        <div className="sw-marquee-track">
+          {[0, 1].map((k) => (
+            <div key={k} className="sw-marquee-set">
+              {["Hourly rentals", "Daily rentals", "Weekly rentals", "Monthly rentals", "2-year plans", "Home delivery", "Driver and guide", "Airport pickup and drop"].map((t) => (
+                <span key={t + k}>{t}</span>
               ))}
             </div>
-            <p style={{ fontSize: 12, color: "#64748b" }}>Tap photo to zoom</p>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 14 }}>
-              <h3 style={{ margin: "0 0 8px" }}>About Sawariya Rentals</h3>
-              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
-                Self-drive car rental in Indore. Clean cars, clear rates, WhatsApp support.
-                Book 8 / 12 / 24 hours or several days.
-              </p>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Why we are best</h3>
-              <div>✓ Clean, maintained cars</div>
-              <div>✓ Fair Indore pricing</div>
-              <div>✓ 24×7 customer service</div>
-              <div>✓ Same-day booking if available</div>
-              <div>✓ Easy extend on WhatsApp</div>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Our services</h3>
-              <div>• Self drive hatchback, SUV, CNG</div>
-              <div>• 8 / 12 / 24 hour packages</div>
-              <div>• Multi-day outstation</div>
-              <div>• Airport pickup and drop (IDR)</div>
-              <div>• 24×7 call / WhatsApp help</div>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Airport pickup & drop</h3>
-              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
-                Devi Ahilya Bai Holkar Airport (IDR). Share flight time on WhatsApp.
-                We arrange pickup or drop with the booked car.
-              </p>
-            </div>
-            <button type="button" onClick={() => setPage("app")} style={{ width: "100%", padding: 14, border: 0, borderRadius: 12, background: "#2563eb", color: "#fff", fontWeight: 800 }}>
-              Book this car
-            </button>
-          </div>
-
-            <a href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals" style={{ display: "block", textAlign: "center", background: "#25D366", color: "#fff", padding: 14, borderRadius: 12, fontWeight: 800, textDecoration: "none", marginTop: 14 }}>
-              WhatsApp us · 74152 28011
+/* ------------------------------ plans, packages, decorations ------------------------------ */
+function Plans({ s, packages, decorations }) {
+  const items = [
+    { cls: "p1", icon: <Clock3 size={24} />, title: "Hourly", price: s.hourlyStartingPrice, unit: "per hour", note: `${s.hourlyIncludedKm} km included per hour` },
+    { cls: "p2", icon: <Car size={24} />, title: "Daily", price: s.dailyStartingPrice, unit: "per day", note: `${s.dailyIncludedKm} km included per day` },
+    { cls: "p3", icon: <CalendarDays size={24} />, title: "Weekly", price: s.weeklyStartingPrice, unit: "per week", note: "Best for longer trips" },
+    { cls: "p4", icon: <CalendarDays size={24} />, title: "Monthly", price: s.monthlyStartingPrice, unit: "per month", note: "1-month plan" },
+    { cls: "p5", icon: <IndianRupee size={24} />, title: "2-year offer", price: s.longTermMonthlyPrice, unit: "per month", note: `${s.longTermMonths}-month commitment` },
+  ];
+  return (
+    <section className="sw-section" id="plans">
+      <div className="sw-wrap">
+        <h2>Pick how long you need the car</h2>
+        <div className="sw-plans">
+          {items.map((p) => (
+            <a key={p.title} className={`sw-plan ${p.cls}`} href="#cars">
+              <span className="sw-plan-ico">{p.icon}</span>
+              <h3>{p.title}</h3>
+              <strong>{inr(p.price)}</strong>
+              <em>{p.unit}</em>
+              <p>{p.note}</p>
             </a>
-            <p style={{ textAlign: "center", fontSize: 13, color: "#64748b" }}>or call 89828 02145</p>
+          ))}
+        </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
-              <h3 style={{ margin: 0 }}>Reviews</h3>
-              <button type="button" onClick={() => setPage("reviews")} style={{ background: "none", border: 0, color: "#2563eb", fontWeight: 700 }}>Sab reviews →</button>
-            </div>
-            <div style={{ display: "flex", overflowX: "auto", gap: 10, padding: "8px 0 16px" }}>
-              {PAGE_REVIEWS.map((r, i) => (
-                <div key={i} style={{ minWidth: 230, background: "#fff", border: "1px solid #e2e8f0", padding: 12, borderRadius: 14 }}>
-                  <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
-                  <div style={{ fontSize: 14, margin: "8px 0" }}>{r.t}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{r.n} · {r.p}</div>
+        {packages.length > 0 && (
+          <>
+            <h2 className="sw-sub">Travel packages</h2>
+            <p className="sw-sub-note">Ujjain, Omkareshwar, Mandu and more. Go self-drive, with a driver, or with a guide.</p>
+            <div className="sw-row">
+              {packages.map((item) => (
+                <div key={item.id} className="sw-mini">
+                  <span className="sw-tag">{item.days} day{item.days === 1 ? "" : "s"}</span>
+                  <h3>{item.name}</h3>
+                  <p>{item.description}</p>
+                  <div className="sw-tags">
+                    <span className="sw-tag">Self drive</span>
+                    <span className="sw-tag">Driver</span>
+                    <span className="sw-tag">Guide</span>
+                  </div>
                 </div>
               ))}
             </div>
+          </>
+        )}
 
-          {zoom && (
-            <div onClick={() => setZoom(null)} style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99 }}>
-              <img src={zoom} alt="" style={{ maxWidth: "94%", maxHeight: "90%" }} />
+        {decorations.length > 0 && (
+          <>
+            <h2 className="sw-sub">Decorated cars</h2>
+            <p className="sw-sub-note">Birthday, wedding, anniversary, proposal and custom themes.</p>
+            <div className="sw-row">
+              {decorations.map((item) => (
+                <div key={item.id} className="sw-mini">
+                  <h3>{item.name}</h3>
+                  <p>{item.description}</p>
+                  <strong className="sw-mini-price">
+                    {item.price ? `From ${inr(item.price)}` : "Price on request"}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ cars ------------------------------ */
+function CarTile({ car, onOpen }) {
+  const ref = useRef(null);
+  const photo = car.photos?.[0];
+  const price = carPrice(car);
+  function move(e) {
+    const el = ref.current;
+    if (!el || e.pointerType === "touch") return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty("--rx", `${(-y * 5).toFixed(2)}deg`);
+    el.style.setProperty("--ry", `${(x * 7).toFixed(2)}deg`);
+  }
+  function leave() {
+    ref.current?.style.setProperty("--rx", "0deg");
+    ref.current?.style.setProperty("--ry", "0deg");
+  }
+  return (
+    <article className="sw-tile" ref={ref} onPointerMove={move} onPointerLeave={leave}>
+      <div className="sw-tile-img" onClick={() => onOpen(car)}>
+        {photo ? <img src={photo} alt={car.name} loading="lazy" /> : <Car size={54} strokeWidth={1.2} />}
+        <span className={`sw-status ${car.available ? "ok" : "no"}`}>
+          {car.available ? "Available" : "Rented out"}
+        </span>
+      </div>
+      <div className="sw-tile-body">
+        <small>{[car.type, car.city].filter(Boolean).join(", ")}</small>
+        <h3>{car.name}</h3>
+        <ul>
+          <li><Fuel size={15} /> {car.fuel || "Petrol"}</li>
+          <li><Settings size={15} /> {car.transmission || "Manual"}</li>
+          <li><Users size={15} /> {car.seats || 5} seats</li>
+        </ul>
+        <div className="sw-tile-foot">
+          <div>
+            {price > 0 ? (
+              <>
+                <strong>{inr(price)}</strong> <span>per day</span>
+              </>
+            ) : (
+              <strong className="sw-ask">Call for price</strong>
+            )}
+          </div>
+          <button className="sw-btn sw-btn-pea" disabled={!car.available} onClick={() => onOpen(car)}>
+            Book
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClearSchedule, onOpen }) {
+  const [type, setType] = useState("All");
+  const [q, setQ] = useState("");
+  const types = useMemo(
+    () => ["All", ...Array.from(new Set(cars.map((c) => c.type).filter(Boolean)))],
+    [cars]
+  );
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return cars.filter((c) => {
+      const cityOk = cityFilter === "All" || c.city === cityFilter;
+      const typeOk = type === "All" || c.type === type;
+      const textOk =
+        !t ||
+        String(c.name || "").toLowerCase().includes(t) ||
+        String(c.type || "").toLowerCase().includes(t) ||
+        String(c.city || "").toLowerCase().includes(t);
+      return cityOk && typeOk && textOk;
+    });
+  }, [cars, cityFilter, type, q]);
+
+  return (
+    <section className="sw-section sw-tint" id="cars">
+      <div className="sw-wrap">
+        <div className="sw-head-row">
+          <h2>{cityFilter === "All" ? "Our cars" : `Cars in ${cityFilter}`}</h2>
+          <span className="sw-count">
+            {list.length} car{list.length === 1 ? "" : "s"} found
+          </span>
+        </div>
+        {schedule && (
+          <p className="sw-note">
+            {schedule.pd} {schedule.pt} to {schedule.dd} {schedule.dt}. The final price for your dates is
+            worked out when you tap Book.{" "}
+            <button className="sw-link" onClick={onClearSchedule}>Clear</button>
+          </p>
+        )}
+        <div className="sw-toolbar">
+          <div className="sw-field">
+            <Search size={17} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cars" />
+          </div>
+          <div className="sw-field">
+            <MapPin size={17} />
+            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+              <option value="All">All cities</option>
+              {cities.map((c) => (
+                <option key={c.id || c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {types.length > 2 && (
+          <div className="sw-chips">
+            {types.map((t) => (
+              <button key={t} className={`sw-chip ${t === type ? "on" : ""}`} onClick={() => setType(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+        {list.length ? (
+          <div className="sw-grid">
+            {list.map((c) => (
+              <CarTile key={c.id || c.name} car={c} onOpen={onOpen} />
+            ))}
+          </div>
+        ) : (
+          <div className="sw-empty">
+            <Car size={40} strokeWidth={1.3} />
+            <h3>No cars to show right now</h3>
+            <p>Call {PHONE_1.show} or message us on WhatsApp and we will check what is free.</p>
+            <a className="sw-btn sw-btn-saf" href={WHATSAPP} target="_blank" rel="noreferrer">
+              <MessageCircle size={16} /> Ask on WhatsApp
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ car detail ------------------------------ */
+function CarDetail({ car, settings, onBack, onBook, onZoom }) {
+  const [idx, setIdx] = useState(0);
+  const photos = car.photos || [];
+  const hourly = Number(car.hourlyRate ?? car.price8 ?? settings.hourlyStartingPrice);
+  const daily = Number(car.dailyRate ?? car.price24 ?? settings.dailyStartingPrice);
+  const weekly = Number(car.weeklyRate ?? settings.weeklyStartingPrice);
+  const monthly = Number(car.monthlyRate ?? settings.monthlyStartingPrice);
+  const rates = [
+    ["Hourly", `${inr(hourly)} per hour`],
+    ["Daily", `${inr(daily)} per day`],
+    ["Weekly", `${inr(weekly)} per week`],
+    ["Monthly", `${inr(monthly)} per month`],
+  ];
+  return (
+    <div className="sw-detail">
+      <div className="sw-detail-bar">
+        <button onClick={onBack}>
+          <ChevronLeft size={18} /> Back
+        </button>
+        <strong>Sawariya Rentals</strong>
+        <a href={WHATSAPP} target="_blank" rel="noreferrer">WhatsApp</a>
+      </div>
+      <div className="sw-wrap sw-detail-grid">
+        <div>
+          <div className="sw-gallery-main" onClick={() => photos[idx] && onZoom(photos[idx])}>
+            {photos[idx] ? <img src={photos[idx]} alt={car.name} /> : <Car size={72} strokeWidth={1.1} />}
+          </div>
+          {photos.length > 1 && (
+            <div className="sw-thumbs">
+              {photos.map((src, i) => (
+                <img key={i} src={src} alt="" className={i === idx ? "on" : ""} onClick={() => setIdx(i)} />
+              ))}
             </div>
           )}
+          {photos.length > 0 && <p className="sw-note">Tap the photo to zoom.</p>}
         </div>
-      )}
-
-      {page === "reviews" && (
-        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
-          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px" }}>
-            <button type="button" onClick={() => setPage("story")} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-          </div>
-          <div style={{ padding: 16 }}>
-            <h2>Customer reviews</h2>
-            <p style={{ color: "#64748b" }}>Sawariya Rentals · Indore</p>
-            {PAGE_REVIEWS.map((r, i) => (
-              <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: 14, borderRadius: 14, marginBottom: 10 }}>
-                <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
-                <div style={{ margin: "8px 0" }}>{r.t}</div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>{r.n} · {r.p}</div>
+        <div>
+          <span className={`sw-status inline ${car.available ? "ok" : "no"}`}>
+            {car.available ? "Available" : "Rented out"}
+          </span>
+          <h2 className="sw-detail-title">{car.name}</h2>
+          <p className="sw-detail-sub">{[car.type, car.city, "Self drive"].filter(Boolean).join(", ")}</p>
+          <ul className="sw-detail-meta">
+            <li><Fuel size={16} /> {car.fuel || "Petrol"}</li>
+            <li><Settings size={16} /> {car.transmission || "Manual"}</li>
+            <li><Users size={16} /> {car.seats || 5} seats</li>
+          </ul>
+          <div className="sw-rates">
+            {rates.map(([k, v]) => (
+              <div key={k} className="sw-rate">
+                <span>{k}</span>
+                <b>{v}</b>
               </div>
             ))}
           </div>
+          <button className="sw-btn sw-btn-pea sw-wide" disabled={!car.available} onClick={() => onBook(car)}>
+            Book this car
+          </button>
+          <a className="sw-btn sw-btn-wa sw-wide" href={`${WHATSAPP}?text=Hi%20Sawariya%20Rentals`} target="_blank" rel="noreferrer">
+            <MessageCircle size={17} /> WhatsApp us, {PHONE_1.show}
+          </a>
+          <p className="sw-note center">or call {PHONE_2.show}</p>
+
+          <div className="sw-info">
+            <h3>About Sawariya Rentals</h3>
+            <p>Self-drive car rental in Indore. Clean cars, clear rates, WhatsApp support. Book 8, 12 or 24 hours, or several days.</p>
+          </div>
+          <div className="sw-info">
+            <h3>Why renters pick us</h3>
+            <ul>
+              <li>Clean, maintained cars</li>
+              <li>Fair Indore pricing</li>
+              <li>24x7 customer service</li>
+              <li>Same-day booking if available</li>
+              <li>Easy extension on WhatsApp</li>
+            </ul>
+          </div>
+          <div className="sw-info">
+            <h3>Our services</h3>
+            <ul>
+              <li>Self drive hatchback, SUV and CNG</li>
+              <li>8, 12 and 24 hour packages</li>
+              <li>Multi-day outstation trips</li>
+              <li>Airport pickup and drop (IDR)</li>
+              <li>24x7 call and WhatsApp help</li>
+            </ul>
+          </div>
+          <div className="sw-info">
+            <h3>Airport pickup and drop</h3>
+            <p>Devi Ahilya Bai Holkar Airport (IDR). Share your flight time on WhatsApp and we arrange pickup or drop with the booked car.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ stats ------------------------------ */
+function Stats({ cars, cities, s }) {
+  const priced = cars.map(carPrice).filter((p) => p > 0);
+  const avg = priced.length ? Math.round(priced.reduce((a, b) => a + b, 0) / priced.length) : Number(s.dailyStartingPrice) || 0;
+  const free = cars.filter((c) => c.available).length;
+  const items = [
+    { k: "Cheapest hourly rate", v: <CountUp to={Number(s.hourlyStartingPrice) || 0} prefix="₹" />, u: "per hour" },
+    { k: "Average daily price", v: <CountUp to={avg} prefix="₹" />, u: "per day" },
+    { k: "Cars free right now", v: <CountUp to={free} />, u: free === 1 ? "car" : "cars" },
+    { k: "Kilometres included", v: <CountUp to={Number(s.dailyIncludedKm) || 0} />, u: "km per day" },
+    { k: "Cities served", v: <CountUp to={cities.length} />, u: cities.length === 1 ? "city" : "cities" },
+  ];
+  return (
+    <section className="sw-stats">
+      <div className="sw-wrap">
+        <h2>Our numbers today</h2>
+        <div className="sw-stat-row">
+          {items.map((i) => (
+            <div key={i.k} className="sw-stat">
+              <span>{i.k}</span>
+              <strong>{i.v}</strong>
+              <em>{i.u}</em>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ why ------------------------------ */
+function Why() {
+  const items = [
+    { i: <Home size={26} />, t: "Delivery and pickup at your door", d: "Choose home delivery while booking and tell us where and when." },
+    { i: <Gauge size={26} />, t: "Plans that fit the trip", d: "Hourly, daily, weekly, monthly or a 2-year plan. Extra kilometres are charged by the km." },
+    { i: <Wrench size={26} />, t: "Cars that are looked after", d: "Clean, maintained cars with clear rates." },
+    { i: <Headphones size={26} />, t: "A real person on the phone", d: `Call ${PHONE_1.show} or message us on WhatsApp.` },
+  ];
+  return (
+    <section className="sw-section" id="why">
+      <div className="sw-wrap">
+        <h2>Why rent from Sawariya</h2>
+        <div className="sw-why">
+          {items.map((x) => (
+            <div key={x.t} className="sw-why-card">
+              <span>{x.i}</span>
+              <h3>{x.t}</h3>
+              <p>{x.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ faqs ------------------------------ */
+function Faqs({ s }) {
+  const [open, setOpen] = useState(0);
+  const faqs = [
+    ["What is the minimum age to rent a car?", "You must be at least 18 and hold a valid driving licence."],
+    ["What do I need to carry?", "Your original driving licence and a government photo ID. We confirm the rest when you book."],
+    ["Is there a security deposit?", "Yes. The amount depends on the car and is told to you before pickup."],
+    ["Which rental plans do you offer?", `Hourly from ${inr(s.hourlyStartingPrice)} an hour (${s.hourlyIncludedKm} km per hour), daily from ${inr(s.dailyStartingPrice)} (${s.dailyIncludedKm} km per day), weekly, monthly, and a 2-year plan at ${inr(s.longTermMonthlyPrice)} a month.`],
+    ["What if I drive more than the included km?", `Extra kilometres are charged at ${inr(s.extraKmRate)} per km.`],
+    ["Who pays for fuel?", "You pick one of two options in the booking form: you fill the fuel yourself, or we add an estimated fuel cost to the total."],
+    ["Can I get a driver or a guide?", "Yes. Choose With driver, or Driver + guide for tours, and the cost appears in your summary."],
+    ["Can I book a one-way trip?", "Yes. Select One-way, choose your destination, and the return and recovery cost is added automatically."],
+    ["Do you deliver the car to my home?", "Yes, home delivery is available. Any extra charge is shown before you pay."],
+    ["How do I pay?", `Pay an advance of ${inr(s.bookingAdvance)} or the full amount online through PayU. The balance, if any, is shown in your summary.`],
+  ];
+  return (
+    <section className="sw-section sw-tint" id="faqs">
+      <div className="sw-wrap sw-faq-wrap">
+        <h2>Questions people ask us</h2>
+        <div className="sw-faq">
+          {faqs.map(([q, a], i) => (
+            <div key={q} className={`sw-faq-item ${open === i ? "open" : ""}`}>
+              <button aria-expanded={open === i} onClick={() => setOpen(open === i ? -1 : i)}>
+                <span>{q}</span>
+                <ChevronDown size={20} />
+              </button>
+              <div className="sw-faq-body">
+                <p>{a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ callback ------------------------------ */
+function Callback({ city }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [state, setState] = useState("idle");
+  async function submit(e) {
+    e.preventDefault();
+    const clean = phone.replace(/\D/g, "");
+    if (!/^\d{10}$/.test(clean)) return setState("bad");
+    setState("sending");
+    try {
+      await insertLead({
+        name: name.trim() || "Website lead",
+        phone: clean,
+        city,
+        carName: "",
+        message: "Callback request from homepage",
+      });
+      setState("done");
+    } catch {
+      setState("fail");
+    }
+  }
+  return (
+    <section className="sw-callback">
+      <div className="sw-wrap sw-callback-in">
+        <div>
+          <h2>Not sure which car fits?</h2>
+          <p>Leave your number and we will call you back, or call us directly.</p>
+          <div className="sw-callback-links">
+            <a href={PHONE_1.href}><Phone size={16} /> {PHONE_1.show}</a>
+            <a href={PHONE_2.href}><Phone size={16} /> {PHONE_2.show}</a>
+          </div>
+        </div>
+        {state === "done" ? (
+          <div className="sw-thanks">
+            <CheckCircle2 size={34} />
+            <b>Got it. We will call you soon.</b>
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            <input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+            <input
+              placeholder="10-digit mobile number"
+              inputMode="numeric"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <button className="sw-btn sw-btn-saf" disabled={state === "sending"}>
+              {state === "sending" ? "Sending" : "Call me back"}
+            </button>
+            {state === "bad" && <small>Enter a 10-digit mobile number.</small>}
+            {state === "fail" && <small>Could not send. Please call us instead.</small>}
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ footer ------------------------------ */
+function SiteFooter({ cities }) {
+  return (
+    <>
+      <section className="sw-section">
+        <div className="sw-wrap sw-visit">
+          <div>
+            <h2>Visit Sawariya Rentals</h2>
+            <p className="sw-visit-text">Indore. Call {PHONE_1.show} or {PHONE_2.show}.</p>
+            <a className="sw-btn sw-btn-pea" href={MAPS} target="_blank" rel="noreferrer">
+              <MapPin size={17} /> Open in Maps
+            </a>
+          </div>
+          <div className="sw-map">
+            <iframe title="Sawariya Rentals location" src={MAP_EMBED} width="100%" height="280" style={{ border: 0 }} loading="lazy" />
+          </div>
+        </div>
+      </section>
+      <footer className="sw-footer">
+        <div className="sw-wrap sw-footer-in">
+          <div>
+            <Logo id="f" dark />
+            <p>Self-drive cars in your city.</p>
+          </div>
+          <div>
+            <h4>Contact</h4>
+            <a href={PHONE_1.href}>{PHONE_1.show}</a>
+            <a href={PHONE_2.href}>{PHONE_2.show}</a>
+            <a href={WHATSAPP} target="_blank" rel="noreferrer">WhatsApp</a>
+            <a href={MAPS} target="_blank" rel="noreferrer">Find our location</a>
+          </div>
+          <div>
+            <h4>Cities</h4>
+            {cities.map((c) => (
+              <span key={c.id || c.name}>{c.name}</span>
+            ))}
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <a href="#cars">Rent a car</a>
+            <a href="#plans">Plans</a>
+            <a href="#why">Why Sawariya</a>
+            <a href="#faqs">FAQs</a>
+          </div>
+        </div>
+        <div className="sw-wrap sw-copy">
+          © {new Date().getFullYear()} Sawariya Rentals. Renters must be 18+ with a valid driving licence.
+        </div>
+      </footer>
+    </>
+  );
+}
+
+/* =========================================================
+   CUSTOMER VIEW (new storefront)
+========================================================= */
+
+function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
+  const cars = Array.isArray(carsProp) ? carsProp : [];
+  const cities = (Array.isArray(citiesProp) ? citiesProp : []).filter((c) => c.active);
+
+  const [cityFilter, setCityFilter] = useState("All");
+  const [schedule, setSchedule] = useState(null);
+  const [detailCar, setDetailCar] = useState(null);
+  const [bookingCar, setBookingCar] = useState(null);
+  const [zoom, setZoom] = useState(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [profile, setProfile] = useState(() => loadShared("sawariya_customer_profile", null));
+  const [loginName, setLoginName] = useState("");
+  const [loginPhone, setLoginPhone] = useState("");
+
+  const settings = useMemo(
+    () => ({
+      ...DEFAULT_BUSINESS_SETTINGS,
+      ...(loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS) || {}),
+    }),
+    []
+  );
+  const packages = useMemo(() => {
+    const p = loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES);
+    return Array.isArray(p) ? p : DEFAULT_TRAVEL_PACKAGES;
+  }, []);
+  const decorations = useMemo(() => {
+    const d = loadShared("sawariya_decorations", DEFAULT_DECORATIONS);
+    return Array.isArray(d) ? d : DEFAULT_DECORATIONS;
+  }, []);
+
+  useEffect(() => {
+    if (!detailCar) return;
+    const prev = document.body.style.overflowY;
+    document.body.style.overflowY = "hidden";
+    return () => {
+      document.body.style.overflowY = prev;
+    };
+  }, [detailCar]);
+
+  function openLogin() {
+    setLoginName(profile?.name || "");
+    setLoginPhone(profile?.phone || "");
+    setLoginOpen(true);
+  }
+  function saveProfile() {
+    const name = loginName.trim();
+    const phone = loginPhone.replace(/\D/g, "");
+    if (!name || !/^\d{10}$/.test(phone)) {
+      return alert("Enter your name and valid 10-digit mobile number.");
+    }
+    const p = { name, phone };
+    saveShared("sawariya_customer_profile", p);
+    setProfile(p);
+    setLoginOpen(false);
+  }
+  function handleConfirmBooking(data) {
+    onBook(data);
+    setBookingCar(null);
+    setDetailCar(null);
+  }
+
+  const callbackCity =
+    cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
+
+  return (
+    <div className="sw">
+      <style>{CSS}</style>
+      <SiteHeader profile={profile} onLogin={openLogin} />
+      <Hero
+        cities={cities}
+        settings={settings}
+        onSearch={(s) => {
+          setSchedule(s);
+          setCityFilter(s.city || "All");
+        }}
+      />
+      <Plans s={settings} packages={packages} decorations={decorations} />
+      <CarsSection
+        cars={cars}
+        cities={cities}
+        cityFilter={cityFilter}
+        setCityFilter={setCityFilter}
+        schedule={schedule}
+        onClearSchedule={() => {
+          setSchedule(null);
+          setCityFilter("All");
+        }}
+        onOpen={setDetailCar}
+      />
+      <Stats cars={cars} cities={cities} s={settings} />
+      <Why />
+      <Faqs s={settings} />
+      <Callback city={callbackCity} />
+      <SiteFooter cities={cities} />
+
+      <a className="sw-wa" href={WHATSAPP} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp">
+        <MessageCircle size={26} />
+      </a>
+
+      {detailCar && (
+        <CarDetail
+          car={detailCar}
+          settings={settings}
+          onBack={() => setDetailCar(null)}
+          onBook={setBookingCar}
+          onZoom={setZoom}
+        />
+      )}
+      {zoom && (
+        <div className="sw-zoom" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="" />
         </div>
       )}
-  
       {loginOpen && (
         <div style={modalBackdrop}>
           <div style={{ ...modalCard, maxWidth: 430 }}>
-            <div style={modalHeader}><div><Badge color={C.blue}>Customer account</Badge><h2 style={{ margin: "8px 0 0" }}>Quick login</h2></div><button type="button" onClick={() => setLoginOpen(false)} style={iconButton}><X size={18}/></button></div>
+            <div style={modalHeader}>
+              <div>
+                <Badge color={C.blue}>Customer account</Badge>
+                <h2 style={{ margin: "8px 0 0" }}>Quick login</h2>
+              </div>
+              <button type="button" onClick={() => setLoginOpen(false)} style={iconButton}>
+                <X size={18} />
+              </button>
+            </div>
             <div style={{ padding: 18, display: "grid", gap: 12 }}>
-              <Field label="Name"><input id="customer-name" defaultValue={customerProfile?.name || ""} style={inputStyle}/></Field>
-              <Field label="Mobile"><input id="customer-phone" defaultValue={customerProfile?.phone || ""} inputMode="numeric" style={inputStyle}/></Field>
-              <button type="button" style={primaryButton} onClick={() => { const name = document.getElementById("customer-name")?.value?.trim() || ""; const phone = document.getElementById("customer-phone")?.value?.replace(/\D/g, "") || ""; if (!name || !/^\d{10}$/.test(phone)) return alert("Enter your name and valid 10-digit mobile number."); const profile = { name, phone }; saveShared("sawariya_customer_profile", profile); setCustomerProfile(profile); setLoginOpen(false); }}>Save profile</button>
-              <div style={{ fontSize: 12, color: C.gray }}>This is a quick profile for easier booking. It is not OTP-based authentication.</div>
+              <Field label="Name">
+                <input value={loginName} onChange={(e) => setLoginName(e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label="Mobile">
+                <input value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} inputMode="numeric" style={inputStyle} />
+              </Field>
+              <button type="button" style={primaryButton} onClick={saveProfile}>
+                Save profile
+              </button>
+              <div style={{ fontSize: 12, color: C.gray }}>
+                This is a quick profile for easier booking. It is not OTP-based authentication.
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {page === "app" && bookingCar && (
+      {bookingCar && (
         <BookingModal
-          car={
-            bookingCar
-          }
-          onClose={() =>
-            setBookingCar(
-              null
-            )
-          }
-          onConfirm={
-            handleConfirmBooking
-          }
+          car={bookingCar}
+          onClose={() => setBookingCar(null)}
+          onConfirm={handleConfirmBooking}
         />
       )}
     </div>
   );
 }
+
+/* ------------------------------ storefront styles ------------------------------ */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+html{scroll-behavior:smooth}
+.sw{--ink:#0b1b2b;--pea:#0e7c86;--pead:#0a5f67;--saf:#f59e0b;--saf2:#ffb938;--mist:#f2f7f8;--line:#e0e9ec;--muted:#566774;
+ font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:#fff;overflow-x:hidden;line-height:1.5}
+.sw *{box-sizing:border-box}
+.sw h1,.sw h2,.sw h3,.sw h4{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0;letter-spacing:-.02em;line-height:1.1}
+.sw a{color:inherit;text-decoration:none}
+.sw button{font-family:inherit;cursor:pointer}
+.sw :focus-visible{outline:3px solid var(--saf);outline-offset:2px}
+.sw-wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+.sw-section{padding:72px 0;scroll-margin-top:70px}
+.sw-tint{background:var(--mist)}
+.sw-section h2,.sw-stats h2,.sw-callback h2{font-size:clamp(26px,4vw,38px);font-weight:800;margin-bottom:28px}
+.sw-section h2.sw-sub{font-size:clamp(22px,3vw,28px);margin:46px 0 6px}
+.sw-sub-note{margin:0 0 16px;color:var(--muted);font-size:15px}
+
+.sw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:0 20px;min-height:46px;font-weight:700;font-size:15px;transition:transform .18s,box-shadow .18s,background .18s}
+.sw-btn:hover:not(:disabled){transform:translateY(-2px)}
+.sw-btn:active:not(:disabled){transform:translateY(0) scale(.97)}
+.sw-btn:disabled{opacity:.5;cursor:not-allowed}
+.sw-btn-pea{background:var(--pea);color:#fff!important;box-shadow:0 8px 18px -8px var(--pea)}
+.sw-btn-pea:hover:not(:disabled){background:var(--pead)}
+.sw-btn-saf{background:var(--saf);color:var(--ink)!important;box-shadow:0 8px 18px -8px var(--saf)}
+.sw-btn-saf:hover:not(:disabled){background:var(--saf2)}
+.sw-btn-wa{background:#1a9d6c;color:#fff!important}
+.sw-wide{width:100%;margin-top:10px}
+
+.sw-logo{display:inline-flex;align-items:center;gap:10px}
+.sw-logo-text{display:flex;flex-direction:column;line-height:1}
+.sw-logo-text b{font-family:'Bricolage Grotesque',sans-serif;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.sw-logo-text i{font-style:normal;font-size:12px;font-weight:600;color:var(--pea);margin-top:3px;letter-spacing:.14em}
+.sw-logo-dash{stroke-dashoffset:0;animation:swdash 2.4s linear infinite}
+@keyframes swdash{to{stroke-dashoffset:-24}}
+
+.sw-header{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+.sw-header.stuck{border-color:var(--line);box-shadow:0 8px 24px -16px rgba(11,27,43,.35)}
+.sw-header-in{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
+.sw-nav{display:flex;gap:26px;font-weight:600;font-size:15px}
+.sw-nav a{position:relative;padding:6px 0}
+.sw-nav a::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--saf);transform:scaleX(0);transform-origin:left;transition:transform .25s}
+.sw-nav a:hover::after{transform:scaleX(1)}
+.sw-header-cta{display:flex;align-items:center;gap:12px}
+.sw-call{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:14px;color:var(--pea)}
+.sw-login{border:1.5px solid var(--ink);background:#fff;color:var(--ink);border-radius:10px;padding:8px 16px;font-weight:700;font-size:14px;transition:background .2s,color .2s}
+.sw-login:hover{background:var(--ink);color:#fff}
+.sw-burger{display:none;background:none;border:0;color:var(--ink);padding:6px}
+
+.sw-hero{position:relative;color:#fff;padding:64px 0 210px;overflow:hidden;
+ background:radial-gradient(900px 420px at 85% -10%,rgba(20,163,174,.45),transparent 60%),linear-gradient(165deg,#06202e 0%,#0a4a55 58%,#0e7c86 100%)}
+.sw-blob{position:absolute;border-radius:50%;filter:blur(46px);opacity:.3;animation:swfloat 16s ease-in-out infinite}
+.sw-blob.b1{width:300px;height:300px;background:var(--saf);left:-90px;top:-70px}
+.sw-blob.b2{width:360px;height:360px;background:#14a3ae;right:-100px;top:90px;animation-delay:-7s}
+@keyframes swfloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(34px,44px) scale(1.12)}}
+.sw-hero-copy{position:relative;z-index:2}
+.sw-hero h1{font-size:clamp(38px,7vw,74px);font-weight:800;max-width:760px}
+.sw-hero h1 span{display:block;opacity:0;transform:translateY(24px);animation:swup .8s cubic-bezier(.2,.8,.2,1) forwards}
+.sw-hero h1 span:nth-child(2){animation-delay:.18s;color:var(--saf2)}
+.sw-hero p{max-width:520px;font-size:18px;color:#d3eef0;margin:20px 0 0;opacity:0;animation:swup .8s .36s cubic-bezier(.2,.8,.2,1) forwards}
+.sw-hero-points{display:flex;flex-wrap:wrap;gap:10px 22px;list-style:none;padding:0;margin:26px 0 0;font-size:14px;font-weight:600;opacity:0;animation:swup .8s .5s cubic-bezier(.2,.8,.2,1) forwards}
+.sw-hero-points li{display:inline-flex;align-items:center;gap:7px}
+.sw-hero-points svg{color:var(--saf2)}
+@keyframes swup{to{opacity:1;transform:none}}
+.sw-road{position:absolute;left:0;right:0;bottom:110px;height:58px;background:#06161f;border-top:3px solid rgba(255,255,255,.12)}
+.sw-road-line{position:absolute;left:0;right:0;top:27px;height:4px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.75) 0 34px,transparent 34px 72px);animation:swroad 1.1s linear infinite}
+@keyframes swroad{to{background-position-x:-72px}}
+.sw-car-wrap{position:absolute;bottom:20px;left:-260px;width:220px;animation:swdrive 11s linear infinite;animation-delay:.6s}
+.sw-car{width:220px;height:auto;display:block;filter:drop-shadow(0 10px 8px rgba(0,0,0,.35));animation:swbob .5s ease-in-out infinite alternate}
+@keyframes swdrive{to{transform:translateX(calc(100vw + 300px))}}
+@keyframes swbob{to{transform:translateY(-2px)}}
+.sw-wheel{transform-box:view-box;animation:swspin .5s linear infinite}
+@keyframes swspin{to{transform:rotate(360deg)}}
+
+.sw-search{position:relative;z-index:5;margin-top:-92px;background:#fff;border-radius:22px;padding:18px;display:grid;grid-template-columns:1.1fr 1.1fr .9fr 1.1fr .9fr auto;gap:12px;align-items:end;box-shadow:0 30px 60px -24px rgba(6,32,46,.45);max-width:1120px}
+.sw-search label span{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.sw-search label div{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;height:48px;color:var(--pea);transition:border-color .2s,box-shadow .2s}
+.sw-search label div:focus-within{border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
+.sw-search select,.sw-search input{border:0;outline:0;background:transparent;width:100%;font:inherit;font-size:15px;font-weight:600;color:var(--ink);min-width:0;padding:0;height:auto}
+.sw-search-btn{height:48px}
+
+.sw-marquee{overflow:hidden;margin-top:34px;border-block:1px solid var(--line);background:#fff}
+.sw-marquee-track{display:flex;width:max-content;animation:swmarq 38s linear infinite}
+.sw-marquee-set{display:flex}
+.sw-marquee-set span{padding:14px 28px;font-weight:600;font-size:15px;color:var(--muted);white-space:nowrap;position:relative}
+.sw-marquee-set span::after{content:"";position:absolute;right:-4px;top:50%;width:8px;height:8px;margin-top:-4px;background:var(--saf);transform:rotate(45deg)}
+@keyframes swmarq{to{transform:translateX(-50%)}}
+
+.sw-plans{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.sw-plan{position:relative;display:flex;flex-direction:column;gap:4px;padding:20px;border-radius:20px;color:#fff;min-height:210px;transition:transform .25s}
+.sw-plan:hover{transform:translateY(-6px)}
+.sw-plan h3{font-size:19px;font-weight:800;margin-top:12px}
+.sw-plan strong{font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;line-height:1.1;margin-top:6px}
+.sw-plan em{font-style:normal;font-size:13px;opacity:.85}
+.sw-plan p{margin:auto 0 0;padding-top:10px;font-size:13.5px;opacity:.92}
+.sw-plan-ico{width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,.18);display:grid;place-items:center;transition:transform .35s}
+.sw-plan:hover .sw-plan-ico{transform:rotate(-12deg) scale(1.1)}
+.sw-plan.p1{background:linear-gradient(150deg,#0e7c86,#0a4a55)}
+.sw-plan.p2{background:linear-gradient(150deg,#12606b,#0b3a45)}
+.sw-plan.p3{background:linear-gradient(150deg,#16384d,#0b1b2b)}
+.sw-plan.p4{background:linear-gradient(150deg,#1a9d6c,#0f6b52)}
+.sw-plan.p5{background:linear-gradient(150deg,#e08a00,#b45309)}
+
+.sw-row{display:flex;gap:14px;overflow-x:auto;padding:4px 0 10px;scroll-snap-type:x proximity}
+.sw-mini{flex:0 0 auto;width:250px;border:1px solid var(--line);border-radius:18px;padding:18px;background:#fff;scroll-snap-align:start;transition:border-color .2s,transform .25s}
+.sw-mini:hover{border-color:var(--pea);transform:translateY(-3px)}
+.sw-mini h3{font-size:19px;font-weight:800;margin:10px 0 6px}
+.sw-mini p{margin:0;color:var(--muted);font-size:14px}
+.sw-mini-price{display:block;margin-top:12px;font-size:15px;color:var(--pea)}
+.sw-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.sw-tag{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--mist);color:var(--pead)}
+
+.sw-head-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sw-count{color:var(--muted);font-size:14px;font-weight:600;margin-bottom:28px}
+.sw-link{background:none;border:0;color:var(--pea);font-weight:700;font-size:14px;text-decoration:underline;text-underline-offset:3px;padding:0}
+.sw-note{margin:-14px 0 18px;color:var(--muted);font-size:14px}
+.sw-note.center{text-align:center;margin:8px 0 18px}
+.sw-toolbar{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:14px}
+.sw-field{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;height:48px;color:var(--pea);transition:border-color .2s,box-shadow .2s}
+.sw-field:focus-within{border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
+.sw-field input,.sw-field select{border:0;outline:0;background:transparent;width:100%;font:inherit;font-size:15px;font-weight:600;color:var(--ink);padding:0;height:auto}
+.sw-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 18px}
+.sw-chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 16px;font-weight:600;font-size:14px;white-space:nowrap;color:var(--ink);transition:all .2s}
+.sw-chip:hover{border-color:var(--pea)}
+.sw-chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;margin-top:6px}
+.sw-tile{--rx:0deg;--ry:0deg;background:#fff;border:1px solid var(--line);border-radius:22px;overflow:hidden;transform:perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));transition:transform .18s ease-out,box-shadow .25s}
+.sw-tile:hover{box-shadow:0 26px 40px -24px rgba(11,27,43,.45)}
+.sw-tile-img{position:relative;aspect-ratio:16/10;background:linear-gradient(135deg,#d9eef0,#f6fafb);display:grid;place-items:center;color:var(--pea);overflow:hidden;cursor:pointer}
+.sw-tile-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s}
+.sw-tile:hover .sw-tile-img img{transform:scale(1.07)}
+.sw-status{position:absolute;top:12px;left:12px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:#fff}
+.sw-status.inline{position:static;display:inline-block;background:var(--mist)}
+.sw-status.ok{color:#117a4a}.sw-status.no{color:#b42318}
+.sw-tile-body{padding:16px 18px 18px}
+.sw-tile-body small{color:var(--muted);font-size:13px;font-weight:600}
+.sw-tile-body h3{font-size:21px;font-weight:800;margin:4px 0 12px}
+.sw-tile-body ul{display:flex;flex-wrap:wrap;gap:8px 16px;list-style:none;padding:0;margin:0 0 16px;font-size:13.5px;color:var(--muted);font-weight:600}
+.sw-tile-body li{display:inline-flex;align-items:center;gap:6px}
+.sw-tile-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px dashed var(--line);padding-top:14px}
+.sw-tile-foot strong{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:800}
+.sw-tile-foot span{font-size:13px;color:var(--muted)}
+.sw-tile-foot .sw-ask{font-size:17px;color:var(--pea)}
+.sw-empty{text-align:center;background:#fff;border:1.5px dashed var(--line);border-radius:22px;padding:48px 20px;color:var(--pea)}
+.sw-empty h3{color:var(--ink);font-size:22px;margin:12px 0 6px}
+.sw-empty p{color:var(--muted);margin:0 0 18px}
+
+.sw-detail{position:fixed;inset:0;z-index:80;background:#fff;overflow-y:auto;color:var(--ink)}
+.sw-detail-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--ink);color:#fff}
+.sw-detail-bar button{display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:#fff;font-weight:700;font-size:15px}
+.sw-detail-bar a{font-size:14px;font-weight:600}
+.sw-detail-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;padding-top:28px;padding-bottom:60px;align-items:start}
+.sw-gallery-main{aspect-ratio:16/10;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#d9eef0,#f6fafb);display:grid;place-items:center;color:var(--pea);cursor:zoom-in}
+.sw-gallery-main img{width:100%;height:100%;object-fit:cover;display:block}
+.sw-thumbs{display:flex;gap:10px;overflow-x:auto;margin-top:12px}
+.sw-thumbs img{height:76px;width:auto;border-radius:12px;cursor:pointer;border:2px solid transparent;display:block}
+.sw-thumbs img.on{border-color:var(--saf)}
+.sw-detail-title{font-size:clamp(28px,4vw,40px);font-weight:800;margin:12px 0 4px!important}
+.sw-detail-sub{margin:0 0 14px;color:var(--muted);font-weight:600}
+.sw-detail-meta{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;padding:0;margin:0 0 18px;font-weight:600;color:var(--muted)}
+.sw-detail-meta li{display:inline-flex;align-items:center;gap:7px}
+.sw-rates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.sw-rate{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.sw-rate span{font-size:13px;color:var(--muted);font-weight:600}
+.sw-rate b{font-size:16px}
+.sw-info{border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}
+.sw-info h3{font-size:18px;font-weight:800;margin-bottom:8px}
+.sw-info p{margin:0;color:var(--muted);font-size:15px}
+.sw-info ul{margin:0;padding-left:20px;color:var(--muted);font-size:15px;display:grid;gap:4px}
+.sw-zoom{position:fixed;inset:0;z-index:99;background:rgba(2,6,23,.92);display:grid;place-items:center;cursor:zoom-out}
+.sw-zoom img{max-width:94%;max-height:90%;display:block}
+
+.sw-stats{background:var(--ink);color:#fff;padding:64px 0}
+.sw-stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:0}
+.sw-stat{padding:6px 22px;border-left:1px solid rgba(255,255,255,.16);display:flex;flex-direction:column;gap:4px}
+.sw-stat:first-child{border-left:0;padding-left:0}
+.sw-stat span{font-size:13.5px;color:#9fb3c0;font-weight:600}
+.sw-stat strong{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(30px,4vw,46px);font-weight:800;color:var(--saf2);line-height:1.05}
+.sw-stat em{font-style:normal;font-size:13px;color:#c8d6de}
+
+.sw-why{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.sw-why-card{padding:24px;border-radius:20px;border:1px solid var(--line);background:#fff;transition:border-color .2s,transform .25s}
+.sw-why-card:hover{border-color:var(--pea);transform:translateY(-4px)}
+.sw-why-card span{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:var(--mist);color:var(--pea);margin-bottom:16px;transition:background .25s,color .25s}
+.sw-why-card:hover span{background:var(--pea);color:#fff}
+.sw-why-card h3{font-size:19px;font-weight:800;margin-bottom:8px}
+.sw-why-card p{margin:0;color:var(--muted);font-size:15px}
+
+.sw-faq-wrap{max-width:820px}
+.sw-faq-item{background:#fff;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+.sw-faq-item.open{border-color:var(--pea)}
+.sw-faq-item button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:left;background:none;border:0;padding:18px 20px;font-weight:700;font-size:16.5px;color:var(--ink)}
+.sw-faq-item svg{flex-shrink:0;color:var(--pea);transition:transform .3s}
+.sw-faq-item.open svg{transform:rotate(180deg)}
+.sw-faq-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease}
+.sw-faq-item.open .sw-faq-body{grid-template-rows:1fr}
+.sw-faq-body p{overflow:hidden;margin:0;padding:0 20px;color:var(--muted);font-size:15.5px}
+.sw-faq-item.open .sw-faq-body p{padding-bottom:18px}
+
+.sw-callback{background:linear-gradient(160deg,#0a4a55,#0e7c86);color:#fff;padding:64px 0}
+.sw-callback-in{display:grid;grid-template-columns:1.1fr 1fr;gap:36px;align-items:center}
+.sw-callback h2{margin-bottom:10px}
+.sw-callback p{margin:0 0 18px;color:#d3eef0;font-size:17px}
+.sw-callback-links{display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
+.sw-callback-links a{display:inline-flex;align-items:center;gap:7px}
+.sw-callback form{display:grid;gap:12px;background:#fff;padding:22px;border-radius:20px}
+.sw-callback input{height:48px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;color:var(--ink);background:#fff}
+.sw-callback input:focus{outline:0;border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
+.sw-callback small{color:#b42318;font-weight:600}
+.sw-thanks{display:flex;align-items:center;gap:14px;background:#fff;color:#117a4a;padding:26px;border-radius:20px;animation:swpop .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes swpop{from{transform:scale(.9);opacity:0}}
+
+.sw-visit{display:grid;grid-template-columns:1fr 1.4fr;gap:32px;align-items:center}
+.sw-visit h2{margin-bottom:10px}
+.sw-visit-text{margin:0 0 18px;color:var(--muted);font-size:16px}
+.sw-map{border-radius:20px;overflow:hidden;border:1px solid var(--line)}
+.sw-map iframe{display:block}
+
+.sw-footer{background:#07131d;color:#b7c6d0;padding:56px 0 24px}
+.sw-footer-in{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:28px}
+.sw-footer h4{color:#fff;font-size:16px;margin-bottom:12px}
+.sw-footer a,.sw-footer span{display:block;font-size:15px;margin-bottom:8px;color:#b7c6d0}
+.sw-footer a:hover{color:var(--saf2)}
+.sw-footer p{margin:14px 0 0;font-size:15px}
+.sw-copy{margin-top:34px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
+
+.sw-wa{position:fixed;right:12px;bottom:66px;z-index:70;width:56px;height:56px;border-radius:50%;background:#1a9d6c;color:#fff!important;display:grid;place-items:center;box-shadow:0 12px 24px -8px rgba(15,107,82,.7)}
+.sw-wa::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid #1a9d6c;animation:swping 2.4s ease-out infinite}
+@keyframes swping{to{transform:scale(1.7);opacity:0}}
+
+@media (max-width:1000px){
+ .sw-search{grid-template-columns:repeat(3,1fr)}
+ .sw-search-btn{grid-column:1/-1}
+ .sw-plans{grid-template-columns:repeat(3,1fr)}
+ .sw-why{grid-template-columns:repeat(2,1fr)}
+ .sw-stat-row{grid-template-columns:repeat(3,1fr);row-gap:26px}
+ .sw-stat:nth-child(4){border-left:0;padding-left:0}
+ .sw-footer-in{grid-template-columns:1fr 1fr}
+ .sw-detail-grid,.sw-visit{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+ .sw-nav{position:absolute;top:68px;left:0;right:0;background:#fff;flex-direction:column;gap:0;padding:8px 20px 16px;border-bottom:1px solid var(--line);display:none}
+ .sw-nav.open{display:flex}
+ .sw-nav a{padding:12px 0;border-bottom:1px solid var(--line)}
+ .sw-burger{display:block}
+ .sw-section{padding:52px 0}
+ .sw-hero{padding:44px 0 190px}
+ .sw-search{grid-template-columns:1fr 1fr;margin-top:-84px;margin-left:12px;margin-right:12px;width:auto}
+ .sw-search label:first-child{grid-column:1/-1}
+ .sw-plans{grid-auto-flow:column;grid-auto-columns:70%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+ .sw-plan{scroll-snap-align:start}
+ .sw-toolbar{grid-template-columns:1fr}
+ .sw-why{grid-template-columns:1fr}
+ .sw-stat-row{grid-template-columns:1fr 1fr}
+ .sw-stat{border-left:0;padding-left:0}
+ .sw-callback-in{grid-template-columns:1fr}
+}
+@media (max-width:480px){.sw-call{display:none}}
+@media (prefers-reduced-motion:reduce){
+ .sw *,.sw *::before,.sw *::after{animation:none!important;transition:none!important}
+ .sw-hero h1 span,.sw-hero p,.sw-hero-points{opacity:1;transform:none}
+ .sw-car-wrap{left:40%}
+}
+`;
+
 
 /* =========================================================
    ADMIN STAT CARD
