@@ -5346,6 +5346,11 @@ const inputStyle = {
   outline:
     "none",
 };
+const fieldGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+  gap: 10,
+};
 
 const whiteCard = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, boxShadow: "0 8px 25px rgba(15,23,42,.05)" };
 const emptyCard = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 30, textAlign: "center", color: C.gray };
