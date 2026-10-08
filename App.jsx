@@ -26,6 +26,7 @@ import {
   upsertCar,
   deleteCar as deleteCarCloud,
   fetchCities,
+  upsertCity,
   fetchBookings,
   insertBooking,
     uploadPhoto,
@@ -57,7 +58,7 @@ const C = {
   black: "#020617",
 };
 
-const ADMIN_PASSCODE = "123456";
+const ADMIN_PASSCODE = "7224";
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
@@ -4779,19 +4780,18 @@ function AdminGate({
     }
   }
 
-  if (loggedIn) {
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#f8fafc",
-      padding: "40px",
-      color: "#0f172a"
-    }}>
-      <h1>ADMIN LOGIN WORKS</h1>
-      <p>The problem is inside AdminView.</p>
-    </div>
-  );
-}
+    if (loggedIn) {
+    return (
+      <AdminView
+        cars={cars}
+        setCars={setCars}
+        cities={cities}
+        setCities={setCities}
+        bookings={bookings}
+        leads={Array.isArray(leads) ? leads : []}
+      />
+    );
+  }
   
         cars={
           cars
