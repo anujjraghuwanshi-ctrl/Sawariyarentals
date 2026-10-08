@@ -1102,7 +1102,7 @@ const [zoom, setZoom] = useState(null);
         return (
           <>
             <section style={{ maxWidth: 1200, margin: "0 auto", padding: "8px 16px 18px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(210px,100%),1fr))", gap: 12 }}>
+              <div style={{ display: "flex", overflowX: "auto", gap: 10, paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
                 {[
                   ["Hourly", fmtINR(business.hourlyStartingPrice) + "/hr", `${business.hourlyIncludedKm} km included`],
                   ["Daily", fmtINR(business.dailyStartingPrice) + "/day", `${business.dailyIncludedKm} km included`],
@@ -1110,7 +1110,7 @@ const [zoom, setZoom] = useState(null);
                   ["Monthly", fmtINR(business.monthlyStartingPrice) + "/month", "1-month plan"],
                   ["2-Year Offer", fmtINR(business.longTermMonthlyPrice) + "/month", `${business.longTermMonths}-month commitment`],
                 ].map(([title, price, note]) => (
-                  <div key={title} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 16, boxShadow: "0 8px 25px rgba(15,23,42,.05)" }}>
+                  <div key={title} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 16, boxShadow: "0 8px 25px rgba(15,23,42,.05)", minWidth: 150, flex: "0 0 auto" }}>
                     <div style={{ color: C.gray, fontSize: 12, fontWeight: 800 }}>{title}</div>
                     <div style={{ fontSize: 22, fontWeight: 950, marginTop: 5 }}>{price}</div>
                     <div style={{ color: C.gray, fontSize: 12, marginTop: 4 }}>{note}</div>
