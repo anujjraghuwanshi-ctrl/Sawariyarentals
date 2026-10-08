@@ -4780,8 +4780,19 @@ function AdminGate({
   }
 
   if (loggedIn) {
-    return (
-      <AdminView
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#f8fafc",
+      padding: "40px",
+      color: "#0f172a"
+    }}>
+      <h1>ADMIN LOGIN WORKS</h1>
+      <p>The problem is inside AdminView.</p>
+    </div>
+  );
+}
+  
         cars={
           cars
         }
