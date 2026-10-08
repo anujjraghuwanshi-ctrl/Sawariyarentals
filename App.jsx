@@ -2021,43 +2021,31 @@ function AdminView({
   const [newCity, setNewCity] =
     useState("");
 
-  const totalCars =
-    cars.length;
+    const safeCars = Array.isArray(cars) ? cars : [];
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const safeCities = Array.isArray(cities) ? cities : [];
 
-  const availableCars =
-    cars.filter(
-      (car) =>
-        car.available
-    ).length;
+  const totalCars = safeCars.length;
 
-  const rentedCars =
-    cars.filter(
-      (car) =>
-        !car.available
-    ).length;
+  const availableCars = safeCars.filter(
+    (car) => car.available
+  ).length;
 
-  const totalRevenue =
-    bookings.reduce(
-      (sum, booking) =>
-        sum +
-        Number(
-          booking.paidAmount ??
-            booking.total ??
-            0
-        ),
-      0
-    );
+  const rentedCars = safeCars.filter(
+    (car) => !car.available
+  ).length;
 
-  const totalPending =
-    bookings.reduce(
-      (sum, booking) =>
-        sum +
-        Number(
-          booking.remainingAmount ??
-            0
-        ),
-      0
-    );
+  const totalRevenue = safeBookings.reduce(
+    (sum, booking) =>
+      sum + Number(booking.paidAmount ?? booking.total ?? 0),
+    0
+  );
+
+  const totalPending = safeBookings.reduce(
+    (sum, booking) =>
+      sum + Number(booking.remainingAmount ?? 0),
+    0
+  );
 
   function resetCarForm() {
     setEditingCar(null);
