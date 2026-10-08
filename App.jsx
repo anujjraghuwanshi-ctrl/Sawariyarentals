@@ -407,344 +407,112 @@ const PAGE_REVIEWS = [
   { n: "Alok J.", p: "Vijay Nagar", t: "Phir se yahi se lunga.", s: 5 },
 ];
 
-function CarCard({
-  car,
-  onBook,
-}) {
-  const [photoIndex, setPhotoIndex] =
-    useState(0);
-
+function CarCard({ car, onBook }) {
   const photos = car.photos || [];
-
-  const currentPhoto =
-    photos.length > 0
-      ? photos[photoIndex % photos.length]
-      : null;
-
-  const price8 =
-    Number(car.price8 || 0);
-
-  const price12 =
-    Number(
-      car.price12 ||
-        car.price ||
-        0
-    );
-
-  const price24 =
-    Number(car.price24 || 0);
+  const photo = photos[0] || null;
+  const price =
+    Number(car.price24 || car.dailyRate || car.price12 || car.price8 || car.price || 0);
 
   return (
     <div
       style={{
+        display: "flex",
+        gap: 12,
         background: C.white,
-        border:
-          `1px solid ${C.border}`,
-        borderRadius: 22,
+        border: `1px solid ${C.border}`,
+        borderRadius: 16,
         overflow: "hidden",
-        boxShadow:
-          "0 8px 30px rgba(15,23,42,.06)",
+        boxShadow: "0 6px 20px rgba(15,23,42,.06)",
+        minHeight: 118,
       }}
     >
       <div
         style={{
+          width: 120,
+          minWidth: 120,
+          background: "linear-gradient(135deg,#dbeafe,#f8fafc)",
           position: "relative",
-          width: "100%",
-          aspectRatio: "16 / 10",
-          background:
-            "linear-gradient(135deg,#dbeafe,#f8fafc)",
-          overflow: "hidden",
         }}
       >
-        {currentPhoto ? (
+        {photo ? (
           <img
-            src={currentPhoto}
+            src={photo}
             alt={car.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-            }}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
           />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Car
-              size={80}
-              color={C.blue}
-              strokeWidth={1.2}
-            />
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Car size={36} color={C.blue} strokeWidth={1.3} />
           </div>
-        )}
-
-        <div
-          style={{
-            position: "absolute",
-            top: 12,
-            left: 12,
-          }}
-        >
-          {car.available ? (
-            <Badge color={C.green}>
-              <CheckCircle2 size={13} />
-              Available
-            </Badge>
-          ) : (
-            <Badge color={C.red}>
-              <Clock3 size={13} />
-              Rented
-            </Badge>
-          )}
-        </div>
-
-        {photos.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() =>
-                setPhotoIndex(
-                  (photoIndex -
-                    1 +
-                    photos.length) %
-                    photos.length
-                )
-              }
-              style={{
-                position: "absolute",
-                left: 10,
-                top: "50%",
-                transform:
-                  "translateY(-50%)",
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                border: "none",
-                background:
-                  "rgba(255,255,255,.9)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setPhotoIndex(
-                  (photoIndex + 1) %
-                    photos.length
-                )
-              }
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform:
-                  "translateY(-50%)",
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                border: "none",
-                background:
-                  "rgba(255,255,255,.9)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ChevronRight size={18} />
-            </button>
-          </>
         )}
       </div>
 
-      <div style={{ padding: 18 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent:
-              "space-between",
-            gap: 10,
-          }}
-        >
-          <div>
+      <div
+        style={{
+          flex: 1,
+          padding: "10px 12px 10px 0",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          minWidth: 0,
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
             <h3
               style={{
                 margin: 0,
-                color: C.navy,
-                fontSize: 19,
+                fontSize: 15,
                 fontWeight: 900,
+                color: C.navy,
+                lineHeight: 1.25,
               }}
             >
               {car.name}
             </h3>
-
-            <div
-              style={{
-                marginTop: 5,
-                color: C.gray,
-                fontSize: 13,
-              }}
-            >
-              {car.type} • {car.city}
-            </div>
+            <Badge color={car.available ? C.green : C.red}>
+              {car.available ? "Available" : "Rented"}
+            </Badge>
           </div>
-        </div>
-
-        {/* DURATION PRICES */}
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(3, minmax(0,1fr))",
-            gap: 8,
-            marginTop: 14,
-          }}
-        >
-          <div
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: C.sky,
-              border:
-                `1px solid #dbeafe`,
-            }}
-          >
-            <div
-              style={{
-                color: C.gray,
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              8 HOURS
-            </div>
-
-            <strong
-              style={{
-                color: C.blue,
-                fontSize: 17,
-              }}
-            >
-              {fmtINR(price8)}
-            </strong>
+          <div style={{ marginTop: 4, fontSize: 12, color: C.gray }}>
+            {car.type} · {car.fuel} · {car.transmission || "Manual"} · {car.seats} seats
           </div>
-
-          <div
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: C.greenLight,
-              border:
-                `1px solid #bbf7d0`,
-            }}
-          >
-            <div
-              style={{
-                color: C.gray,
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              12 HOURS
-            </div>
-
-            <strong
-              style={{
-                color: C.green,
-                fontSize: 17,
-              }}
-            >
-              {fmtINR(price12)}
-            </strong>
-          </div>
-
-          <div
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              background: C.orangeLight,
-              border:
-                `1px solid #fed7aa`,
-            }}
-          >
-            <div
-              style={{
-                color: C.gray,
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              24 HOURS
-            </div>
-
-            <strong
-              style={{
-                color: C.orange,
-                fontSize: 17,
-              }}
-            >
-              {fmtINR(price24)}
-            </strong>
+          <div style={{ marginTop: 3, fontSize: 12, color: C.gray }}>
+            {car.city}
           </div>
         </div>
 
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: 7,
-            marginTop: 14,
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            marginTop: 8,
           }}
         >
-          <Badge color={C.gray}>
-            <User size={12} />
-            {car.seats} Seats
-          </Badge>
-
-          <Badge color={C.gray}>
-            {car.fuel}
-          </Badge>
-
-          <Badge color={C.gray}>
-            {car.transmission}
-          </Badge>
+          <div>
+            <div style={{ fontSize: 10, color: C.gray, fontWeight: 700 }}>FROM</div>
+            <strong style={{ color: C.blue, fontSize: 18 }}>{fmtINR(price)}</strong>
+            <span style={{ fontSize: 11, color: C.gray }}> /day</span>
+          </div>
+          <button
+            type="button"
+            disabled={!car.available}
+            onClick={() => onBook(car)}
+            style={{
+              ...primaryButton,
+              minHeight: 36,
+              padding: "0 14px",
+              fontSize: 13,
+              borderRadius: 10,
+              opacity: car.available ? 1 : 0.5,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Book
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={() => onBook(car)}
-          disabled={!car.available}
-          style={{
-            ...primaryButton,
-            width: "100%",
-            marginTop: 18,
-            opacity:
-              car.available ? 1 : 0.5,
-            cursor:
-              car.available
-                ? "pointer"
-                : "not-allowed",
-          }}
-        >
-          {car.available
-            ? "Book This Car"
-            : "Currently Rented"}
-        </button>
       </div>
     </div>
   );
@@ -1576,9 +1344,8 @@ const [zoom, setZoom] = useState(null);
             style={{
               display:
                 "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
-              gap: 18,
+              gridTemplateColumns: "1fr",
+              gap: 12
             }}
           >
             {filteredCars.map(
