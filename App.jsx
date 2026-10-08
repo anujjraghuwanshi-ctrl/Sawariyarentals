@@ -57,7 +57,7 @@ const C = {
   black: "#020617",
 };
 
-const ADMIN_PASSCODE = String(import.meta.env.VITE_ADMIN_PASSCODE || "").trim();
+const ADMIN_PASSCODE = "7224";
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
