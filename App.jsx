@@ -57,7 +57,7 @@ const C = {
   black: "#020617",
 };
 
-const ADMIN_PASSCODE = "7224";
+const ADMIN_PASSCODE = String(import.meta.env.VITE_ADMIN_PASSCODE || "").trim();
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
@@ -74,12 +74,50 @@ const RENTAL_DURATIONS = [8, 12, 24];
 const seedCars = [];
 
 const seedCities = [
-  {
-    id: "city-1",
-    name: "Bhopal",
-    active: true,
-  },
+  { id: "city-indore", name: "Indore", active: true },
+  { id: "city-bhopal", name: "Bhopal", active: true },
 ];
+
+
+const defaultBusinessSettings = {
+  hourlyStartingPrice: 83,
+  hourlyIncludedKm: 20,
+  dailyStartingPrice: 2200,
+  dailyIncludedKm: 280,
+  weeklyStartingPrice: 8500,
+  monthlyStartingPrice: 40000,
+  longTermMonthlyPrice: 18000,
+  longTermMonths: 24,
+  extraKmRate: 6,
+  driverCostPerDay: 1000,
+  cngCostPerKm: 4.5,
+  dieselCostPerKm: 9.25,
+  petrolCostPerKm: 7.5,
+  guideCostPerDay: 800,
+  returnTimeCostPerHour: 250,
+  deliveryFlatCharge: 0,
+  marginPercent: 10,
+  bookingAdvance: 500,
+};
+
+const defaultTravelPackages = [
+  {id:"ujjain",name:"Ujjain Visit",days:1,description:"Mahakal Lok, Mahakaleshwar and major Ujjain sights.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+  {id:"omkareshwar",name:"Omkareshwar Visit",days:1,description:"Omkareshwar Jyotirlinga and Narmada visit.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+  {id:"mandu",name:"Mandu Visit",days:1,description:"Historic Mandu, Jahaz Mahal and heritage sites.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+  {id:"maheshwar",name:"Maheshwar Visit",days:1,description:"Narmada ghats and Ahilya Fort.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+  {id:"indore",name:"Indore City Tour",days:1,description:"Rajwada, Sarafa, Chappan Dukan and city highlights.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+  {id:"pachmarhi",name:"Pachmarhi Trip",days:2,description:"A longer getaway with flexible vehicle and driver options.",selfDrivePrice:0,driverPrice:0,guidePrice:0},
+];
+const defaultDecorations = [
+  {id:"birthday",name:"Birthday Car Decoration",description:"Balloons, ribbons and custom birthday message.",price:0},
+  {id:"wedding",name:"Wedding Car Decoration",description:"Wedding-ready decoration with customizable theme.",price:0},
+  {id:"anniversary",name:"Anniversary Decoration",description:"Flowers, ribbons and custom message.",price:0},
+  {id:"proposal",name:"Proposal Decoration",description:"Custom romantic decoration for a special moment.",price:0},
+  {id:"custom",name:"Custom Decoration",description:"Tell us your theme, colours and message.",price:0},
+];
+const CITY_COORDS = {Indore:[22.7196,75.8577],Bhopal:[23.2599,77.4126],Ujjain:[23.1765,75.7885],Omkareshwar:[22.2425,76.1487],Mandu:[22.3333,75.4],Maheshwar:[22.176,75.583],Pachmarhi:[22.4674,78.4346]};
+function calculateRoute(from,to){ if(!from||!to||from===to||!CITY_COORDS[from]||!CITY_COORDS[to]) return null; const [lat1,lon1]=CITY_COORDS[from], [lat2,lon2]=CITY_COORDS[to]; const R=6371; const p1=lat1*Math.PI/180,p2=lat2*Math.PI/180,dp=(lat2-lat1)*Math.PI/180,dl=(lon2-lon1)*Math.PI/180; const a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; const straight=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); const distanceKm=Math.max(1,Math.round(straight*1.18)); const hours=Math.max(1,Math.round((distanceKm/45)*10)/10); return {distanceKm,hours}; }
+function defaultFuelCostPerKm(fuel,settings){ const f=String(fuel||"").toLowerCase(); if(f.includes("cng")) return Number(settings.cngCostPerKm||4.5); if(f.includes("diesel")) return Number(settings.dieselCostPerKm||9.25); return Number(settings.petrolCostPerKm||7.5); }
 
 /* =========================================================
    HELPERS
@@ -685,2301 +723,279 @@ function CarCard({
    BOOKING MODAL
 ========================================================= */
 
-function BookingModal({
-  car,
-  onClose,
-  onConfirm,
-}) {
-  const minDate = todayISO();
-
-  const [pickupDate, setPickupDate] =
-    useState(minDate);
-
-  const [returnDate, setReturnDate] =
-    useState(minDate);
-
-  const [pickupTime, setPickupTime] =
-    useState("09:00");
-
-  const [rentalDuration, setRentalDuration] =
-    useState(12);
-
-  const [name, setName] =
-    useState("");
-
-  const [phone, setPhone] =
-    useState("");
-
+function BookingModal({ car, onClose, onConfirm }) {
+  const [tripType, setTripType] = useState("round");
+  const [serviceType, setServiceType] = useState("self");
+  const [fuelOption, setFuelOption] = useState("customer");
+  const [pickupCity, setPickupCity] = useState(car?.city || "Indore");
+  const [dropCity, setDropCity] = useState("");
+  const [pickupDate, setPickupDate] = useState(todayISO());
+  const [pickupTime, setPickupTime] = useState("09:00");
+  const [hours, setHours] = useState(1);
+  const [days, setDays] = useState(1);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  
-  const [leadSaved, setLeadSaved] = useState(false);
+  const [paymentType, setPaymentType] = useState("advance");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const clean = phone.replace(/\D/g, "");
-    if (clean.length !== 10 || leadSaved) return;
+  const settings = loadShared("sawariya_business_settings", defaultBusinessSettings);
+  const cleanPhone = phone.replace(/\D/g, "");
 
-    const t = setTimeout(async () => {
-      try {
-        await insertLead({
-          name: name.trim() || "Website lead",
-          phone: clean,
-          city: car.city,
-          carName: car.name,
-          message: "Auto-saved from booking form",
-        });
-        setLeadSaved(true);
-        alert("Number saved. We will call you.");
-      } catch (err) {
-        console.error(err);
-      }
-    }, 800);
+  const route = useMemo(() => calculateRoute(pickupCity, dropCity), [pickupCity, dropCity]);
+  const hourlyRate = Number(car?.hourlyRate ?? settings.hourlyStartingPrice ?? 83);
+  const dailyRate = Number(car?.price24 ?? car?.dailyRate ?? settings.dailyStartingPrice ?? 2200);
+  const weeklyRate = Number(car?.weeklyRate ?? settings.weeklyStartingPrice ?? 8500);
+  const monthlyRate = Number(car?.monthlyRate ?? settings.monthlyStartingPrice ?? 40000);
+  const longTermRate = Number(car?.longTermRate ?? settings.longTermMonthlyPrice ?? 18000);
+  const includedHourlyKm = Number(car?.hourlyKm ?? settings.hourlyIncludedKm ?? 20);
+  const includedDailyKm = Number(car?.dailyKm ?? settings.dailyIncludedKm ?? 280);
+  const extraKmRate = Number(car?.extraKmRate ?? settings.extraKmRate ?? 6);
+  const driverDayCost = Number(car?.driverCost ?? settings.driverCostPerDay ?? 1000);
+  const fuelCostPerKm = Number(car?.fuelCostPerKm ?? defaultFuelCostPerKm(car?.fuel, settings));
 
-    return () => clearTimeout(t);
-  }, [phone, name, car.city, car.name, leadSaved]);
-  const [paymentType, setPaymentType] =
-    useState("advance");
+  let rental = 0;
+  let includedKm = 0;
+  if (days > 1) {
+    rental = (days >= 7 ? weeklyRate * Math.floor(days / 7) + dailyRate * (days % 7) : dailyRate * days);
+    includedKm = includedDailyKm * days;
+  } else {
+    rental = hourlyRate * Math.max(1, Math.min(24, Number(hours) || 1));
+    includedKm = includedHourlyKm * Math.max(1, Number(hours) || 1);
+    if (Number(hours) >= 24) {
+      rental = dailyRate;
+      includedKm = includedDailyKm;
+    }
+  }
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const price8 =
-    Number(car.price8 || 0);
-
-  const price12 =
-    Number(
-      car.price12 ||
-        car.price ||
-        0
-    );
-
-  const price24 =
-    Number(car.price24 || 0);
-
-  const isMultiDay =
-    returnDate && returnDate > pickupDate;
-
-  const dayCount = isMultiDay
-    ? daysBetween(pickupDate, returnDate)
-    : 1;
-
-  const total = isMultiDay
-    ? dayCount * price24
-    : rentalDuration === 8
-    ? price8
-    : rentalDuration === 12
-    ? price12
-    : price24;
-
-  const advanceAmount =
-    Math.min(
-      BOOKING_ADVANCE,
-      total
-    );
-
-  const paymentAmount =
-    paymentType === "advance"
-      ? advanceAmount
-      : total;
-
-  const remainingAmount =
-    Math.max(
-      0,
-      total - paymentAmount
-    );
+  const tripKm = tripType === "oneway" && route ? route.distanceKm : 0;
+  const returnKm = tripType === "oneway" && route ? route.distanceKm : 0;
+  const customerExtraKm = Math.max(0, tripKm - includedKm);
+  const extraKmCost = customerExtraKm * extraKmRate;
+  const fuelCost = fuelOption === "business" ? tripKm * fuelCostPerKm : 0;
+  const driverCost = serviceType === "driver" || serviceType === "guide" ? driverDayCost * Math.max(1, Math.ceil((route?.hours || 1) / 8)) : 0;
+  const guideCost = serviceType === "guide" ? Number(settings.guideCostPerDay || 800) * Math.max(1, Math.ceil((route?.hours || 1) / 8)) : 0;
+  const returnFuelCost = tripType === "oneway" && serviceType !== "self" ? returnKm * fuelCostPerKm : 0;
+  const returnTimeCost = tripType === "oneway" && serviceType !== "self" ? Number(settings.returnTimeCostPerHour || 250) * Math.max(1, Math.ceil((route?.hours || 1))) : 0;
+  const deliveryCost = Number(settings.deliveryFlatCharge || 0);
+  const baseSubtotal = rental + extraKmCost + fuelCost + driverCost + guideCost + deliveryCost + returnFuelCost + returnTimeCost;
+  const margin = baseSubtotal * (Number(settings.marginPercent || 10) / 100);
+  const total = Math.max(0, Math.round(baseSubtotal + margin));
+  const advance = Math.min(Number(settings.bookingAdvance || 500), total);
+  const paymentAmount = paymentType === "advance" ? advance : total;
+  const remaining = Math.max(0, total - paymentAmount);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!name.trim()) return alert("Please enter your name.");
+    if (!/^\d{10}$/.test(cleanPhone)) return alert("Please enter a valid 10-digit mobile number.");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert("Please enter a valid email address.");
+    if (tripType === "oneway" && !dropCity) return alert("Please select your destination.");
+    if (total <= 0) return alert("Unable to calculate this booking.");
 
-    const cleanPhone =
-      phone.replace(/\D/g, "");
-
-    if (!name.trim()) {
-      alert("Please enter your name.");
-      return;
-    }
-
-    if (!/^\d{10}$/.test(cleanPhone)) {
-      alert(
-        "Please enter a valid 10-digit mobile number."
-      );
-      return;
-    }
-
-    if (!pickupDate) {
-      alert(
-        "Please select pickup date."
-      );
-      return;
-    }
-
-    if (!pickupTime) {
-      alert(
-        "Please select pickup time."
-      );
-      return;
-    }
-
-    if (!RENTAL_DURATIONS.includes(
-      rentalDuration
-    )) {
-      alert(
-        "Please select 8 hours or 12 hours."
-      );
-      return;
-    }
-
-    if (total <= 0) {
-      alert(
-        "This vehicle does not have a valid price for the selected duration."
-      );
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-
-            /* -----------------------------------------------
-         CREATE PAYU PAYMENT
-      ------------------------------------------------ */
-
-      const customerEmail =
-        email.trim().toLowerCase();
-
-      if (
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-          customerEmail
-        )
-      ) {
-        throw new Error(
-          "Please enter a valid email address."
-        );
-      }
-
-      /*
-        Save the booking temporarily.
-
-        PayU will take the customer away from our
-        website. After successful payment, PayU will
-        return the customer to our callback and then
-        back to the website.
-      */
       const pendingBooking = {
         carId: car.id,
         carName: car.name,
-        city: car.city,
-
+        city: pickupCity,
         name: name.trim(),
         phone: cleanPhone,
-        email: customerEmail,
-
+        email: email.trim().toLowerCase(),
         pickupDate,
-        returnDate,
-        dayCount,
         pickupTime,
-        rentalDuration,
-
+        tripType,
+        serviceType,
+        pickupCity,
+        dropCity,
+        routeDistanceKm: tripKm,
+        estimatedTravelHours: route?.hours || null,
+        fuelOption,
+        rentalHours: Number(hours),
+        rentalDays: Number(days),
         total,
         paidAmount: paymentAmount,
-
-        advancePaid:
-          paymentType === "advance"
-            ? paymentAmount
-            : 0,
-
-        remainingAmount,
+        advancePaid: paymentType === "advance" ? paymentAmount : 0,
+        remainingAmount: remaining,
         paymentType,
-
         status: "Pending",
+        pricingBreakdown: { rental, extraKmCost, fuelCost, driverCost, guideCost, returnFuelCost, returnTimeCost, deliveryCost, margin },
       };
 
-      localStorage.setItem(
-        "sawariya_pending_booking",
-        JSON.stringify(
-          pendingBooking
-        )
-      );
+      localStorage.setItem("sawariya_pending_booking", JSON.stringify(pendingBooking));
 
-      const paymentResponse =
-        await fetch(
-          "/api/payu-create-payment",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              amount:
-                paymentAmount,
-
-              productinfo:
-                paymentType === "advance"
-                  ? `Booking Advance - ${car.name}`
-                  : `Full Payment - ${car.name}`,
-
-              firstname:
-                name.trim(),
-
-              email:
-                customerEmail,
-
-              phone:
-                cleanPhone,
-
-              reference:
-                `${car.id}-${Date.now()}`,
-            }),
-          }
-        );
-
-      const paymentData =
-        await paymentResponse
-          .json()
-          .catch(() => ({}));
-
-      if (!paymentResponse.ok) {
-        throw new Error(
-          paymentData?.message ||
-            "Unable to create PayU payment."
-        );
+      const response = await fetch("/api/payu-create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: paymentAmount,
+          productinfo: `${tripType === "oneway" ? "One Way" : "Rental"} - ${car.name}`,
+          firstname: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: cleanPhone,
+          reference: `${car.id}-${Date.now()}`,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.success || !data?.paymentUrl || !data?.formData) {
+        throw new Error(data?.message || "Unable to create PayU payment.");
       }
-
-      if (
-        !paymentData?.success ||
-        !paymentData?.paymentUrl ||
-        !paymentData?.formData
-      ) {
-        throw new Error(
-          paymentData?.message ||
-            "PayU payment could not be created."
-        );
-      }
-
-      /*
-        Submit the payment form directly to PayU.
-      */
-      const form =
-        document.createElement(
-          "form"
-        );
-
+      const form = document.createElement("form");
       form.method = "POST";
-      form.action =
-        paymentData.paymentUrl;
-
-      form.style.display =
-        "none";
-
-      Object.entries(
-        paymentData.formData
-      ).forEach(
-        ([key, value]) => {
-          const input =
-            document.createElement(
-              "input"
-            );
-
-          input.type = "hidden";
-          input.name = key;
-          input.value =
-            value ?? "";
-
-          form.appendChild(
-            input
-          );
-        }
-      );
-
-      document.body.appendChild(
-        form
-      );
-
+      form.action = data.paymentUrl;
+      form.style.display = "none";
+      Object.entries(data.formData).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value ?? "";
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
       form.submit();
-      
     } catch (error) {
-      console.error(
-        "Payment start error:",
-        error
-      );
-
-      alert(
-        error?.message ||
-          "Something went wrong while starting payment."
-      );
-
+      console.error(error);
+      alert(error?.message || "Something went wrong while starting payment.");
       setLoading(false);
     }
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background:
-          "rgba(15,23,42,.65)",
-        display: "flex",
-        alignItems:
-          "flex-start",
-        justifyContent:
-          "center",
-        padding: "16px",
-        overflowY: "auto",
-        WebkitOverflowScrolling:
-          "touch",
-        boxSizing:
-          "border-box",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          boxSizing:
-            "border-box",
-          background:
-            C.white,
-          borderRadius: 24,
-          boxShadow:
-            "0 30px 80px rgba(0,0,0,.25)",
-          overflow: "hidden",
-          margin:
-            "0 auto 16px",
-          flexShrink: 0,
-        }}
-      >
-        {/* HEADER */}
-
-        <div
-          style={{
-            padding:
-              "18px 20px",
-            background:
-              "linear-gradient(135deg,#eff6ff,#ffffff)",
-            borderBottom:
-              `1px solid ${C.border}`,
-            display: "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "space-between",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                color:
-                  C.blue,
-                fontSize: 12,
-                fontWeight: 900,
-                letterSpacing:
-                  0.5,
-                textTransform:
-                  "uppercase",
-              }}
-            >
-              Book Your Car
-            </div>
-
-            <h2
-              style={{
-                margin:
-                  "4px 0 0",
-                color:
-                  C.navy,
-                fontSize: 22,
-                fontWeight: 900,
-                lineHeight: 1.2,
-                wordBreak:
-                  "break-word",
-              }}
-            >
-              {car.name}
-            </h2>
+    <div style={modalOverlay}>
+      <form onSubmit={handleSubmit} style={modalCard}>
+        <div style={modalHeader}>
+          <div><div style={{fontSize:12,color:C.blue,fontWeight:900}}>BOOK YOUR CAR</div><h2 style={{margin:"4px 0 0"}}>{car.name}</h2></div>
+          <button type="button" onClick={onClose} style={iconButton}><X size={20}/></button>
+        </div>
+        <div style={{padding:20,display:"grid",gap:16}}>
+          <div style={choiceGrid}>
+            <Choice active={tripType === "round"} onClick={() => setTripType("round")} title="Round Trip" text="Return the car" />
+            <Choice active={tripType === "oneway"} onClick={() => setTripType("oneway")} title="One Way" text="Go to another city" />
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 40,
-              height: 40,
-              flexShrink: 0,
-              borderRadius:
-                999,
-              border:
-                `1px solid ${C.border}`,
-              background:
-                C.white,
-              cursor:
-                "pointer",
-              display:
-                "flex",
-              alignItems:
-                "center",
-              justifyContent:
-                "center",
-            }}
-          >
-            <X size={20} />
-          </button>
+          <div style={choiceGrid}>
+            <Choice active={serviceType === "self"} onClick={() => setServiceType("self")} title="Self Drive" text="You drive" />
+            <Choice active={serviceType === "driver"} onClick={() => setServiceType("driver")} title="With Driver" text="Driver included" />
+            <Choice active={serviceType === "guide"} onClick={() => setServiceType("guide")} title="Driver + Guide" text="For tours" />
+          </div>
+          <div style={fieldGrid}>
+            <Field label="Pickup city"><select value={pickupCity} onChange={e=>setPickupCity(e.target.value)} style={inputStyle}><option>Indore</option><option>Bhopal</option></select></Field>
+            {tripType === "oneway" && <Field label="Destination"><select value={dropCity} onChange={e=>setDropCity(e.target.value)} style={inputStyle}><option value="">Select destination</option>{Object.keys(CITY_COORDS).filter(x=>x!==pickupCity).map(x=><option key={x}>{x}</option>)}</select></Field>}
+            <Field label="Pickup date"><input type="date" min={todayISO()} value={pickupDate} onChange={e=>setPickupDate(e.target.value)} style={inputStyle}/></Field>
+            <Field label="Pickup time"><input type="time" value={pickupTime} onChange={e=>setPickupTime(e.target.value)} style={inputStyle}/></Field>
+          </div>
+          <div style={choiceGrid}>
+            <Field label="Rental hours"><input type="number" min="1" max="24" value={hours} onChange={e=>setHours(e.target.value)} style={inputStyle}/></Field>
+            <Field label="Rental days"><input type="number" min="1" value={days} onChange={e=>setDays(e.target.value)} style={inputStyle}/></Field>
+          </div>
+          {route && <div style={infoBox}><strong>{route.distanceKm} km estimated distance</strong><span>Approx. {route.hours} hours driving time</span></div>}
+          <div><div style={labelStyle}>Fuel</div><div style={choiceGrid}><Choice active={fuelOption === "customer"} onClick={()=>setFuelOption("customer")} title="I will pay/refill fuel" text="Fuel charged to customer"/><Choice active={fuelOption === "business"} onClick={()=>setFuelOption("business")} title="Add fuel cost" text="Estimated automatically"/></div></div>
+          <div style={fieldGrid}><Field label="Full name"><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle}/></Field><Field label="Mobile"><input value={phone} onChange={e=>setPhone(e.target.value)} inputMode="numeric" style={inputStyle}/></Field><Field label="Email"><input value={email} onChange={e=>setEmail(e.target.value)} type="email" style={inputStyle}/></Field></div>
+          <div style={summaryBox}>
+            <div style={summaryRow}><span>Rental</span><strong>{fmtINR(rental)}</strong></div>
+            <div style={summaryRow}><span>Extra km</span><strong>{fmtINR(extraKmCost)}</strong></div>
+            <div style={summaryRow}><span>Fuel</span><strong>{fuelOption === "customer" ? "Customer pays" : fmtINR(fuelCost)}</strong></div>
+            {serviceType !== "self" && <div style={summaryRow}><span>Driver / guide</span><strong>{fmtINR(driverCost + guideCost)}</strong></div>}
+            {tripType === "oneway" && <div style={summaryRow}><span>Return/recovery</span><strong>{fmtINR(returnFuelCost + returnTimeCost)}</strong></div>}
+            <div style={summaryRow}><span>Margin</span><strong>{fmtINR(margin)}</strong></div>
+            <div style={{...summaryRow,fontSize:18,borderTop:`1px solid ${C.border}`,paddingTop:10}}><span>Total</span><strong style={{color:C.blue}}>{fmtINR(total)}</strong></div>
+          </div>
+          <div style={choiceGrid}><Choice active={paymentType === "advance"} onClick={()=>setPaymentType("advance")} title={`Pay ${fmtINR(advance)}`} text="Booking advance"/><Choice active={paymentType === "full"} onClick={()=>setPaymentType("full")} title={`Pay ${fmtINR(total)}`} text="Full payment"/></div>
+          <button disabled={loading} style={{...primaryButton,width:"100%",opacity:loading?.65:1}}>{loading ? "Opening payment…" : `Continue to PayU · ${fmtINR(paymentAmount)}`}</button>
+          <div style={{fontSize:12,color:C.gray,textAlign:"center"}}>Minimum rental age: 18 years · Valid driving licence required · Security deposit depends on the vehicle.</div>
         </div>
-
-        {/* CONTENT */}
-
-        <div
-          style={{
-            padding: 20,
-            boxSizing:
-              "border-box",
-            width: "100%",
-          }}
-        >
-          <form
-            onSubmit={
-              handleSubmit
-            }
-          >
-            {/* CUSTOMER DETAILS */}
-
-            <h3
-              style={{
-                margin:
-                  "0 0 12px",
-                color:
-                  C.navy,
-                fontSize: 16,
-                fontWeight: 900,
-              }}
-            >
-              Customer Details
-            </h3>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
-                gap: 14,
-                width:
-                  "100%",
-                boxSizing:
-                  "border-box",
-              }}
-            >
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  <User size={14} />
-                  Full Name
-                </label>
-
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setName(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Enter your name"
-                  style={
-                    inputStyle
-                  }
-                  autoComplete="name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  <Phone size={14} />
-                  Mobile Number
-                </label>
-
-                <input
-                  value={phone}
-                  onChange={(e) =>
-                    setPhone(
-                      e.target.value
-                        .replace(
-                          /\D/g,
-                          ""
-                        )
-                        .slice(
-                          0,
-                          10
-                        )
-                    )
-                  }
-                  placeholder="10-digit mobile number"
-                  style={
-                    inputStyle
-                  }
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  maxLength={10}
-                  required
-                />
-                            </div>
-
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  Email Address
-                </label>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) =>
-                    setEmail(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Enter your email"
-                  style={
-                    inputStyle
-                  }
-                  autoComplete="email"
-                  required
-                />
-              </div>
-            </div>
-            {/* RENTAL DATE */}
-
-            <h3
-              style={{
-                margin:
-                  "22px 0 12px",
-                color:
-                  C.navy,
-                fontSize: 16,
-                fontWeight: 900,
-              }}
-            >
-              Rental Details
-            </h3>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(200px, 100%), 1fr))",
-                gap: 14,
-              }}
-            >
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  <CalendarDays
-                    size={14}
-                  />
-                  Pickup Date
-                </label>
-
-                <input
-                  type="date"
-                  min={minDate}
-                  value={
-                    pickupDate
-                  }
-                  onChange={(e) => {
-                    setPickupDate(
-                      e.target.value
-                    );
-                    if (
-                      returnDate &&
-                      returnDate <
-                        e.target.value
-                    ) {
-                      setReturnDate(
-                        e.target.value
-                      );
-                    }
-                  }}
-                  style={
-                    inputStyle
-                  }
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  <CalendarDays
-                    size={14}
-                  />
-                  Return Date
-                </label>
-
-                <input
-                  type="date"
-                  min={pickupDate}
-                  value={
-                    returnDate
-                  }
-                  onChange={(e) =>
-                    setReturnDate(
-                      e.target.value
-                    )
-                  }
-                  style={
-                    inputStyle
-                  }
-                />
-              </div>
-
-              <div>
-                <label
-                  style={
-                    labelStyle
-                  }
-                >
-                  <Clock3 size={14} />
-                  Pickup Time
-                </label>
-
-                <input
-                  type="time"
-                  value={
-                    pickupTime
-                  }
-                  onChange={(e) =>
-                    setPickupTime(
-                      e.target.value
-                    )
-                  }
-                  style={
-                    inputStyle
-                  }
-                  required
-                />
-              </div>
-            </div>
-
-            {/* DURATION */}
-
-            <h3
-              style={{
-                margin:
-                  "22px 0 12px",
-                color:
-                  C.navy,
-                fontSize: 16,
-                fontWeight: 900,
-              }}
-            >
-              Select Rental Duration
-            </h3>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(3, minmax(0, 1fr))",
-                gap: 12,
-              }}
-            >
-              {RENTAL_DURATIONS.map(
-                (hours) => {
-                  const selected =
-                    rentalDuration ===
-                    hours;
-
-                  const price =
-                    hours === 8
-                      ? price8
-                      : hours === 12
-                      ? price12
-                      : price24;
-
-                  return (
-                    <button
-                      key={
-                        hours
-                      }
-                      type="button"
-                      onClick={() =>
-                        setRentalDuration(
-                          hours
-                        )
-                      }
-                      style={{
-                        textAlign:
-                          "left",
-                        padding:
-                          16,
-                        border:
-                          selected
-                            ? `2px solid ${C.blue}`
-                            : `1px solid ${C.border}`,
-                        borderRadius:
-                          18,
-                        background:
-                          selected
-                            ? C.sky
-                            : C.white,
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          alignItems:
-                            "center",
-                          gap: 10,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 42,
-                            height: 42,
-                            borderRadius:
-                              12,
-                            background:
-                              selected
-                                ? C.blue
-                                : C.grayLight,
-                            color:
-                              selected
-                                ? C.white
-                                : C.navy,
-                            display:
-                              "flex",
-                            alignItems:
-                              "center",
-                            justifyContent:
-                              "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Clock3
-                            size={
-                              21
-                            }
-                          />
-                        </div>
-
-                        <div>
-                          <div
-                            style={{
-                              color:
-                                C.navy,
-                              fontWeight:
-                                900,
-                              fontSize:
-                                16,
-                            }}
-                          >
-                            {hours} Hours
-                          </div>
-
-                          <div
-                            style={{
-                              color:
-                                C.blue,
-                              fontWeight:
-                                900,
-                              fontSize:
-                                15,
-                              marginTop:
-                                3,
-                            }}
-                          >
-                            {fmtINR(
-                              price
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                }
-              )}
-            </div>
-
-            {/* RENTAL SUMMARY */}
-
-            <div
-              style={{
-                marginTop:
-                  18,
-                padding: 16,
-                borderRadius:
-                  18,
-                background:
-                  C.grayLight,
-                border:
-                  `1px solid ${C.border}`,
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                  marginBottom:
-                    8,
-                }}
-              >
-                <span
-                  style={{
-                    color:
-                      C.gray,
-                    fontSize:
-                      14,
-                  }}
-                >
-                  Rental Duration
-                </span>
-
-                <strong>
-                  {isMultiDay
-                    ? `${dayCount} Days`
-                    : `${rentalDuration} Hours`}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                  marginBottom:
-                    8,
-                }}
-              >
-                <span
-                  style={{
-                    color:
-                      C.gray,
-                    fontSize:
-                      14,
-                  }}
-                >
-                  Pickup
-                </span>
-
-                <strong
-                  style={{
-                    textAlign:
-                      "right",
-                  }}
-                >
-                  {pickupDate}
-                  <br />
-                  {pickupTime}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  height: 1,
-                  background:
-                    C.border,
-                  margin:
-                    "10px 0",
-                }}
-              />
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                }}
-              >
-                <strong
-                  style={{
-                    color:
-                      C.navy,
-                    fontSize:
-                      16,
-                  }}
-                >
-                  Total Rental Amount
-                </strong>
-
-                <strong
-                  style={{
-                    color:
-                      C.blue,
-                    fontSize:
-                      20,
-                  }}
-                >
-                  {fmtINR(
-                    total
-                  )}
-                </strong>
-              </div>
-            </div>
-
-            {/* PAYMENT OPTIONS */}
-
-            <h3
-              style={{
-                margin:
-                  "22px 0 12px",
-                color:
-                  C.navy,
-                fontSize: 16,
-                fontWeight: 900,
-              }}
-            >
-              Choose Payment
-            </h3>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(230px, 100%), 1fr))",
-                gap: 12,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  setPaymentType(
-                    "advance"
-                  )
-                }
-                disabled={
-                  total <
-                  BOOKING_ADVANCE
-                }
-                style={{
-                  textAlign:
-                    "left",
-                  padding:
-                    16,
-                  border:
-                    paymentType ===
-                    "advance"
-                      ? `2px solid ${C.blue}`
-                      : `1px solid ${C.border}`,
-                  background:
-                    paymentType ===
-                    "advance"
-                      ? C.sky
-                      : C.white,
-                  borderRadius:
-                    18,
-                  cursor:
-                    total <
-                    BOOKING_ADVANCE
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity:
-                    total <
-                    BOOKING_ADVANCE
-                      ? 0.5
-                      : 1,
-                }}
-              >
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    alignItems:
-                      "center",
-                    gap: 10,
-                  }}
-                >
-                  <CreditCard
-                    size={20}
-                    color={
-                      C.blue
-                    }
-                  />
-
-                  <div>
-                    <div
-                      style={{
-                        color:
-                          C.navy,
-                        fontWeight:
-                          900,
-                        fontSize:
-                          15,
-                      }}
-                    >
-                      ₹500 Booking Advance
-                    </div>
-
-                    <div
-                      style={{
-                        color:
-                          C.gray,
-                        fontSize:
-                          12,
-                        marginTop:
-                          3,
-                      }}
-                    >
-                      Pay only ₹500 now
-                    </div>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPaymentType(
-                    "full"
-                  )
-                }
-                style={{
-                  textAlign:
-                    "left",
-                  padding:
-                    16,
-                  border:
-                    paymentType ===
-                    "full"
-                      ? `2px solid ${C.green}`
-                      : `1px solid ${C.border}`,
-                  background:
-                    paymentType ===
-                    "full"
-                      ? C.greenLight
-                      : C.white,
-                  borderRadius:
-                    18,
-                  cursor:
-                    "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    alignItems:
-                      "center",
-                    gap: 10,
-                  }}
-                >
-                  <IndianRupee
-                    size={20}
-                    color={
-                      C.green
-                    }
-                  />
-
-                  <div>
-                    <div
-                      style={{
-                        color:
-                          C.navy,
-                        fontWeight:
-                          900,
-                        fontSize:
-                          15,
-                      }}
-                    >
-                      Pay Full Amount
-                    </div>
-
-                    <div
-                      style={{
-                        color:
-                          C.gray,
-                        fontSize:
-                          12,
-                        marginTop:
-                          3,
-                      }}
-                    >
-                      Pay {fmtINR(
-                        total
-                      )} now
-                    </div>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* PAYMENT SUMMARY */}
-
-            <div
-              style={{
-                marginTop:
-                  14,
-                padding: 16,
-                borderRadius:
-                  18,
-                background:
-                  paymentType ===
-                  "advance"
-                    ? C.orangeLight
-                    : C.greenLight,
-                border:
-                  paymentType ===
-                  "advance"
-                    ? "1px solid #fed7aa"
-                    : "1px solid #bbf7d0",
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                  marginBottom:
-                    7,
-                }}
-              >
-                <span
-                  style={{
-                    color:
-                      C.gray,
-                    fontSize:
-                      14,
-                  }}
-                >
-                  Pay Now
-                </span>
-
-                <strong
-                  style={{
-                    color:
-                      paymentType ===
-                      "advance"
-                        ? C.orange
-                        : C.green,
-                    fontSize:
-                      18,
-                  }}
-                >
-                  {fmtINR(
-                    paymentAmount
-                  )}
-                </strong>
-              </div>
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                }}
-              >
-                <span
-                  style={{
-                    color:
-                      C.gray,
-                    fontSize:
-                      14,
-                  }}
-                >
-                  Remaining Payable Later
-                </span>
-
-                <strong
-                  style={{
-                    color:
-                      C.navy,
-                    fontSize:
-                      16,
-                  }}
-                >
-                  {fmtINR(
-                    remainingAmount
-                  )}
-                </strong>
-              </div>
-
-              {paymentType ===
-                "advance" && (
-                <div
-                  style={{
-                    marginTop:
-                      10,
-                    fontSize:
-                      12,
-                    lineHeight:
-                      1.5,
-                    color:
-                      C.gray,
-                  }}
-                >
-                  Only ₹500 will be
-                  charged now. The
-                  remaining{" "}
-                  {fmtINR(
-                    remainingAmount
-                  )} will be payable
-                  later.
-                </div>
-              )}
-            </div>
-
-            {/* BUTTONS */}
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(150px, 100%), 1fr))",
-                gap: 10,
-                marginTop:
-                  18,
-              }}
-            >
-              <button
-                type="button"
-                onClick={onClose}
-                style={
-                  secondaryButton
-                }
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  ...primaryButton,
-                  opacity:
-                    loading
-                      ? 0.7
-                      : 1,
-                  cursor:
-                    loading
-                      ? "wait"
-                      : "pointer",
-                }}
-              >
-                <CreditCard
-                  size={18}
-                />
-
-                {loading
-                  ? "Processing..."
-                  : `Pay ${fmtINR(
-                      paymentAmount
-                    )}`}
-              </button>
-            </div>
-
-            <div
-              style={{
-                marginTop:
-                  12,
-                display:
-                  "flex",
-                justifyContent:
-                  "center",
-                alignItems:
-                  "center",
-                gap: 6,
-                color:
-                  C.gray,
-                fontSize:
-                  12,
-              }}
-            >
-              <ShieldCheck
-                size={14}
-              />
-
-              Secure payment powered
-              by Razorpay
-            </div>
-          </form>
-        </div>
-      </div>
+      </form>
     </div>
   );
 }
 
-/* =========================================================
-   CUSTOMER VIEW
-========================================================= */
+function Choice({active,onClick,title,text}) { return <button type="button" onClick={onClick} style={{textAlign:"left",padding:14,borderRadius:14,border:`1px solid ${active?C.blue:C.border}`,background:active?C.sky:C.white,cursor:"pointer"}}><strong style={{display:"block",color:C.navy}}>{title}</strong><span style={{fontSize:12,color:C.gray}}>{text}</span></button>; }
+function Field({label,children}) { return <div><div style={labelStyle}>{label}</div>{children}</div>; }
 
-function CustomerView({
-  cars,
-  cities,
-  bookings,
-  onBook,
-}) {
-  const [selectedCity, setSelectedCity] =
-    useState("All");
+function CustomerView({ cars, cities, bookings, leads, onBook }) {
+  const [search, setSearch] = useState("");
+  const [selectedCity, setSelectedCity] = useState("All");
+  const [bookingCar, setBookingCar] = useState(null);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [profile, setProfile] = useState(() => loadShared("sawariya_customer_profile", null));
+  const [loginName, setLoginName] = useState("");
+  const [loginPhone, setLoginPhone] = useState("");
+  const [section, setSection] = useState("home");
 
-  const [search, setSearch] =
-    useState("");
+  const activeCities = cities.filter(c => c.active);
+  const filteredCars = useMemo(() => cars.filter(car => {
+    const cityMatch = selectedCity === "All" || car.city === selectedCity;
+    const q = search.trim().toLowerCase();
+    return cityMatch && (!q || `${car.name} ${car.type} ${car.city}`.toLowerCase().includes(q));
+  }), [cars, selectedCity, search]);
+  const travelPackages = loadShared("sawariya_travel_packages", defaultTravelPackages);
+  const decorations = loadShared("sawariya_decorations", defaultDecorations);
 
-  const [bookingCar, setBookingCar] =
-    useState(null);
-  const [page, setPage] = useState("app");
-const [zoom, setZoom] = useState(null);
-
-  const activeCities =
-    cities.filter(
-      (city) => city.active
-    );
-
-  const filteredCars =
-    useMemo(() => {
-      return cars.filter(
-        (car) => {
-          const cityMatch =
-            selectedCity ===
-              "All" ||
-            car.city ===
-              selectedCity;
-
-          const searchText =
-            search
-              .trim()
-              .toLowerCase();
-
-          const searchMatch =
-            !searchText ||
-            car.name
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            car.type
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            car.city
-              .toLowerCase()
-              .includes(
-                searchText
-              );
-
-          return (
-            cityMatch &&
-            searchMatch
-          );
-        }
-      );
-    }, [
-      cars,
-      selectedCity,
-      search,
-    ]);
-
-  function handleConfirmBooking(
-    data
-  ) {
-    onBook(data);
-    setBookingCar(null);
+  function doLogin(e) {
+    e.preventDefault();
+    if (!loginName.trim() || !/^\d{10}$/.test(loginPhone.replace(/\D/g,""))) return alert("Enter your name and valid 10-digit mobile number.");
+    const p={name:loginName.trim(),phone:loginPhone.replace(/\D/g,"")};
+    saveShared("sawariya_customer_profile",p); setProfile(p); setLoginOpen(false); setLoginName(""); setLoginPhone("");
   }
 
-  return (
-    <div
-      style={{
-        minHeight:
-          "100vh",
-        background:
-          "#f8fafc",
-        color:
-          C.navy,
-      }}
-    >
-      {/* HEADER */}
+  return <div style={{minHeight:"100vh",background:C.grayLight,color:C.navy}}>
+    <header style={{position:"sticky",top:0,zIndex:50,background:"rgba(255,255,255,.96)",backdropFilter:"blur(14px)",borderBottom:`1px solid ${C.border}`}}>
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+        <a href="#home" onClick={()=>setSection("home")} style={{textDecoration:"none",color:C.navy,fontWeight:1000,fontSize:19}}>SAWARIYA <span style={{color:C.blue}}>RENTALS</span></a>
+        <nav style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <a href="#cars" style={navLink}>Cars</a><a href="#plans" style={navLink}>Plans</a><a href="#travel" style={navLink}>Travel</a><a href="#decor" style={navLink}>Decorated Cars</a>
+          <button type="button" onClick={()=>setLoginOpen(true)} style={smallButton}>{profile ? `Hi, ${profile.name.split(" ")[0]}` : "Login"}</button>
+        </nav>
+      </div>
+    </header>
 
-      <header
-        style={{
-          position:
-            "sticky",
-          top: 0,
-          zIndex: 50,
-          background:
-            "rgba(255,255,255,.96)",
-          backdropFilter:
-            "blur(12px)",
-          borderBottom:
-            `1px solid ${C.border}`,
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1200,
-            margin:
-              "0 auto",
-            padding:
-              "14px 16px",
-            display:
-              "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "space-between",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              display:
-                "flex",
-              alignItems:
-                "center",
-              gap: 10,
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius:
-                  13,
-                background:
-                  C.blue,
-                display:
-                  "flex",
-                alignItems:
-                  "center",
-                justifyContent:
-                  "center",
-                flexShrink: 0,
-              }}
-            >
-              <Car
-                color="white"
-                size={23}
-              />
+    <main id="home">
+      <section style={{background:"linear-gradient(135deg,#0f172a 0%,#1d4ed8 58%,#0ea5e9 100%)",color:C.white,padding:"58px 16px 42px"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <Badge color="#93c5fd">🚗 Indore · Bhopal · Outstation</Badge>
+          <h1 style={{fontSize:"clamp(38px,7vw,68px)",lineHeight:1.02,margin:"16px 0 12px",fontWeight:1000}}>Rent a Car.<br/><span style={{color:"#bfdbfe"}}>Travel Your Way.</span></h1>
+          <p style={{maxWidth:680,fontSize:17,lineHeight:1.6,color:"#dbeafe",marginBottom:24}}>Self-drive cars, one-way trips, driver services, travel packages and special-event cars from Sawariya Rentals.</p>
+          <div style={{background:C.white,color:C.navy,borderRadius:24,padding:18,boxShadow:"0 20px 60px rgba(0,0,0,.22)"}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}><strong style={{fontSize:16}}>Find your car</strong><Badge color={C.green}>18+ rental</Badge></div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:10}}>
+              <select value={selectedCity} onChange={e=>setSelectedCity(e.target.value)} style={inputStyle}><option>All</option>{activeCities.map(c=><option key={c.id}>{c.name}</option>)}<option>Indore</option><option>Bhopal</option></select>
+              <input placeholder="Search car" value={search} onChange={e=>setSearch(e.target.value)} style={inputStyle}/>
+              <a href="#cars" style={{...primaryButton,textDecoration:"none"}}>Search Cars</a>
             </div>
-
-            <div
-              style={{
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight:
-                    1000,
-                  fontSize: 18,
-                  color:
-                    C.navy,
-                  lineHeight:
-                    1.1,
-                }}
-              >
-                SAWARIYA
-              </div>
-
-              <div
-                style={{
-                  fontSize: 10,
-                  color:
-                    C.blue,
-                  fontWeight:
-                    900,
-                  letterSpacing:
-                    1,
-                }}
-              >
-                                RENTALS
-              </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  fontWeight: 800,
-                  lineHeight: 1.4,
-                }}
-              >
-                <a href="tel:+917415228011" style={{ color: C.blue, textDecoration: "none" }}>
-                  74152 28011
-                </a>
-                {" · "}
-                <a href="tel:+918982802145" style={{ color: C.blue, textDecoration: "none" }}>
-                  89828 02145
-                </a>
-                <br />
-                <a
-                  href="https://wa.me/917415228011"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: C.green, textDecoration: "none" }}
-                >
-                  WhatsApp
-                </a>
-                {" · "}
-                <a
-                  href="https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: C.navy, textDecoration: "none" }}
-                >
-                  Sawariya Rentals location
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <a
-            href="#cars"
-            style={{
-              textDecoration:
-                "none",
-              color:
-                C.navy,
-              fontWeight:
-                800,
-              fontSize: 14,
-            }}
-          >
-            Browse Cars
-          </a>
-        </div>
-      </header>
-
-      {/* HERO */}
-
-      <section
-        style={{
-          background:
-            "linear-gradient(135deg,#eff6ff 0%,#ffffff 55%,#f0fdf4 100%)",
-          padding:
-            "48px 16px 38px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1000,
-            margin:
-              "0 auto",
-            textAlign:
-              "center",
-          }}
-        >
-          <Badge color={C.blue}>
-            <Car size={13} />
-            Easy Car Rental
-          </Badge>
-
-          <h1
-            style={{
-              margin:
-                "16px auto 10px",
-              maxWidth:
-                760,
-              fontSize:
-                "clamp(32px, 7vw, 58px)",
-              lineHeight:
-                1.05,
-              fontWeight:
-                1000,
-              color:
-                C.navy,
-            }}
-          >
-            Rent a Car.
-            <br />
-            <span
-              style={{
-                color:
-                  C.blue,
-              }}
-            >
-              Drive Your Way.
-            </span>
-          </h1>
-
-          <p
-            style={{
-              maxWidth:
-                650,
-              margin:
-                "0 auto",
-              color:
-                C.gray,
-              fontSize:
-                16,
-              lineHeight:
-                1.6,
-            }}
-          >
-            Affordable and reliable
-            self-drive car rentals
-            from SAWARIYA RENTALS.
-          </p>
-
-          <div
-            style={{
-              display:
-                "flex",
-              justifyContent:
-                "center",
-              flexWrap:
-                "wrap",
-              gap: 8,
-              marginTop:
-                18,
-            }}
-          >
-            <Badge color={C.blue}>
-              <Clock3 size={13} />
-              8 Hour Rentals
-            </Badge>
-
-            <Badge color={C.green}>
-              <Clock3 size={13} />
-              12 Hour Rentals
-            </Badge>
-
-            <Badge color={C.orange}>
-              <Clock3 size={13} />
-              24 Hour Rentals
-            </Badge>
           </div>
         </div>
       </section>
 
-      {/* SEARCH / FILTER */}
+      <section id="plans" style={sectionStyle}><SectionTitle title="Rental plans" text="Automatic pricing starts from these rates. Exact price depends on the vehicle."/><div style={cardGrid}>
+        <Plan title="Hourly" price="₹83/hr" text="20 km included · ₹6/km after included distance"/>
+        <Plan title="Daily" price="₹2,200/day" text="280 km included · ₹6/km after included distance"/>
+        <Plan title="Weekly" price="₹8,500/week" text="Starting-car rate · vehicle-specific pricing"/>
+        <Plan title="Monthly" price="₹40,000/month" text="Starting rate · vehicle-specific pricing"/>
+        <Plan title="Long Term" price="From ₹18,000/month" text="24-month commitment · vehicle-specific offer" featured/>
+      </div></section>
 
-      <section
-        id="cars"
-        style={{
-          maxWidth:
-            1200,
-          margin:
-            "0 auto",
-          padding:
-            "22px 16px",
-        }}
-      >
-        <div
-          style={{
-            display:
-              "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              position:
-                "relative",
-            }}
-          >
-            <Search
-              size={18}
-              color={
-                C.gray
-              }
-              style={{
-                position:
-                  "absolute",
-                left: 14,
-                top: "50%",
-                transform:
-                  "translateY(-50%)",
-              }}
-            />
+      <section id="cars" style={sectionStyle}><SectionTitle title="Popular cars" text="Choose a car and customize the trip, fuel and driver option."/><div style={cardGrid}>{filteredCars.length ? filteredCars.map(car=><CarCard key={car.id} car={car} onBook={c=>setBookingCar(c)}/>) : <div style={emptyCard}>No cars found. Add your vehicles from Admin.</div>}</div></section>
 
-            <input
-              value={
-                search
-              }
-              onChange={(e) =>
-                setSearch(
-                  e.target.value
-                )
-              }
-              placeholder="Search cars..."
-              style={{
-                ...inputStyle,
-                paddingLeft:
-                  42,
-              }}
-            />
-          </div>
+      <section id="travel" style={{...sectionStyle,background:C.white}}><SectionTitle title="Explore Madhya Pradesh" text="Book a travel package with self-drive, driver or driver + guide."/><div style={cardGrid}>{travelPackages.map((p,i)=><TravelCard key={p.id||i} packageData={p}/>)}</div></section>
 
-          <select
-            value={
-              selectedCity
-            }
-            onChange={(e) =>
-              setSelectedCity(
-                e.target.value
-              )
-            }
-            style={
-              inputStyle
-            }
-          >
-            <option value="All">
-              All Cities
-            </option>
+      <section id="decor" style={sectionStyle}><SectionTitle title="Decorated cars for special days" text="Birthday, wedding, anniversary, proposal and custom decoration."/><div style={cardGrid}>{decorations.map((d,i)=><DecorationCard key={d.id||i} item={d}/>)}</div></section>
 
-            {activeCities.map(
-              (city) => (
-                <option
-                  key={
-                    city.id
-                  }
-                  value={
-                    city.name
-                  }
-                >
-                  {city.name}
-                </option>
-              )
-            )}
-          </select>
-        </div>
-      </section>
+      <section style={{...sectionStyle,background:C.white}}><SectionTitle title="Why Sawariya Rentals?"/><div style={cardGrid}><Feature title="One-way trips" text="Go to Bhopal, Indore or another supported destination without bringing the car back immediately."/><Feature title="Self drive or driver" text="Choose how you want to travel."/><Feature title="Doorstep delivery" text="Delivery is available for an additional charge."/><Feature title="18+ rentals" text="Minimum age 18 with a valid driving licence."/><Feature title="Outstation travel" text="Take your rental outside the city subject to vehicle and booking rules."/><Feature title="Transparent calculation" text="Distance, fuel, driver and return/recovery components are calculated automatically."/></div></section>
 
-      {/* CARS */}
+      <section style={sectionStyle}><SectionTitle title="How pricing works" text="Your final price is calculated from vehicle settings, distance and selected services."/><div style={{...summaryBox,maxWidth:900,margin:"0 auto"}}><div style={summaryRow}><span>Base rental</span><strong>Vehicle-specific</strong></div><div style={summaryRow}><span>Extra distance</span><strong>₹6/km default</strong></div><div style={summaryRow}><span>Fuel</span><strong>Customer option</strong></div><div style={summaryRow}><span>Driver</span><strong>Calculated from configured driver cost</strong></div><div style={summaryRow}><span>One-way recovery</span><strong>Distance + return fuel/time when applicable</strong></div><div style={summaryRow}><span>Business margin</span><strong>10%</strong></div></div></section>
 
-      <main
-        style={{
-          maxWidth:
-            1200,
-          margin:
-            "0 auto",
-          padding:
-            "0 16px 60px",
-        }}
-      >
-        <div
-          style={{
-            display:
-              "flex",
-            justifyContent:
-              "space-between",
-            alignItems:
-              "center",
-            gap: 12,
-            marginBottom:
-              18,
-          }}
-        >
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 25,
-                fontWeight:
-                  950,
-              }}
-            >
-              Available Cars
-            </h2>
+      <footer style={{background:C.navy,color:C.white,padding:"34px 16px"}}><div style={{maxWidth:1100,margin:"0 auto",display:"grid",gap:8}}><strong style={{fontSize:20}}>SAWARIYA RENTALS</strong><span style={{color:"#cbd5e1"}}>Indore · Bhopal · Outstation</span><span style={{color:"#cbd5e1"}}>Minimum rental age: 18 years · Valid driving licence required.</span><div style={{marginTop:8}}><a href="tel:+917415228011" style={footerLink}>74152 28011</a> · <a href="tel:+918982802145" style={footerLink}>89828 02145</a> · <a href="https://wa.me/917415228011" target="_blank" rel="noreferrer" style={footerLink}>WhatsApp</a></div></div></footer>
+    </main>
 
-            <p
-              style={{
-                margin:
-                  "5px 0 0",
-                color:
-                  C.gray,
-                fontSize:
-                  13,
-              }}
-            >
-              {filteredCars.length}{" "}
-              car
-              {filteredCars.length !==
-              1
-                ? "s"
-                : ""}{" "}
-              found
-            </p>
-          </div>
-        </div>
-
-        {filteredCars.length ===
-        0 ? (
-          <div
-            style={{
-              padding:
-                40,
-              background:
-                C.white,
-              border:
-                `1px solid ${C.border}`,
-              borderRadius:
-                20,
-              textAlign:
-                "center",
-              color:
-                C.gray,
-            }}
-          >
-            <Car
-              size={48}
-              color={
-                C.blue
-              }
-              strokeWidth={
-                1.3
-              }
-            />
-
-            <h3
-              style={{
-                color:
-                  C.navy,
-                margin:
-                  "12px 0 5px",
-              }}
-            >
-              No cars available yet
-            </h3>
-
-            <p
-              style={{
-                margin:
-                  0,
-                fontSize:
-                  13,
-              }}
-            >
-              Vehicles added by the
-              admin will appear here.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              display:
-                "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
-              gap: 18,
-            }}
-          >
-            {filteredCars.map(
-              (car) => (
-                <CarCard
-                  key={
-                    car.id
-                  }
-                  car={
-                    car
-                  }
-                  onBook={(car) => {
-  setBookingCar(car);
-  setPage("story");
-}}
-                />
-              )
-            )}
-          </div>
-        )}
-
-        {/* RECENT BOOKINGS */}
-
-        {bookings.length >
-          0 && (
-          <section
-            style={{
-              marginTop:
-                40,
-            }}
-          >
-            <h2
-              style={{
-                margin:
-                  "0 0 14px",
-                fontSize:
-                  22,
-                fontWeight:
-                  950,
-              }}
-            >
-              Recent Bookings
-            </h2>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gap: 10,
-              }}
-            >
-              {bookings
-                .slice()
-                .reverse()
-                .slice(0, 5)
-                .map(
-                  (
-                    booking
-                  ) => (
-                    <div
-                      key={
-                        booking.id
-                      }
-                      style={{
-                        background:
-                          C.white,
-                        border:
-                          `1px solid ${C.border}`,
-                        borderRadius:
-                          16,
-                        padding:
-                          15,
-                        display:
-                          "flex",
-                        flexWrap:
-                          "wrap",
-                        justifyContent:
-                          "space-between",
-                        gap: 12,
-                      }}
-                    >
-                      <div>
-                        <strong>
-                          {
-                            booking.carName
-                          }
-                        </strong>
-
-                        <div
-                          style={{
-                            color:
-                              C.gray,
-                            fontSize:
-                              12,
-                            marginTop:
-                              4,
-                          }}
-                        >
-                          {
-                            booking.name
-                          }{" "}
-                          •{" "}
-                          {
-                            booking.pickupDate
-                          }{" "}
-                          •{" "}
-                          {
-                            booking.rentalDuration
-                          }{" "}
-                          hours
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          textAlign:
-                            "right",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight:
-                              900,
-                            color:
-                              C.green,
-                          }}
-                        >
-                          Paid{" "}
-                          {fmtINR(
-                            booking.paidAmount
-                          )}
-                        </div>
-
-                        <div
-                          style={{
-                            color:
-                              C.gray,
-                            fontSize:
-                              12,
-                          }}
-                        >
-                          Remaining{" "}
-                          {fmtINR(
-                            booking.remainingAmount
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                )}
-            </div>
-                    </section>
-        )}
-
-        <div style={{ maxWidth: 1000, margin: "8px auto 36px", padding: "0 16px" }}>
-          <h3 style={{ margin: "0 0 10px", color: C.navy, fontWeight: 900 }}>
-            Sawariya Rentals location
-          </h3>
-          <p style={{ margin: "0 0 12px", color: C.gray, fontSize: 14 }}>
-            Indore · Call 74152 28011 / 89828 02145
-          </p>
-          <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
-            <iframe
-              title="Sawariya Rentals location"
-              src="https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&output=embed"
-              width="100%"
-              height="260"
-              style={{ border: 0 }}
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </main>
-            {page === "story" && bookingCar && (
-        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
-          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <button type="button" onClick={() => { setPage("app"); setBookingCar(null); }} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-            <strong>Sawariya Rentals</strong>
-            <a href="https://wa.me/917415228011" style={{ color: "#fff", textDecoration: "none", fontSize: 13 }}>WhatsApp</a>
-          </div>
-
-          <div style={{ padding: 16, maxWidth: 720, margin: "0 auto 40px" }}>
-            <h2 style={{ margin: "8px 0 4px" }}>{bookingCar.name}</h2>
-            <p style={{ color: "#64748b", margin: "0 0 12px" }}>{bookingCar.type} · Indore · Self drive</p>
-
-            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-              {(bookingCar.photos || []).map((src) => (
-                <img key={src} src={src} alt="" onClick={() => setZoom(src)} style={{ height: 170, borderRadius: 14 }} />
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: "#64748b" }}>Tap photo to zoom</p>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 14 }}>
-              <h3 style={{ margin: "0 0 8px" }}>About Sawariya Rentals</h3>
-              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
-                Self-drive car rental in Indore. Clean cars, clear rates, WhatsApp support.
-                Book 8 / 12 / 24 hours or several days.
-              </p>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Why we are best</h3>
-              <div>✓ Clean, maintained cars</div>
-              <div>✓ Fair Indore pricing</div>
-              <div>✓ 24×7 customer service</div>
-              <div>✓ Same-day booking if available</div>
-              <div>✓ Easy extend on WhatsApp</div>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Our services</h3>
-              <div>• Self drive hatchback, SUV, CNG</div>
-              <div>• 8 / 12 / 24 hour packages</div>
-              <div>• Multi-day outstation</div>
-              <div>• Airport pickup and drop (IDR)</div>
-              <div>• 24×7 call / WhatsApp help</div>
-            </div>
-
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: 14, marginTop: 12 }}>
-              <h3 style={{ margin: "0 0 8px" }}>Airport pickup & drop</h3>
-              <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>
-                Devi Ahilya Bai Holkar Airport (IDR). Share flight time on WhatsApp.
-                We arrange pickup or drop with the booked car.
-              </p>
-            </div>
-            <button type="button" onClick={() => setPage("app")} style={{ width: "100%", padding: 14, border: 0, borderRadius: 12, background: "#2563eb", color: "#fff", fontWeight: 800 }}>
-              Book this car
-            </button>
-          </div>
-
-            <a href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals" style={{ display: "block", textAlign: "center", background: "#25D366", color: "#fff", padding: 14, borderRadius: 12, fontWeight: 800, textDecoration: "none", marginTop: 14 }}>
-              WhatsApp us · 74152 28011
-            </a>
-            <p style={{ textAlign: "center", fontSize: 13, color: "#64748b" }}>or call 89828 02145</p>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
-              <h3 style={{ margin: 0 }}>Reviews</h3>
-              <button type="button" onClick={() => setPage("reviews")} style={{ background: "none", border: 0, color: "#2563eb", fontWeight: 700 }}>Sab reviews →</button>
-            </div>
-            <div style={{ display: "flex", overflowX: "auto", gap: 10, padding: "8px 0 16px" }}>
-              {PAGE_REVIEWS.map((r, i) => (
-                <div key={i} style={{ minWidth: 230, background: "#fff", border: "1px solid #e2e8f0", padding: 12, borderRadius: 14 }}>
-                  <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
-                  <div style={{ fontSize: 14, margin: "8px 0" }}>{r.t}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{r.n} · {r.p}</div>
-                </div>
-              ))}
-            </div>
-
-          {zoom && (
-            <div onClick={() => setZoom(null)} style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,.92)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99 }}>
-              <img src={zoom} alt="" style={{ maxWidth: "94%", maxHeight: "90%" }} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {page === "reviews" && (
-        <div style={{ position: "fixed", inset: 0, background: "#f8fafc", color: "#0f172a", overflow: "auto", zIndex: 80 }}>
-          <div style={{ background: "#0f172a", color: "#fff", padding: "14px 16px" }}>
-            <button type="button" onClick={() => setPage("story")} style={{ background: "none", border: 0, color: "#fff" }}>← Back</button>
-          </div>
-          <div style={{ padding: 16 }}>
-            <h2>Customer reviews</h2>
-            <p style={{ color: "#64748b" }}>Sawariya Rentals · Indore</p>
-            {PAGE_REVIEWS.map((r, i) => (
-              <div key={i} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: 14, borderRadius: 14, marginBottom: 10 }}>
-                <div style={{ color: "#ca8a04" }}>{STARS(r.s)}</div>
-                <div style={{ margin: "8px 0" }}>{r.t}</div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>{r.n} · {r.p}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-  
-      {page === "app" && bookingCar && (
-        <BookingModal
-          car={
-            bookingCar
-          }
-          onClose={() =>
-            setBookingCar(
-              null
-            )
-          }
-          onConfirm={
-            handleConfirmBooking
-          }
-        />
-      )}
-    </div>
-  );
+    {bookingCar && <BookingModal car={bookingCar} onClose={()=>setBookingCar(null)} onConfirm={onBook}/>} 
+    {loginOpen && <div style={modalOverlay}><form onSubmit={doLogin} style={{...modalCard,maxWidth:430}}><div style={modalHeader}><div><div style={{fontSize:12,color:C.blue,fontWeight:900}}>CUSTOMER LOGIN</div><h2 style={{margin:"4px 0 0"}}>Welcome to Sawariya</h2></div><button type="button" onClick={()=>setLoginOpen(false)} style={iconButton}><X size={20}/></button></div><div style={{padding:20,display:"grid",gap:14}}><Field label="Name"><input value={loginName} onChange={e=>setLoginName(e.target.value)} style={inputStyle}/></Field><Field label="Mobile number"><input value={loginPhone} onChange={e=>setLoginPhone(e.target.value)} inputMode="numeric" style={inputStyle}/></Field><button style={primaryButton}>Continue</button><p style={{fontSize:12,color:C.gray,margin:0}}>This quick login saves your booking profile on this device. A secure OTP account can be added later with Supabase Auth.</p></div></form></div>}
+  </div>;
 }
 
-/* =========================================================
-   ADMIN STAT CARD
-========================================================= */
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color = C.blue,
-}) {
-  return (
-    <div
-      style={{
-        background:
-          C.white,
-        border:
-          `1px solid ${C.border}`,
-        borderRadius:
-          18,
-        padding: 18,
-        display:
-          "flex",
-        alignItems:
-          "center",
-        gap: 13,
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius:
-            14,
-          background:
-            `${color}12`,
-          color,
-          display:
-            "flex",
-          alignItems:
-            "center",
-          justifyContent:
-            "center",
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-
-      <div
-        style={{
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            color:
-              C.gray,
-            fontSize:
-              12,
-            fontWeight:
-              700,
-          }}
-        >
-          {label}
-        </div>
-
-        <div
-          style={{
-            color:
-              C.navy,
-            fontSize:
-              22,
-            fontWeight:
-              950,
-            marginTop:
-              2,
-            wordBreak:
-              "break-word",
-          }}
-        >
-          {value}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   ADMIN VIEW
-========================================================= */
+function Plan({title,price,text,featured}) { return <div style={{...whiteCard,border:featured?`2px solid ${C.blue}`:`1px solid ${C.border}`}}><Badge color={featured?C.blue:C.gray}>{featured?"BEST LONG TERM":"PLAN"}</Badge><h3 style={{margin:"12px 0 4px"}}>{title}</h3><div style={{fontSize:24,fontWeight:1000,color:C.blue}}>{price}</div><p style={{color:C.gray,fontSize:13,lineHeight:1.5}}>{text}</p></div>; }
+function SectionTitle({title,text}) { return <div style={{maxWidth:800,margin:"0 auto 22px"}}><h2 style={{fontSize:"clamp(26px,5vw,38px)",margin:0,fontWeight:1000}}>{title}</h2>{text&&<p style={{color:C.gray,margin:"7px 0 0",lineHeight:1.5}}>{text}</p>}</div>; }
+function Feature({title,text}) { return <div style={whiteCard}><ShieldCheck size={24} color={C.blue}/><h3 style={{margin:"10px 0 5px"}}>{title}</h3><p style={{margin:0,color:C.gray,fontSize:13,lineHeight:1.5}}>{text}</p></div>; }
+function TravelCard({packageData}) { const [open,setOpen]=useState(false); return <div style={whiteCard}><div style={{height:150,borderRadius:14,background:"linear-gradient(135deg,#dbeafe,#fef3c7)",display:"flex",alignItems:"flex-end",padding:14,boxSizing:"border-box"}}><Badge color={C.blue}>{packageData.days || "Custom"} days</Badge></div><h3 style={{margin:"14px 0 5px"}}>{packageData.name}</h3><p style={{color:C.gray,fontSize:13,minHeight:38}}>{packageData.description}</p><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><Badge color={C.green}>Self drive</Badge><Badge color={C.orange}>Driver</Badge><Badge color={C.blue}>Guide</Badge></div><button type="button" onClick={()=>setOpen(!open)} style={{...secondaryButton,width:"100%",marginTop:14}}>{open?"Hide options":"View package"}</button>{open&&<div style={{marginTop:12,padding:12,background:C.grayLight,borderRadius:12,fontSize:13}}><div>Self drive: {fmtINR(packageData.selfDrivePrice || packageData.price || 0)}</div><div>With driver: {fmtINR(packageData.driverPrice || 0)}</div><div>Driver + guide: {fmtINR(packageData.guidePrice || 0)}</div><div style={{marginTop:8,color:C.gray}}>Final route and service price is confirmed at booking.</div></div>}</div>; }
+function DecorationCard({item}) { return <div style={whiteCard}><div style={{height:150,borderRadius:14,background:"linear-gradient(135deg,#fce7f3,#fef3c7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42}}>🎉</div><h3 style={{margin:"14px 0 5px"}}>{item.name}</h3><p style={{color:C.gray,fontSize:13}}>{item.description}</p><div style={{fontWeight:900,color:C.blue}}>{item.price ? `From ${fmtINR(item.price)}` : "Custom price"}</div><button type="button" onClick={()=>alert("Decoration request can be confirmed by Sawariya after you share the occasion and custom requirements.")} style={{...secondaryButton,width:"100%",marginTop:12}}>Customize</button></div>; }
 
 function AdminView({
   cars,
@@ -5629,6 +3645,30 @@ function AdminView({
   );
 }
 
+
+function VehiclePricingEditor({car,onSaved}){
+  const [form,setForm]=useState({
+    hourlyRate:car.hourlyRate ?? "", dailyRate:car.dailyRate ?? car.price24 ?? "", weeklyRate:car.weeklyRate ?? "", monthlyRate:car.monthlyRate ?? "", longTermRate:car.longTermRate ?? "", hourlyKm:car.hourlyKm ?? 20, dailyKm:car.dailyKm ?? 280, extraKmRate:car.extraKmRate ?? 6, driverCost:car.driverCost ?? 1000, fuelCostPerKm:car.fuelCostPerKm ?? "", securityDeposit:car.securityDeposit ?? ""
+  });
+  async function save(){ const updated={...car,...form}; for(const k of ["hourlyRate","dailyRate","weeklyRate","monthlyRate","longTermRate","hourlyKm","dailyKm","extraKmRate","driverCost","fuelCostPerKm","securityDeposit"]){ if(form[k]!=="") updated[k]=Number(form[k]); } try{await upsertCar(updated);onSaved(updated);alert(`${car.name} pricing saved.`);}catch(e){alert(e?.message||"Could not save vehicle pricing.");} }
+  const f=(key,label)=><Field label={label}><input type="number" value={form[key]} onChange={e=>setForm(x=>({...x,[key]:e.target.value}))} style={inputStyle}/></Field>;
+  return <div style={{padding:14,border:`1px solid ${C.border}`,borderRadius:16,marginBottom:12}}><strong>{car.name}</strong><div style={{fontSize:12,color:C.gray,marginBottom:10}}>{car.city} · {car.fuel}</div><div style={fieldGrid}>{f("hourlyRate","Hourly ₹/hr")} {f("dailyRate","Daily ₹")} {f("weeklyRate","Weekly ₹")} {f("monthlyRate","Monthly ₹")} {f("longTermRate","24-month ₹/month")} {f("hourlyKm","Hourly included KM")} {f("dailyKm","Daily included KM")} {f("extraKmRate","Extra ₹/km")} {f("driverCost","Driver cost/day")} {f("fuelCostPerKm","Fuel cost/km")} {f("securityDeposit","Security deposit (admin only)")}</div><button type="button" onClick={save} style={{...primaryButton,marginTop:12}}>Save {car.name}</button></div>;
+}
+
+function BusinessControls({cars,setCars}){
+  const [settings,setSettings]=useState(()=>loadShared("sawariya_business_settings",defaultBusinessSettings));
+  const [packages,setPackages]=useState(()=>loadShared("sawariya_travel_packages",defaultTravelPackages));
+  const [decorations,setDecorations]=useState(()=>loadShared("sawariya_decorations",defaultDecorations));
+  const [tab,setTab]=useState("pricing");
+  function saveSettings(){saveShared("sawariya_business_settings",settings);alert("Pricing settings saved.");}
+  function updatePackage(i,k,v){setPackages(p=>p.map((x,n)=>n===i?{...x,[k]:v}:x));}
+  function updateDecoration(i,k,v){setDecorations(p=>p.map((x,n)=>n===i?{...x,[k]:v}:x));}
+  function saveContent(){saveShared("sawariya_travel_packages",packages);saveShared("sawariya_decorations",decorations);alert("Travel and decoration settings saved.");}
+  const num=(key)=> <input type="number" value={settings[key]} onChange={e=>setSettings(s=>({...s,[key]:Number(e.target.value)}))} style={inputStyle}/>;
+  return <section style={{maxWidth:1200,margin:"0 auto",padding:"24px 16px 60px",background:C.grayLight}}><div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:22,padding:18}}><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>{[["pricing","Pricing"],["vehicles","Vehicle Pricing"],["travel","Travel Packages"],["decor","Decorations"]].map(([id,label])=><button key={id} type="button" onClick={()=>setTab(id)} style={tab===id?primaryButton:secondaryButton}>{label}</button>)}</div>{tab==="vehicles"&&<><h2>Vehicle-specific pricing</h2><p style={{color:C.gray}}>These settings override the default business pricing for a particular car. Security deposit is not shown to customers.</p>{cars.map((car,index)=><VehiclePricingEditor key={car.id||index} car={car} onSaved={(updated)=>setCars(prev=>prev.map(x=>x.id===updated.id?updated:x))}/>)}</>}
+{tab==="pricing"&&<><h2>Automatic pricing controls</h2><p style={{color:C.gray}}>Default settings. Individual vehicles can override these fields when you add them.</p><div style={fieldGrid}>{Object.entries({hourlyStartingPrice:"Hourly starting price",hourlyIncludedKm:"Hourly included KM",dailyStartingPrice:"Daily starting price",dailyIncludedKm:"Daily included KM",weeklyStartingPrice:"Weekly starting price",monthlyStartingPrice:"Monthly starting price",longTermMonthlyPrice:"Long-term monthly price",longTermMonths:"Long-term commitment months",extraKmRate:"Extra KM rate",driverCostPerDay:"Driver cost/day",cngCostPerKm:"CNG cost/km",dieselCostPerKm:"Diesel cost/km",petrolCostPerKm:"Petrol cost/km",guideCostPerDay:"Guide cost/day",returnTimeCostPerHour:"Return time cost/hour",deliveryFlatCharge:"Delivery charge",marginPercent:"Margin %",bookingAdvance:"Booking advance"}).map(([k,l])=><Field key={k} label={l}>{num(k)}</Field>)}</div><button onClick={saveSettings} style={{...primaryButton,marginTop:16}}>Save pricing</button></>}{tab==="travel"&&<><h2>Travel packages</h2>{packages.map((p,i)=><div key={p.id} style={{padding:14,border:`1px solid ${C.border}`,borderRadius:14,marginBottom:10}}><div style={fieldGrid}><Field label="Name"><input value={p.name} onChange={e=>updatePackage(i,"name",e.target.value)} style={inputStyle}/></Field><Field label="Days"><input type="number" value={p.days} onChange={e=>updatePackage(i,"days",Number(e.target.value))} style={inputStyle}/></Field><Field label="Self-drive price"><input type="number" value={p.selfDrivePrice} onChange={e=>updatePackage(i,"selfDrivePrice",Number(e.target.value))} style={inputStyle}/></Field><Field label="Driver price"><input type="number" value={p.driverPrice} onChange={e=>updatePackage(i,"driverPrice",Number(e.target.value))} style={inputStyle}/></Field><Field label="Driver + guide"><input type="number" value={p.guidePrice} onChange={e=>updatePackage(i,"guidePrice",Number(e.target.value))} style={inputStyle}/></Field></div><Field label="Description"><input value={p.description} onChange={e=>updatePackage(i,"description",e.target.value)} style={inputStyle}/></Field></div>)}<button onClick={saveContent} style={primaryButton}>Save travel packages</button></>}{tab==="decor"&&<><h2>Decorated car options</h2>{decorations.map((d,i)=><div key={d.id} style={{padding:14,border:`1px solid ${C.border}`,borderRadius:14,marginBottom:10}}><div style={fieldGrid}><Field label="Name"><input value={d.name} onChange={e=>updateDecoration(i,"name",e.target.value)} style={inputStyle}/></Field><Field label="Price"><input type="number" value={d.price} onChange={e=>updateDecoration(i,"price",Number(e.target.value))} style={inputStyle}/></Field></div><Field label="Description"><input value={d.description} onChange={e=>updateDecoration(i,"description",e.target.value)} style={inputStyle}/></Field></div>)}<button onClick={saveContent} style={primaryButton}>Save decorations</button></>}</div></section>;
+}
+
 /* =========================================================
    ADMIN GATE
 ========================================================= */
@@ -5649,6 +3689,11 @@ function AdminGate({
 
   function login(e) {
     e.preventDefault();
+
+    if (!ADMIN_PASSCODE) {
+      alert("Admin login is not configured. Add VITE_ADMIN_PASSCODE in Vercel environment variables.");
+      return;
+    }
 
     if (
       passcode ===
@@ -6378,6 +4423,23 @@ const smallButton = {
   boxSizing:
     "border-box",
 };
+
+
+const navLink={textDecoration:"none",color:C.navy,fontSize:13,fontWeight:850,padding:"8px 7px"};
+const footerLink={color:"#bfdbfe",textDecoration:"none"};
+const sectionStyle={padding:"52px 16px"};
+const cardGrid={maxWidth:1200,margin:"0 auto",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16};
+const whiteCard={background:C.white,border:`1px solid ${C.border}`,borderRadius:20,padding:18,boxShadow:"0 8px 28px rgba(15,23,42,.05)"};
+const emptyCard={...whiteCard,gridColumn:"1/-1",textAlign:"center",color:C.gray};
+const modalOverlay={position:"fixed",inset:0,zIndex:1000,background:"rgba(2,6,23,.7)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto",boxSizing:"border-box"};
+const modalCard={width:"100%",maxWidth:760,background:C.white,borderRadius:24,overflow:"hidden",boxShadow:"0 30px 90px rgba(0,0,0,.28)",margin:"10px auto"};
+const modalHeader={padding:"18px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"};
+const iconButton={width:40,height:40,borderRadius:999,border:`1px solid ${C.border}`,background:C.white,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"};
+const choiceGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8};
+const fieldGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12};
+const infoBox={padding:13,borderRadius:14,background:C.sky,border:`1px solid #bfdbfe`,display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap"};
+const summaryBox={padding:14,borderRadius:16,background:C.grayLight,border:`1px solid ${C.border}`};
+const summaryRow={display:"flex",justifyContent:"space-between",gap:10,padding:"5px 0",fontSize:13};
 
 /* =========================================================
    EXPORT
