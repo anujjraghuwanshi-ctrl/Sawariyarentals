@@ -1121,13 +1121,13 @@ const [zoom, setZoom] = useState(null);
             <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "end", marginBottom: 12 }}><div><h2 style={{ margin: 0, fontSize: 24 }}>Travel packages</h2><p style={{ margin: "4px 0 0", color: C.gray, fontSize: 13 }}>Ujjain, Omkareshwar, Mandu and more — self-drive, driver or guide.</p></div></div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(250px,100%),1fr))", gap: 12 }}>
-                {packages.map((item) => <div key={item.id} style={{ ...whiteCard, padding: 16 }}><Badge color={C.blue}>{item.days} day{item.days === 1 ? "" : "s"}</Badge><h3 style={{ margin: "10px 0 5px" }}>{item.name}</h3><p style={{ margin: 0, color: C.gray, fontSize: 13, lineHeight: 1.5 }}>{item.description}</p><div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}><Badge color={C.green}>Self drive</Badge><Badge color={C.orange}>Driver</Badge><Badge color={C.blue}>Guide</Badge></div></div>)}
+                style={{ ...whiteCard, padding: 16, minWidth: 150, flex: "0 0 auto" }}
               </div>
             </section>
             <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px 22px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "end", marginBottom: 12 }}><div><h2 style={{ margin: 0, fontSize: 24 }}>Decorated cars</h2><p style={{ margin: "4px 0 0", color: C.gray, fontSize: 13 }}>Birthday, wedding, anniversary, proposal and custom.</p></div></div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(210px,100%),1fr))", gap: 12 }}>
-                {decorations.map((item) => <div key={item.id} style={{ ...whiteCard, padding: 16 }}><div style={{ fontSize: 32 }}>🎉</div><h3 style={{ margin: "8px 0 5px" }}>{item.name}</h3><p style={{ margin: 0, color: C.gray, fontSize: 13 }}>{item.description}</p><div style={{ marginTop: 10, fontWeight: 900 }}>{item.price ? `From ${fmtINR(item.price)}` : "Custom price"}</div></div>)}
+                style={{ ...whiteCard, padding: 16, minWidth: 150, flex: "0 0 auto" }}
               </div>
             </section>
           </>
