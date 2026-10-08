@@ -5211,43 +5211,6 @@ function App() {
       </div>
     );
   }
-        >
-          <button
-            type="button"
-            onClick={() =>
-              setIsAdmin(
-                false
-              )
-            }
-            style={{
-              ...secondaryButton,
-              boxShadow:
-                "0 10px 30px rgba(0,0,0,.15)",
-            }}
-          >
-            <X
-              size={
-                16
-              }
-            />
-            Exit Admin
-          </button>
-        </div>
-
-        <AdminErrorBoundary>
-          <AdminGate
-            cars={cars}
-            setCars={setCars}
-            cities={cities}
-            setCities={setCities}
-            bookings={bookings}
-            leads={leads}
-          />
-        </AdminErrorBoundary>
-      </div>
-    );
-  }
-
   return (
     <div>
       <CustomerView
