@@ -1006,6 +1006,11 @@ function CustomerView({
   const [page, setPage] = useState("app");
 const [zoom, setZoom] = useState(null);
 
+    const [loginOpen, setLoginOpen] = useState(false);
+  const [customerProfile, setCustomerProfile] = useState(() =>
+    loadShared("sawariya_customer_profile", null)
+  );
+  
   const activeCities =
     cities.filter(
       (city) => city.active
