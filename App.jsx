@@ -57,7 +57,7 @@ const C = {
   black: "#020617",
 };
 
-const ADMIN_PASSCODE = "7224";
+const ADMIN_PASSCODE = "123456";
 const BOOKING_ADVANCE = 500;
 
 /* =========================================================
