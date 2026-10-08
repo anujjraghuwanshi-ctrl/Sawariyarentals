@@ -4793,26 +4793,6 @@ function AdminGate({
     );
   }
   
-        cars={
-          cars
-        }
-        setCars={
-          setCars
-        }
-        cities={
-          cities
-        }
-        setCities={
-          setCities
-        }
-        bookings={
-          bookings
-        }
-        leads={Array.isArray(leads) ? leads : []}
-      />
-    );
-  }
-
   return (
     <div
       style={{
