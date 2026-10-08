@@ -4768,16 +4768,23 @@ function AdminGate({
     }
   }
 
-  if (loggedIn) {
+    if (loggedIn) {
     return (
-      <AdminView
-        cars={Array.isArray(cars) ? cars : []}
-        setCars={setCars}
-        cities={Array.isArray(cities) ? cities : []}
-        setCities={setCities}
-        bookings={Array.isArray(bookings) ? bookings : []}
-        leads={Array.isArray(leads) ? leads : []}
-      />
+      <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", padding: 20 }}>
+        <h1 style={{ marginTop: 0 }}>SAWARIYA ADMIN</h1>
+        <p>Login OK. Full panel will be restored next.</p>
+        <p><b>Cars:</b> {Array.isArray(cars) ? cars.length : 0}</p>
+        <p><b>Bookings:</b> {Array.isArray(bookings) ? bookings.length : 0}</p>
+        <p><b>Cities:</b> {Array.isArray(cities) ? cities.length : 0}</p>
+        <p><b>Leads:</b> {Array.isArray(leads) ? leads.length : 0}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{ marginTop: 16, padding: "12px 16px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 12, fontWeight: 800 }}
+        >
+          Exit Admin
+        </button>
+      </div>
     );
   }
   
