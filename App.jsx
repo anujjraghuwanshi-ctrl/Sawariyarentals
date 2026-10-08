@@ -4768,14 +4768,14 @@ function AdminGate({
     }
   }
 
-    if (loggedIn) {
+  if (loggedIn) {
     return (
       <AdminView
-        cars={cars}
+        cars={Array.isArray(cars) ? cars : []}
         setCars={setCars}
-        cities={cities}
+        cities={Array.isArray(cities) ? cities : []}
         setCities={setCities}
-        bookings={bookings}
+        bookings={Array.isArray(bookings) ? bookings : []}
         leads={Array.isArray(leads) ? leads : []}
       />
     );
