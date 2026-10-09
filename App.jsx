@@ -1623,8 +1623,8 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     onBook(data);
     setBookingCar(null);
     setDetailCar(null);
-    ⁠}⁠
-  const callbackCity =
+    }
+const callbackCity =
     cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
   return (
     <div className="bg-[#070709] min-h-screen text-white">
