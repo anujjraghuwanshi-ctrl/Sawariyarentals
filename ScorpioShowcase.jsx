@@ -1,178 +1,229 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
-  Compass, 
-  Fuel, 
   ShieldCheck, 
+  Fuel, 
+  Compass, 
   Users, 
-  ChevronLeft, 
+  MessageCircle, 
   ChevronRight, 
-  PhoneCall, 
-  CheckCircle2, 
-  Sparkles 
+  Phone, 
+  MapPin, 
+  CheckCircle2,
+  CalendarDays,
+  Sparkles
 } from 'lucide-react';
 
-const ANGLES = [
-  { id: 'front', label: 'Front', src: '/cars/scorpio-front.png', desc: 'Dominant Chrome Grille & LED DRLs' },
-  { id: 'angle-l', label: '3/4 Left', src: '/cars/scorpio-angle-l.png', desc: 'Muscular Wheel Arches & R18 Alloys' },
-  { id: 'side-l', label: 'Side Left', src: '/cars/scorpio-side-l.png', desc: '4,662 mm Extended Stance' },
-  { id: 'rear', label: 'Rear', src: '/cars/scorpio-rear.png', desc: 'Signature Vertical Tail Lamps' },
-  { id: 'side-r', label: 'Side Right', src: '/cars/scorpio-side-r.png', desc: 'High Ground Clearance Profile' },
-  { id: 'angle-r', label: '3/4 Right', src: '/cars/scorpio-angle-r.png', desc: 'Aerodynamic Stance' },
-  { id: 'high', label: 'Perspective', src: '/cars/scorpio-high.png', desc: 'Commanding Road View' },
-  { id: 'top', label: 'Aerial', src: '/cars/scorpio-top.png', desc: 'Electric Sunroof & Roof Rails' },
-];
-
-const HIGHLIGHTS = [
-  { icon: Compass, title: '4XPLOR 4WD', subtitle: 'Terrain Management' },
-  { icon: Fuel, title: '2.2L mHawk Turbo', subtitle: '172 BHP / 400 Nm' },
-  { icon: ShieldCheck, title: '5-Star NCAP', subtitle: 'Global Safety Rating' },
-  { icon: Users, title: '7-Seater Luxury', subtitle: 'Plush Captain Chairs' },
-];
-
 export default function ScorpioShowcase() {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
 
-  const nextAngle = () => {
-    setCurrentIndex((prev) => (prev + 1) % ANGLES.length);
-  };
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-  const prevAngle = () => {
-    setCurrentIndex((prev) => (prev - 1 + ANGLES.length) % ANGLES.length);
+  // Frame calculations matching the video's scroll range
+  const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const progress = Math.min(Math.max(scrollY / (winHeight * 2.2), 0), 1);
+
+  // Dynamic car movement: slides across the viewport and rotates slightly
+  const carX = -20 + progress * 40; // Glides horizontally
+  const carScale = 0.95 + Math.sin(progress * Math.PI) * 0.15;
+  const carRotate = (progress - 0.5) * -6;
+
+  // Active angle selection based on scroll progression
+  const getCarImage = () => {
+    if (progress < 0.25) return '/cars/scorpio-angle-l.png';
+    if (progress < 0.55) return '/cars/scorpio-front.png';
+    if (progress < 0.82) return '/cars/scorpio-side-r.png';
+    return '/cars/scorpio-high.png';
   };
 
   return (
-    <section className="relative w-full min-h-screen bg-[#070709] text-white py-16 px-4 md:px-8 overflow-hidden select-none">
-      {/* Editorial Ambient Background Glow */}
-      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-amber-500/10 blur-[150px] pointer-events-none rounded-full" />
-      <div className="absolute bottom-10 left-10 w-[350px] h-[350px] bg-zinc-800/30 blur-[130px] pointer-events-none rounded-full" />
+    <div className="relative bg-[#070709] text-white font-sans selection:bg-amber-400 selection:text-black">
+      
+      {/* 1. TOP NAVBAR */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-5 bg-black/40 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center font-black text-black text-lg">
+            S
+          </div>
+          <span className="font-extrabold tracking-tight text-lg text-white">
+            SAWARIYA <span className="text-amber-400">RENTALS</span>
+          </span>
+        </div>
 
-      <div className="max-w-6xl mx-auto relative z-10">
+        <div className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          <a href="#overview" className="hover:text-amber-400 transition">Overview</a>
+          <a href="#specs" className="hover:text-amber-400 transition">Specifications</a>
+          <a href="#fleet" className="hover:text-amber-400 transition">Full Fleet</a>
+          <a href="#booking" className="hover:text-amber-400 transition">Pricing</a>
+        </div>
+
+        <a
+          href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals,%20I%20want%20to%20rent%20the%20Scorpio%20N."
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-black font-bold px-5 py-2.5 rounded-full text-xs transition tracking-wide"
+        >
+          <Phone size={14} />
+          <span>74152 28011</span>
+        </a>
+      </nav>
+
+      {/* 2. THE STICKY SCROLL STAGE (Autoklasa Style) */}
+      <div className="relative h-[320vh]">
         
-        {/* Header Tagline */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 backdrop-blur-md mb-4">
-            <Sparkles size={14} className="text-amber-400" />
-            <span className="text-xs uppercase tracking-widest text-amber-300 font-semibold">
-              Sawariya Rentals • Flagship Fleet
-            </span>
-          </div>
-
-          <h1 className="text-4xl md:text-7xl font-black tracking-tight leading-none">
-            MAHINDRA{' '}
-            <span className="bg-gradient-to-r from-white via-amber-200 to-amber-500 bg-clip-text text-transparent">
-              SCORPIO N
-            </span>
-          </h1>
-          <p className="text-zinc-400 text-sm md:text-base max-w-xl mx-auto mt-4">
-            Commanding presence and raw 4x4 power. Available for self-drive expeditions across Bhopal, Indore, and Madhya Pradesh.
-          </p>
-        </div>
-
-        {/* Interactive Viewer Stage */}
-        <div className="relative w-full aspect-[16/10] md:aspect-[21/9] bg-gradient-to-b from-zinc-900/40 via-zinc-950/70 to-black rounded-3xl border border-zinc-800/80 flex items-center justify-center p-6 shadow-2xl overflow-hidden group">
+        {/* Pinned Screen Viewport */}
+        <div className="sticky top-0 h-screen w-full flex flex-col justify-center items-center overflow-hidden pointer-events-none">
           
-          <div className="absolute bottom-8 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-          <div className="absolute bottom-0 w-2/3 h-20 bg-amber-500/5 blur-3xl pointer-events-none" />
+          {/* Ambient Studio Lighting */}
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-amber-500/10 blur-[150px] rounded-full" />
+          <div className="absolute bottom-10 w-full h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
 
-          {/* Active Car Image Display */}
-          <img
-            key={ANGLES[currentIndex].src}
-            src={ANGLES[currentIndex].src}
-            alt={ANGLES[currentIndex].label}
-            className="w-full h-full object-contain drop-shadow-[0_25px_45px_rgba(0,0,0,0.95)] transition-all duration-300 ease-out transform group-hover:scale-[1.02]"
-          />
-
-          {/* Left / Right Nav Arrows */}
-          <button
-            onClick={prevAngle}
-            aria-label="Previous Angle"
-            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-zinc-900/80 border border-zinc-700/60 hover:bg-amber-400 hover:text-black transition duration-200"
-          >
-            <ChevronLeft size={22} />
-          </button>
-          <button
-            onClick={nextAngle}
-            aria-label="Next Angle"
-            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-zinc-900/80 border border-zinc-700/60 hover:bg-amber-400 hover:text-black transition duration-200"
-          >
-            <ChevronRight size={22} />
-          </button>
-
-          {/* Angle Overlay */}
-          <div className="absolute top-4 left-4 md:top-6 md:left-6 bg-black/60 backdrop-blur-md border border-zinc-800/80 px-4 py-2 rounded-2xl">
-            <span className="text-[10px] uppercase tracking-widest text-amber-400 block font-semibold">Viewpoint</span>
-            <span className="text-sm md:text-base font-bold text-white">{ANGLES[currentIndex].label}</span>
+          {/* Background Typography */}
+          <div className="absolute top-24 md:top-28 text-center px-4 transition-all duration-300">
+            <span className="text-amber-400 text-xs font-bold uppercase tracking-widest block mb-2">
+              Command The Road
+            </span>
+            <h1 className="text-5xl md:text-8xl font-black tracking-tight leading-none text-white/95">
+              MAHINDRA SCORPIO N
+            </h1>
           </div>
 
-          <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 bg-black/60 backdrop-blur-md border border-zinc-800/80 px-4 py-2 rounded-2xl hidden sm:block">
-            <span className="text-xs text-zinc-300">{ANGLES[currentIndex].desc}</span>
+          {/* Centered Scorpio N that glides & switches perspective */}
+          <div className="relative z-20 w-full max-w-5xl px-6 flex justify-center items-center transition-transform duration-100 ease-out">
+            <img
+              src={getCarImage()}
+              alt="Mahindra Scorpio N"
+              className="w-full max-h-[55vh] object-contain drop-shadow-[0_35px_60px_rgba(0,0,0,0.95)]"
+              style={{
+                transform: `translateX(${carX}%) scale(${carScale}) rotate(${carRotate}deg)`,
+              }}
+            />
+          </div>
+
+          {/* Dynamic Scroll Indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-zinc-500 text-xs font-semibold tracking-widest uppercase">
+            <span>Scroll To Inspect</span>
+            <div className="w-8 h-1 bg-zinc-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-amber-400 transition-all duration-75"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Angle Selection Tabs */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-6 p-2 bg-zinc-950/80 border border-zinc-800/90 rounded-2xl backdrop-blur-md max-w-fit mx-auto">
-          {ANGLES.map((angle, idx) => (
-            <button
-              key={angle.id}
-              onClick={() => setCurrentIndex(idx)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                currentIndex === idx
-                  ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20 scale-105'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
-              }`}
-            >
-              {angle.label}
-            </button>
-          ))}
+        {/* Narrative Scroll Milestones (Text that glides past the pinned car) */}
+        <div className="relative z-30 pointer-events-none max-w-6xl mx-auto px-6">
+          
+          {/* Milestone 1 */}
+          <div className="h-screen flex items-end pb-24">
+            <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl max-w-md pointer-events-auto shadow-2xl">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">01 / Drivetrain</span>
+              <h3 className="text-2xl font-black">4XPLOR Intelligent Terrain Modes</h3>
+              <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+                Tackle sand, mud, gravel, and wet tarmac across Madhya Pradesh with intelligent shift-on-fly 4WD.
+              </p>
+            </div>
+          </div>
+
+          {/* Milestone 2 */}
+          <div className="h-screen flex items-center justify-end">
+            <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl max-w-md pointer-events-auto shadow-2xl">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">02 / Powertrain</span>
+              <h3 className="text-2xl font-black">2.2L mHawk Turbo Diesel</h3>
+              <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+                172 BHP and 400 Nm of pure pulling torque. High-speed stability and commanding overtaking power.
+              </p>
+            </div>
+          </div>
+
+          {/* Milestone 3 */}
+          <div className="h-screen flex items-center">
+            <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl max-w-md pointer-events-auto shadow-2xl">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block mb-1">03 / Safety</span>
+              <h3 className="text-2xl font-black">5-Star NCAP Architecture</h3>
+              <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+                High-strength steel chassis, ESC, disc brakes on all four corners, and 6 airbags for maximum family security.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 3. PERFORMANCE & SPECS MATRIX */}
+      <section id="specs" className="relative z-30 max-w-6xl mx-auto px-6 py-28 border-t border-zinc-900">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Engineered Authority</span>
+          <h2 className="text-4xl md:text-5xl font-black tracking-tight mt-2">TECHNICAL SPECIFICATIONS</h2>
         </div>
 
-        {/* Specifications Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
-          {HIGHLIGHTS.map((item, index) => {
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { icon: Compass, label: 'Drivetrain', val: '4XPLOR 4WD with Rear Diff Lock' },
+            { icon: Fuel, label: 'Engine Output', val: '172 BHP @ 3500 rpm' },
+            { icon: Users, label: 'Seating Capacity', val: '7-Seater Premium Layout' },
+            { icon: ShieldCheck, label: 'Safety Rating', val: '5-Star Global NCAP Certified' },
+          ].map((item, idx) => {
             const Icon = item.icon;
             return (
-              <div
-                key={index}
-                className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-4 flex flex-col justify-between hover:border-amber-400/30 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 bg-amber-400/10 rounded-lg text-amber-400">
-                    <Icon size={18} />
-                  </div>
-                  <span className="text-xs uppercase text-zinc-400 tracking-wider font-semibold">{item.title}</span>
+              <div key={idx} className="bg-zinc-950/80 border border-zinc-800/80 p-6 rounded-2xl flex flex-col justify-between">
+                <Icon size={24} className="text-amber-400 mb-4" />
+                <div>
+                  <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">{item.label}</span>
+                  <strong className="text-base font-bold text-zinc-200 mt-1 block">{item.val}</strong>
                 </div>
-                <span className="text-sm md:text-base font-bold text-zinc-200">{item.subtitle}</span>
               </div>
             );
           })}
         </div>
+      </section>
 
-        {/* WhatsApp & Instant Booking Action Strip */}
-        <div className="mt-8 bg-zinc-950/90 border border-zinc-800 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* 4. DIRECT BOOKING SECTION */}
+      <section id="booking" className="relative z-30 max-w-6xl mx-auto px-6 py-20">
+        <div className="bg-gradient-to-b from-zinc-900/80 to-black border border-zinc-800 rounded-3xl p-8 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl">
           <div>
-            <span className="text-xs text-amber-400 uppercase tracking-widest font-bold">Guaranteed Pristine Condition</span>
-            <h3 className="text-xl md:text-2xl font-bold mt-1">Book Your Scorpio N Self-Drive Experience</h3>
-            <div className="flex flex-wrap gap-4 mt-2 text-xs text-zinc-400">
-              <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-400" /> Doorstep Delivery</span>
-              <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-400" /> No Hidden Charges</span>
-              <span className="flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-400" /> 24/7 Road Assistance</span>
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Self-Drive Fleet Booking</span>
+            <h3 className="text-3xl md:text-4xl font-black mt-2">Rent the Mahindra Scorpio N Today</h3>
+            <p className="text-zinc-400 text-sm max-w-md mt-2">
+              Available in Indore & Bhopal. Doorstep delivery, clean sanitized interiors, and zero hidden paperwork charges.
+            </p>
+            <div className="flex flex-wrap gap-4 mt-6 text-xs text-zinc-400">
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Transparent Advance</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Valid 18+ DL</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> 24/7 Roadside Assist</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <a
-              href="https://wa.me/?text=Hi%20Sawariya%20Rentals,%20I%20want%20to%20rent%20the%20Mahindra%20Scorpio%20N."
+              href="https://wa.me/917415228011?text=Hi%20Sawariya%20Rentals,%20I%20want%20to%20book%20the%20Scorpio%20N."
               target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-6 py-3.5 rounded-2xl transition shadow-lg shadow-emerald-500/20 text-sm"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-8 py-4 rounded-full text-sm transition shadow-lg shadow-emerald-500/20"
             >
-              <PhoneCall size={18} />
+              <MessageCircle size={18} />
               Book on WhatsApp
+            </a>
+            <a
+              href="tel:+917415228011"
+              className="inline-flex items-center justify-center gap-2 border border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800 text-white font-bold px-8 py-4 rounded-full text-sm transition"
+            >
+              <Phone size={18} />
+              Call Now
             </a>
           </div>
         </div>
+      </section>
 
-      </div>
-    </section>
+      {/* 5. MINIMAL LUXURY FOOTER */}
+      <footer className="relative z-30 border-t border-zinc-900 py-12 px-6 text-center text-xs text-zinc-500">
+        <p>© {new Date().getFullYear()} Sawariya Rentals. All rights reserved. Self-drive car rentals in Indore & Bhopal.</p>
+      </footer>
+
+    </div>
   );
 }
