@@ -1,5 +1,3 @@
-import ScorpioShowcase from './ScorpioShowcase';
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
@@ -1564,7 +1562,7 @@ function SiteFooter({ cities }) {
    CUSTOMER VIEW (new storefront)
 ========================================================= */
 
-function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
+      function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   const cars = Array.isArray(carsProp) ? carsProp : [];
   const cities = (Array.isArray(citiesProp) ? citiesProp : []).filter((c) => c.active);
 
@@ -1608,6 +1606,7 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     setLoginPhone(profile?.phone || "");
     setLoginOpen(true);
   }
+
   function saveProfile() {
     const name = loginName.trim();
     const phone = loginPhone.replace(/\D/g, "");
@@ -1619,38 +1618,51 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     setProfile(p);
     setLoginOpen(false);
   }
+
   function handleConfirmBooking(data) {
     onBook(data);
     setBookingCar(null);
     setDetailCar(null);
-    }
-const callbackCity =
+  }
+
+  const callbackCity =
     cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
+
   return (
-    <div className="bg-[#070709] min-h-screen text-white">
-      {/* 1. Full-page Scroll-Driven Scorpio N Experience */}
-      <ScorpioShowcase />
-
-      {/* 2. Your Fleet & Booking Engine (Seamlessly attached below) */}
-      <div id="fleet" className="pt-16">
-        <CarsSection
-          cars={cars}
-          cities={cities}
-          cityFilter={cityFilter}
-          setCityFilter={setCityFilter}
-          schedule={schedule}
-          onClearSchedule={() => {
-            setSchedule(null);
-            setCityFilter("All");
-          }}
-          onOpen={setDetailCar}
-        />
-      </div>
-
+    <div className="sw">
+      <style>{CSS}</style>
+      <SiteHeader profile={profile} onLogin={openLogin} />
+      <Hero
+        cities={cities}
+        settings={settings}
+        onSearch={(s) => {
+          setSchedule(s);
+          setCityFilter(s.city || "All");
+        }}
+      />
+      <Plans s={settings} packages={packages} decorations={decorations} />
+      <CarsSection
+        cars={cars}
+        cities={cities}
+        cityFilter={cityFilter}
+        setCityFilter={setCityFilter}
+        schedule={schedule}
+        onClearSchedule={() => {
+          setSchedule(null);
+          setCityFilter("All");
+        }}
+        onOpen={setDetailCar}
+      />
+      <Stats cars={cars} cities={cities} s={settings} />
+      <Why />
       <Faqs s={settings} />
+      <Callback city={callbackCity} />
       <SiteFooter cities={cities} />
 
-      {/* Booking Modals & Overlays */}
+      <a className="sw-wa" href={WHATSAPP} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp">
+        <MessageCircle size={26} />
+      </a>
+
       {detailCar && (
         <CarDetail
           car={detailCar}
@@ -1659,6 +1671,40 @@ const callbackCity =
           onBook={setBookingCar}
           onZoom={setZoom}
         />
+      )}
+      {zoom && (
+        <div className="sw-zoom" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="" />
+        </div>
+      )}
+      {loginOpen && (
+        <div style={modalBackdrop}>
+          <div style={{ ...modalCard, maxWidth: 430 }}>
+            <div style={modalHeader}>
+              <div>
+                <Badge color={C.blue}>Customer account</Badge>
+                <h2 style={{ margin: "8px 0 0" }}>Quick login</h2>
+              </div>
+              <button type="button" onClick={() => setLoginOpen(false)} style={iconButton}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: 18, display: "grid", gap: 12 }}>
+              <Field label="Name">
+                <input value={loginName} onChange={(e) => setLoginName(e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label="Mobile">
+                <input value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} inputMode="numeric" style={inputStyle} />
+              </Field>
+              <button type="button" style={primaryButton} onClick={saveProfile}>
+                Save profile
+              </button>
+              <div style={{ fontSize: 12, color: C.gray }}>
+                This is a quick profile for easier booking. It is not OTP-based authentication.
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       {bookingCar && (
         <BookingModal
@@ -1669,8 +1715,8 @@ const callbackCity =
       )}
     </div>
   );
+}
 
-  }
 
 /* ------------------------------ storefront styles ------------------------------ */
 const CSS = `
