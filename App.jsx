@@ -25,7 +25,8 @@ const BOOKING_ADVANCE = 500;
 
 /* ===================== DATA ===================== */
 
-const seedCars: any[] = [];
+const seedCars = [];
+
 const seedCities = [
   { id: "city-indore", name: "Indore", active: true },
   { id: "city-bhopal", name: "Bhopal", active: true },
@@ -33,16 +34,16 @@ const seedCities = [
 
 const DEFAULT_BUSINESS_SETTINGS = {
   hourlyStartingPrice: 83, hourlyIncludedKm: 20,
-  dailyStartingPrice: 2200, dailyIncludedKm: 280,
-  weeklyStartingPrice: 8500, monthlyStartingPrice: 40000,
-  longTermMonthlyPrice: 18000, longTermMonths: 24,
+  daily,
+StartingPrice: 2200,};
+
+ dailyconstIncludedKm: 280 DEFAULT,
+  weeklyStartingPrice_T: 8500, monthlyStartingRAPrice: 40000,
+  longVELTermMonthlyPrice: 18000, longTermMonths: 24,
   extraKmRate: 6, driverCostPerDay: 1000,
   cngCostPerKm: 4.5, dieselCostPerKm: 9.25, petrolCostPerKm: 7.5,
   guideCostPerDay: 800, returnTimeCostPerHour: 250,
-  deliveryFlatCharge: 0, marginPercent: 10, bookingAdvance: 500,
-};
-
-const DEFAULT_TRAVEL_PACKAGES = [
+  deliveryFlatCharge: 0, marginPercent: 10, bookingAdvance: 500_PACKAGES = [
   { id: "ujjain", name: "Ujjain", days: 1, description: "Mahakaleshwar, Mahakal Lok and Ujjain highlights.", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0 },
   { id: "omkareshwar", name: "Omkareshwar", days: 1, description: "Jyotirlinga and Narmada visit.", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0 },
   { id: "mandu", name: "Mandu", days: 1, description: "Historic forts, Jahaz Mahal and heritage sites.", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0 },
@@ -76,7 +77,7 @@ const DECOR_THEMES = [
   { id: "custom", name: "Custom", emoji: "🎨", from: "#06d6a0", to: "#0891b2", desc: "Tell us your theme, colours and message." },
 ];
 
-const CITY_COORDS: Record<string, [number, number]> = {
+const CITY_COORDS = {
   Indore: [22.7196, 75.8577], Bhopal: [23.2599, 77.4126], Ujjain: [23.1765, 75.7885],
   Omkareshwar: [22.2425, 76.1487], Mandu: [22.3333, 75.4], Maheshwar: [22.176, 75.583],
   Pachmarhi: [22.4674, 78.4346],
@@ -90,28 +91,32 @@ const MAP_EMBED = "https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&out
 
 /* ===================== HELPERS ===================== */
 
-function uid(prefix = "id") { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
-function fmtINR(v: any) { return `₹${Number(v || 0).toLocaleString("en-IN")}`; }
-const inr = (v: number) => fmtINR(v);
+function uid(prefix = "id") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+function fmtINR(v) {
+  return `₹${Number(v || 0).toLocaleString("en-IN")}`;
+}
+const inr = (v) => fmtINR(v);
 function todayISO() {
   const d = new Date();
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);
 }
-function loadShared(key: string, fallback: any) {
+function loadShared(key, fallback) {
   try { const raw = localStorage.getItem(key); if (!raw) return fallback; return JSON.parse(raw) ?? fallback; }
   catch { return fallback; }
 }
-function saveShared(key: string, value: any) {
+function saveShared(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { console.error(e); }
 }
 function loadCars() {
   const cars = loadShared("sawariya_cars", seedCars);
   if (!Array.isArray(cars)) return [];
   const oldIds = ["car-1", "car-2", "car-3", "car-4"];
-  return cars.filter((c: any) => !oldIds.includes(c.id));
+  return cars.filter((c) => !oldIds.includes(c.id));
 }
-function calculateRouteEstimate(from: string, to: string) {
+function calculateRouteEstimate(from, to) {
   if (!from || !to || from === to || !CITY_COORDS[from] || !CITY_COORDS[to]) return null;
   const [la1, lo1] = CITY_COORDS[from]; const [la2, lo2] = CITY_COORDS[to];
   const R = 6371;
@@ -123,14 +128,16 @@ function calculateRouteEstimate(from: string, to: string) {
   const hours = Math.max(0.5, Math.round((distanceKm / 45) * 10) / 10);
   return { distanceKm, hours };
 }
-function fuelCostPerKm(fuel: string, s: any) {
+function fuelCostPerKm(fuel, s) {
   const f = String(fuel || "").toLowerCase();
   if (f.includes("cng")) return Number(s.cngCostPerKm || 4.5);
   if (f.includes("diesel")) return Number(s.dieselCostPerKm || 9.25);
   return Number(s.petrolCostPerKm || 7.5);
 }
-function carPrice(c: any) { return Number(c.price24 || c.dailyRate || c.price12 || c.price8 || c.price || 0); }
-function compressImage(file: File, maxWidth = 1200, q = 0.75): Promise<string> {
+function carPrice(c) {
+  return Number(c.price24 || c.dailyRate || c.price12 || c.price8 || c.price || 0);
+}
+function compressImage(file, maxWidth = 1200, q = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -143,7 +150,7 @@ function compressImage(file: File, maxWidth = 1200, q = 0.75): Promise<string> {
         ctx.drawImage(img, 0, 0, w, h);
         resolve(cv.toDataURL("image/jpeg", q));
       };
-      img.onerror = reject; img.src = reader.result as string;
+      img.onerror = reject; img.src = reader.result;
     };
     reader.onerror = reject; reader.readAsDataURL(file);
   });
@@ -151,36 +158,36 @@ function compressImage(file: File, maxWidth = 1200, q = 0.75): Promise<string> {
 
 /* ===================== SHARED STYLES ===================== */
 
-const labelStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, color: C.navy, fontSize: 12, fontWeight: 850, marginBottom: 7 };
-const inputStyle: React.CSSProperties = { width: "100%", minWidth: 0, height: 46, boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 12, padding: "0 13px", background: C.white, color: C.navy, fontSize: 14, outline: "none" };
-const fieldGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 10 };
-const whiteCard: React.CSSProperties = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, boxShadow: "0 8px 25px rgba(15,23,42,.05)" };
-const emptyCard: React.CSSProperties = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 30, textAlign: "center", color: C.gray };
-const choiceGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(180px,100%),1fr))", gap: 9 };
-const choiceButton: React.CSSProperties = { minHeight: 64, border: `1px solid ${C.border}`, borderRadius: 14, padding: 12, textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 4, boxSizing: "border-box" };
-const modalBackdrop: React.CSSProperties = { position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,23,42,.68)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 16, overflowY: "auto", boxSizing: "border-box" };
-const modalCard: React.CSSProperties = { width: "100%", maxWidth: 720, background: C.white, borderRadius: 24, boxShadow: "0 30px 80px rgba(0,0,0,.25)", overflow: "hidden", margin: "0 auto 16px" };
-const modalHeader: React.CSSProperties = { padding: "18px 20px", background: "linear-gradient(135deg,#eff6ff,#ffffff)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 };
-const iconButton: React.CSSProperties = { width: 40, height: 40, borderRadius: 999, border: `1px solid ${C.border}`, background: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.navy };
-const infoBox: React.CSSProperties = { background: C.sky, border: `1px solid #dbeafe`, borderRadius: 14, padding: 13, display: "flex", flexDirection: "column", gap: 3, color: C.navy };
-const summaryBox: React.CSSProperties = { background: C.grayLight, border: `1px solid ${C.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 9 };
-const summaryRow: React.CSSProperties = { display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 };
-const primaryButton: React.CSSProperties = { minHeight: 44, border: "none", borderRadius: 12, padding: "10px 15px", background: C.blue, color: C.white, fontSize: 14, fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", boxSizing: "border-box" };
-const secondaryButton: React.CSSProperties = { minHeight: 44, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 15px", background: C.white, color: C.navy, fontSize: 14, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", boxSizing: "border-box" };
-const dangerButton: React.CSSProperties = { minHeight: 38, border: "1px solid #fecaca", borderRadius: 10, padding: "8px 11px", background: C.redLight, color: C.red, fontSize: 12, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", boxSizing: "border-box" };
-const smallButton: React.CSSProperties = { minHeight: 38, border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 11px", background: C.white, color: C.navy, fontSize: 12, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", boxSizing: "border-box" };
+const labelStyle = { display: "flex", alignItems: "center", gap: 6, color: C.navy, fontSize: 12, fontWeight: 850, marginBottom: 7 };
+const inputStyle = { width: "100%", minWidth: 0, height: 46, boxSizing: "border-box", border: `1px solid ${C.border}`, borderRadius: 12, padding: "0 13px", background: C.white, color: C.navy, fontSize: 14, outline: "none" };
+const fieldGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 10 };
+const whiteCard = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, boxShadow: "0 8px 25px rgba(15,23,42,.05)" };
+const emptyCard = { background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 30, textAlign: "center", color: C.gray };
+const choiceGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(180px,100%),1fr))", gap: 9 };
+const choiceButton = { minHeight: 64, border: `1px solid ${C.border}`, borderRadius: 14, padding: 12, textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 4, boxSizing: "border-box" };
+const modalBackdrop = { position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,23,42,.68)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 16, overflowY: "auto", boxSizing: "border-box" };
+const modalCard = { width: "100%", maxWidth: 720, background: C.white, borderRadius: 24, boxShadow: "0 30px 80px rgba(0,0,0,.25)", overflow: "hidden", margin: "0 auto 16px" };
+const modalHeader = { padding: "18px 20px", background: "linear-gradient(135deg,#eff6ff,#ffffff)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 };
+const iconButton = { width: 40, height: 40, borderRadius: 999, border: `1px solid ${C.border}`, background: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: C.navy };
+const infoBox = { background: C.sky, border: `1px solid #dbeafe`, borderRadius: 14, padding: 13, display: "flex", flexDirection: "column", gap: 3, color: C.navy };
+const summaryBox = { background: C.grayLight, border: `1px solid ${C.border}`, borderRadius: 16, padding: 14, display: "grid", gap: 9 };
+const summaryRow = { display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 };
+const primaryButton = { minHeight: 44, border: "none", borderRadius: 12, padding: "10px 15px", background: C.blue, color: C.white, fontSize: 14, fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", boxSizing: "border-box" };
+const secondaryButton = { minHeight: 44, border: `1px solid ${C.border}`, borderRadius: 12, padding: "10px 15px", background: C.white, color: C.navy, fontSize: 14, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", boxSizing: "border-box" };
+const dangerButton = { minHeight: 38, border: "1px solid #fecaca", borderRadius: 10, padding: "8px 11px", background: C.redLight, color: C.red, fontSize: 12, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", boxSizing: "border-box" };
+const smallButton = { minHeight: 38, border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 11px", background: C.white, color: C.navy, fontSize: 12, fontWeight: 850, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", boxSizing: "border-box" };
 
 /* ===================== SMALL COMPONENTS ===================== */
 
-function Badge({ children, color = C.blue }: { children: React.ReactNode; color?: string }) {
+function Badge({ children, color = C.blue }) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 9px", borderRadius: 999, background: `${color}12`, color, fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>{children}</span>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }) {
   return <div><div style={labelStyle}>{label}</div>{children}</div>;
 }
 
-function CarThumb({ car, size = 150 }: { car: any; size?: number }) {
+function CarThumb({ car, size = 150 }) {
   const photo = car?.photos?.[0];
   return (
     <div style={{ width: size, height: size * 0.68, borderRadius: 16, overflow: "hidden", background: "linear-gradient(135deg,#ede9fe,#fff7ed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -190,7 +197,7 @@ function CarThumb({ car, size = 150 }: { car: any; size?: number }) {
 }
 
 function useSeen() {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const ref = useRef(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -198,23 +205,23 @@ function useSeen() {
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold: 0.3 });
     io.observe(el); return () => io.disconnect();
   }, []);
-  return [ref, seen] as const;
+  return [ref, seen];
 }
 
-function CountUp({ to, prefix = "", suffix = "" }: { to: number; prefix?: string; suffix?: string }) {
+function CountUp({ to, prefix = "", suffix = "" }) {
   const [ref, seen] = useSeen();
   const [v, setV] = useState(0);
   useEffect(() => {
     if (!seen) return;
     let raf = 0; const t0 = performance.now();
-    const tick = (t: number) => { const p = Math.min(1, (t - t0) / 1100); setV(Math.round(to * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(tick); };
+    const tick = (t) => { const p = Math.min(1, (t - t0) / 1100); setV(Math.round(to * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [seen, to]);
   return <span ref={ref}>{prefix}{v.toLocaleString("en-IN")}{suffix}</span>;
 }
 
-function Logo({ dark }: { id?: string; dark?: boolean }) {
+function Logo({ dark }) {
   return (
     <span className="sw-logo">
       <span className="sw-logo-badge">S</span>
@@ -227,7 +234,7 @@ function Logo({ dark }: { id?: string; dark?: boolean }) {
 
 /* ===================== BOOKING MODAL ===================== */
 
-function BookingModal({ car, onClose, onConfirm }: { car: any; onClose: () => void; onConfirm: (d: any) => void }) {
+function BookingModal({ car, onClose, onConfirm }) {
   const settings = loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS);
   const minDate = todayISO();
   const [plan, setPlan] = useState("hourly");
@@ -296,7 +303,7 @@ function BookingModal({ car, onClose, onConfirm }: { car: any; onClose: () => vo
   const paymentAmount = paymentType === "advance" ? advance : total;
   const remainingAmount = Math.max(0, total - paymentAmount);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const cleanPhone = phone.replace(/\D/g, "");
     const customerEmail = email.trim().toLowerCase();
@@ -328,9 +335,13 @@ function BookingModal({ car, onClose, onConfirm }: { car: any; onClose: () => vo
       }
       const form = document.createElement("form");
       form.method = "POST"; form.action = paymentData.paymentUrl; form.style.display = "none";
-      Object.entries(paymentData.formData).forEach(([k, v]) => { constButton inp = document.createElement("input");, inp.type = " borderhidden"; inp.name = k; inp.value = StringColor(v ??: ""); form.appendChild(in planp); });
+      Object.entries(paymentData.formData).forEach(([k, v]) => {
+        const inp = document.createElement("input");
+        inp.type = "hidden"; inp.name = k; inp.value = String(v ?? "");
+        form.appendChild(inp);
+      });
       document.body.appendChild(form); form.submit();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Payment start error:", err);
       localStorage.removeItem("sawariya_pending_booking");
       alert(err?.message || "Something went wrong while starting payment.");
@@ -338,8 +349,8 @@ function BookingModal({ car, onClose, onConfirm }: { car: any; onClose: () => vo
     }
   }
 
-  const planButton = (value: string, title: string, text: string) => (
-    <button type="button" onClick={() => setPlan(value)} style={{ ...choice === value ? C.blue : C.border, background: plan === value ? C.sky : C.white }}>
+  const planButton = (value, title, text) => (
+    <button type="button" onClick={() => setPlan(value)} style={{ ...choiceButton, borderColor: plan === value ? C.blue : C.border, background: plan === value ? C.sky : C.white }}>
       <strong>{title}</strong><span>{text}</span>
     </button>
   );
@@ -471,7 +482,7 @@ function BookingModal({ car, onClose, onConfirm }: { car: any; onClose: () => vo
 
 /* ===================== HEADER ===================== */
 
-function SiteHeader({ profile, onLogin }: { profile: any; onLogin: () => void }) {
+function SiteHeader({ profile, onLogin }) {
   const [open, setOpen] = useState(false);
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
@@ -499,19 +510,23 @@ function SiteHeader({ profile, onLogin }: { profile: any; onLogin: () => void })
 
 /* ===================== HERO ===================== */
 
-function Hero({ cities, settings, onSearch, onExplore, onDecorate }: any) {
+function Hero({ cities, settings, onSearch, onExplore, onDecorate }) {
   const today = todayISO();
   const [city, setCity] = useState(cities[0]?.name || "");
   const [pd, setPd] = useState(today);
   const [pt, setPt] = useState("09:00");
   const [dd, setDd] = useState(today);
   const [dt, setDt] = useState("18:00");
-  useEffect(() => { if (!cities.find((c: any) => c.name === city) && cities[0]) setCity(cities[0].name); }, [cities]); // eslint-disable-line
+  useEffect(() => { if (!cities.find((c) => c.name === city) && cities[0]) setCity(cities[0].name); }, [cities]);
 
-  const names = cities.map((c: any) => c.name);
+  const names = cities.map((c) => c.name);
   const cityText = names.length === 0 ? "your city" : names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
-  function submit(e: React.FormEvent) { e.preventDefault(); onSearch({ city, pd, pt, dd, dt }); document.getElementById("cars")?.scrollIntoView({ behavior: "smooth" }); }
+  function submit(e) {
+    e.preventDefault();
+    onSearch({ city, pd, pt, dd, dt });
+    document.getElementById("cars")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   return (
     <>
@@ -542,7 +557,7 @@ function Hero({ cities, settings, onSearch, onExplore, onDecorate }: any) {
       </section>
 
       <form className="sw-search sw-wrap" onSubmit={submit}>
-        <label><span>City</span><div><MapPin size={17} /><select value={city} onChange={(e) => setCity(e.target.value)}>{cities.map((c: any) => <option key={c.id || c.name}>{c.name}</option>)}</select></div></label>
+        <label><span>City</span><div><MapPin size={17} /><select value={city} onChange={(e) => setCity(e.target.value)}>{cities.map((c) => <option key={c.id || c.name}>{c.name}</option>)}</select></div></label>
         <label><span>Pickup date</span><div><CalendarDays size={17} /><input type="date" min={today} value={pd} onChange={(e) => { setPd(e.target.value); if (dd < e.target.value) setDd(e.target.value); }} /></div></label>
         <label><span>Pickup time</span><div><Clock3 size={17} /><input type="time" value={pt} onChange={(e) => setPt(e.target.value)} /></div></label>
         <label><span>Drop date</span><div><CalendarDays size={17} /><input type="date" min={pd} value={dd} onChange={(e) => setDd(e.target.value)} /></div></label>
@@ -563,9 +578,9 @@ function Hero({ cities, settings, onSearch, onExplore, onDecorate }: any) {
   );
 }
 
-/* ===================== PLANS / EXPLORE / DECORATE ===================== */
+/* ===================== PLANS ===================== */
 
-function Plans({ s }: { s: any }) {
+function Plans({ s }) {
   const items = [
     { cls: "p1", icon: <Clock3 size={22} />, title: "Hourly", price: s.hourlyStartingPrice, unit: "per hour", note: `${s.hourlyIncludedKm} km included per hour` },
     { cls: "p2", icon: <Car size={22} />, title: "Daily", price: s.dailyStartingPrice, unit: "per day", note: `${s.dailyIncludedKm} km included per day` },
@@ -588,6 +603,8 @@ function Plans({ s }: { s: any }) {
     </section>
   );
 }
+
+/* ===================== EXPLORE ===================== */
 
 function ExploreSection() {
   return (
@@ -616,6 +633,8 @@ function ExploreSection() {
   );
 }
 
+/* ===================== DECORATE ===================== */
+
 function DecorateSection() {
   return (
     <section className="sw-section sw-decor-wrap" id="decorate">
@@ -640,11 +659,11 @@ function DecorateSection() {
 
 /* ===================== CARS ===================== */
 
-function CarTile({ car, onOpen }: { car: any; onOpen: (c: any) => void }) {
-  const ref = useRef<HTMLElement | null>(null);
+function CarTile({ car, onOpen }) {
+  const ref = useRef(null);
   const photo = car.photos?.[0];
   const price = carPrice(car);
-  function move(e: React.PointerEvent) {
+  function move(e) {
     const el = ref.current; if (!el || e.pointerType === "touch") return;
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width - 0.5;
@@ -652,9 +671,12 @@ function CarTile({ car, onOpen }: { car: any; onOpen: (c: any) => void }) {
     el.style.setProperty("--rx", `${(-y * 5).toFixed(2)}deg`);
     el.style.setProperty("--ry", `${(x * 7).toFixed(2)}deg`);
   }
-  function leave() { ref.current?.style.setProperty("--rx", "0deg"); ref.current?.style.setProperty("--ry", "0deg"); }
+  function leave() {
+    ref.current?.style.setProperty("--rx", "0deg");
+    ref.current?.style.setProperty("--ry", "0deg");
+  }
   return (
-    <article className="sw-tile" ref={ref as any} onPointerMove={move} onPointerLeave={leave}>
+    <article className="sw-tile" ref={ref} onPointerMove={move} onPointerLeave={leave}>
       <div className="sw-tile-img" onClick={() => onOpen(car)}>
         {photo ? <img src={photo} alt={car.name} loading="lazy" /> : <Car size={54} strokeWidth={1.2} />}
         <span className={`sw-status ${car.available ? "ok" : "no"}`}>{car.available ? "Available" : "Rented out"}</span>
@@ -676,13 +698,13 @@ function CarTile({ car, onOpen }: { car: any; onOpen: (c: any) => void }) {
   );
 }
 
-function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClearSchedule, onOpen }: any) {
+function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClearSchedule, onOpen }) {
   const [type, setType] = useState("All");
   const [q, setQ] = useState("");
-  const types = useMemo(() => ["All", ...Array.from(new Set(cars.map((c: any) => c.type).filter(Boolean)))], [cars]);
+  const types = useMemo(() => ["All", ...Array.from(new Set(cars.map((c) => c.type).filter(Boolean)))], [cars]);
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return cars.filter((c: any) => {
+    return cars.filter((c) => {
       const cityOk = cityFilter === "All" || c.city === cityFilter;
       const typeOk = type === "All" || c.type === type;
       const textOk = !t || String(c.name || "").toLowerCase().includes(t) || String(c.type || "").toLowerCase().includes(t) || String(c.city || "").toLowerCase().includes(t);
@@ -705,13 +727,13 @@ function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClea
         )}
         <div className="sw-toolbar">
           <div className="sw-field"><Search size={17} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search cars" /></div>
-          <div className="sw-field"><MapPin size={17} /><select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}><option value="All">All cities</option>{cities.map((c: any) => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}</select></div>
+          <div className="sw-field"><MapPin size={17} /><select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}><option value="All">All cities</option>{cities.map((c) => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}</select></div>
         </div>
         {types.length > 2 && (
           <div className="sw-chips">{types.map((t) => <button key={t} className={`sw-chip ${t === type ? "on" : ""}`} onClick={() => setType(t)}>{t}</button>)}</div>
         )}
         {list.length ? (
-          <div className="sw-grid">{list.map((c: any) => <CarTile key={c.id || c.name} car={c} onOpen={onOpen} />)}</div>
+          <div className="sw-grid">{list.map((c) => <CarTile key={c.id || c.name} car={c} onOpen={onOpen} />)}</div>
         ) : (
           <div className="sw-empty">
             <Car size={40} strokeWidth={1.3} />
@@ -727,7 +749,7 @@ function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClea
 
 /* ===================== CAR DETAIL ===================== */
 
-function CarDetail({ car, settings, onBack, onBook, onZoom }: any) {
+function CarDetail({ car, settings, onBack, onBook, onZoom }) {
   const [idx, setIdx] = useState(0);
   const photos = car.photos || [];
   const rates = [
@@ -749,7 +771,7 @@ function CarDetail({ car, settings, onBack, onBook, onZoom }: any) {
             {photos[idx] ? <img src={photos[idx]} alt={car.name} /> : <Car size={72} strokeWidth={1.1} />}
           </div>
           {photos.length > 1 && (
-            <div className="sw-thumbs">{photos.map((src: string, i: number) => <img key={i} src={src} alt="" className={i === idx ? "on" : ""} onClick={() => setIdx(i)} />)}</div>
+            <div className="sw-thumbs">{photos.map((src, i) => <img key={i} src={src} alt="" className={i === idx ? "on" : ""} onClick={() => setIdx(i)} />)}</div>
           )}
           {photos.length > 0 && <p className="sw-note">Tap the photo to zoom.</p>}
         </div>
@@ -774,12 +796,12 @@ function CarDetail({ car, settings, onBack, onBook, onZoom }: any) {
   );
 }
 
-/* ===================== STATS / WHY / FAQ / CALLBACK / FOOTER ===================== */
+/* ===================== STATS / WHY / FAQ ===================== */
 
-function Stats({ cars, cities, s }: any) {
-  const priced = cars.map(carPrice).filter((p: number) => p > 0);
-  const avg = priced.length ? Math.round(priced.reduce((a: number, b: number) => a + b, 0) / priced.length) : Number(s.dailyStartingPrice) || 0;
-  const free = cars.filter((c: any) => c.available).length;
+function Stats({ cars, cities, s }) {
+  const priced = cars.map(carPrice).filter((p) => p > 0);
+  const avg = priced.length ? Math.round(priced.reduce((a, b) => a + b, 0) / priced.length) : Number(s.dailyStartingPrice) || 0;
+  const free = cars.filter((c) => c.available).length;
   const items = [
     { k: "Cheapest hourly rate", v: <CountUp to={Number(s.hourlyStartingPrice) || 0} prefix="₹" />, u: "per hour" },
     { k: "Average daily price", v: <CountUp to={avg} prefix="₹" />, u: "per day" },
@@ -814,9 +836,9 @@ function Why() {
   );
 }
 
-function Faqs({ s }: { s: any }) {
+function Faqs({ s }) {
   const [open, setOpen] = useState(0);
-  const faqs: [string, string][] = [
+  const faqs = [
     ["What is the minimum age to rent a car?", "You must be at least 18 and hold a valid driving licence."],
     ["What do I need to carry?", "Your original driving licence and a government photo ID. We confirm the rest when you book."],
     ["Is there a security deposit?", "Yes. The amount depends on the car and is told to you before pickup."],
@@ -845,11 +867,13 @@ function Faqs({ s }: { s: any }) {
   );
 }
 
-function Callback({ city }: { city: string }) {
+/* ===================== CALLBACK / FOOTER ===================== */
+
+function Callback({ city }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [state, setState] = useState("idle");
-  async function submit(e: React.FormEvent) {
+  async function submit(e) {
     e.preventDefault();
     const clean = phone.replace(/\D/g, "");
     if (!/^\d{10}$/.test(clean)) { setState("bad"); return; }
@@ -886,7 +910,7 @@ function Callback({ city }: { city: string }) {
   );
 }
 
-function SiteFooter({ cities }: { cities: any[] }) {
+function SiteFooter({ cities }) {
   return (
     <>
       <section className="sw-section">
@@ -923,15 +947,15 @@ function SiteFooter({ cities }: { cities: any[] }) {
 
 /* ===================== CUSTOMER VIEW ===================== */
 
-function CustomerView({ cars, cities: citiesProp, onBook }: any) {
-  const cities = (Array.isArray(citiesProp) ? citiesProp : []).filter((c: any) => c.active);
+function CustomerView({ cars, cities: citiesProp, onBook }) {
+  const cities = (Array.isArray(citiesProp) ? citiesProp : []).filter((c) => c.active);
   const [cityFilter, setCityFilter] = useState("All");
-  const [schedule, setSchedule] = useState<any>(null);
-  const [detailCar, setDetailCar] = useState<any>(null);
-  const [bookingCar, setBookingCar] = useState<any>(null);
-  const [zoom, setZoom] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState(null);
+  const [detailCar, setDetailCar] = useState(null);
+  const [bookingCar, setBookingCar] = useState(null);
+  const [zoom, setZoom] = useState(null);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [profile, setProfile] = useState<any>(() => loadShared("sawariya_customer_profile", null));
+  const [profile, setProfile] = useState(() => loadShared("sawariya_customer_profile", null));
   const [loginName, setLoginName] = useState("");
   const [loginPhone, setLoginPhone] = useState("");
 
@@ -944,16 +968,22 @@ function CustomerView({ cars, cities: citiesProp, onBook }: any) {
     return () => { document.body.style.overflowY = prev; };
   }, [detailCar]);
 
-  function openLogin() { setLoginName(profile?.name || ""); setLoginPhone(profile?.phone || ""); setLoginOpen(true); }
+  function openLogin() {
+    setLoginName(profile?.name || "");
+    setLoginPhone(profile?.phone || "");
+    setLoginOpen(true);
+  }
   function saveProfile() {
     const name = loginName.trim();
     const phone = loginPhone.replace(/\D/g, "");
     if (!name || !/^\d{10}$/.test(phone)) { alert("Enter your name and valid 10-digit mobile number."); return; }
     const p = { name, phone };
-    saveShared("sawariya_customer_profile", p); setProfile(p); setLoginOpen(false);
+    saveShared("sawariya_customer_profile", p);
+    setProfile(p);
+    setLoginOpen(false);
   }
-  function handleConfirmBooking(data: any) { onBook(data); setBookingCar(null); setDetailCar(null); }
-  function scrollTo(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  function handleConfirmBooking(data) { onBook(data); setBookingCar(null); setDetailCar(null); }
+  function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
 
   const callbackCity = cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
 
@@ -962,7 +992,7 @@ function CustomerView({ cars, cities: citiesProp, onBook }: any) {
       <style>{CSS}</style>
       <SiteHeader profile={profile} onLogin={openLogin} />
       <Hero cities={cities} settings={settings}
-        onSearch={(s: any) => { setSchedule(s); setCityFilter(s.city || "All"); }}
+        onSearch={(s) => { setSchedule(s); setCityFilter(s.city || "All"); }}
         onExplore={() => scrollTo("explore")}
         onDecorate={() => scrollTo("decorate")} />
       <Plans s={settings} />
@@ -1272,9 +1302,9 @@ html{scroll-behavior:smooth}
 }
 `;
 
-/* ===================== ADMIN ===================== */
+/* ===================== ADMIN COMPONENTS ===================== */
 
-function StatCard({ icon, label, value, color = C.blue }: any) {
+function StatCard({ icon, label, value, color = C.blue }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 18, display: "flex", alignItems: "center", gap: 13 }}>
       <div style={{ width: 44, height: 44, borderRadius: 14, background: `${color}12`, color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
@@ -1286,8 +1316,8 @@ function StatCard({ icon, label, value, color = C.blue }: any) {
   );
 }
 
-function VehiclePricingEditor({ car, onSaved }: any) {
-  const [form, setForm] = useState<any>({
+function VehiclePricingEditor({ car, onSaved }) {
+  const [form, setForm] = useState({
     hourlyRate: car.hourlyRate ?? "", dailyRate: car.dailyRate ?? car.price24 ?? "",
     weeklyRate: car.weeklyRate ?? "", monthlyRate: car.monthlyRate ?? "",
     longTermRate: car.longTermRate ?? "", hourlyKm: car.hourlyKm ?? 20, dailyKm: car.dailyKm ?? 280,
@@ -1295,15 +1325,15 @@ function VehiclePricingEditor({ car, onSaved }: any) {
     fuelCostPerKm: car.fuelCostPerKm ?? "", securityDeposit: car.securityDeposit ?? "",
   });
   async function save() {
-    const updated: any = { ...car, ...form };
+    const updated = { ...car, ...form };
     ["hourlyRate","dailyRate","weeklyRate","monthlyRate","longTermRate","hourlyKm","dailyKm","extraKmRate","driverCost","fuelCostPerKm","securityDeposit"].forEach((k) => {
       if (form[k] !== "") updated[k] = Number(form[k]);
     });
     try { await upsertCar(updated); onSaved(updated); alert(`${car.name} pricing saved.`); }
-    catch (e: any) { alert(e?.message || "Could not save vehicle pricing."); }
+    catch (e) { alert(e?.message || "Could not save vehicle pricing."); }
   }
-  const field = (key: string, label: string) => (
-    <Field label={label}><input type="number" value={form[key]} onChange={(e) => setForm((old: any) => ({ ...old, [key]: e.target.value }))} style={inputStyle} /></Field>
+  const field = (key, label) => (
+    <Field label={label}><input type="number" value={form[key]} onChange={(e) => setForm((old) => ({ ...old, [key]: e.target.value }))} style={inputStyle} /></Field>
   );
   return (
     <div style={{ padding: 14, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12 }}>
@@ -1320,17 +1350,16 @@ function VehiclePricingEditor({ car, onSaved }: any) {
   );
 }
 
-function BusinessControls({ cars, setCars }: any) {
-  const [settings, setSettings] = useState<any>(() => loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS));
-  const [packages, setPackages] = useState<any[]>(() => loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES));
-  const [decorations, setDecorations] = useState<any[]>(() => loadShared("sawariya_decorations", DEFAULT_DECORATIONS));
+function BusinessControls({ cars, setCars }) {
+  const [settings, setSettings] = useState(() => loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS));
+  const [packages, setPackages] = useState(() => loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES));
+  const [decorations, setDecorations] = useState(() => loadShared("sawariya_decorations", DEFAULT_DECORATIONS));
   const [section, setSection] = useState("pricing");
   const saveSettings = () => { saveShared("sawariya_business_settings", settings); alert("Pricing settings saved."); };
   const saveContent = () => { saveShared("sawariya_travel_packages", packages); saveShared("sawariya_decorations", decorations); alert("Travel packages and decorations saved."); };
-  const update = (setter: any, index: number, key: string, value: any) =>
-    setter((list: any[]) => list.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
-  const numberField = (key: string, label: string) => (
-    <Field label={label}><input type="number" value={settings[key]} onChange={(e) => setSettings((old: any) => ({ ...old, [key]: Number(e.target.value) }))} style={inputStyle} /></Field>
+  const update = (setter, index, key, value) => setter((list) => list.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
+  const numberField = (key, label) => (
+    <Field label={label}><input type="number" value={settings[key]} onChange={(e) => setSettings((old) => ({ ...old, [key]: Number(e.target.value) }))} style={inputStyle} /></Field>
   );
   return (
     <section style={{ background: C.grayLight, minHeight: "calc(100vh - 120px)", padding: "20px 16px 60px" }}>
@@ -1372,11 +1401,9 @@ function BusinessControls({ cars, setCars }: any) {
             <>
               <h2 style={{ marginTop: 0 }}>Vehicle-specific pricing</h2>
               <p style={{ color: C.gray }}>Leave a field blank to use the business default. Security deposit is stored only for admin use.</p>
-              {cars.length ? (
-                cars.map((car: any) => (
-                  <VehiclePricingEditor key={car.id} car={car} onSaved={(updated: any) => setCars((list: any[]) => list.map((x) => (x.id === updated.id ? updated : x)))} />
-                ))
-              ) : <div style={emptyCard}>Add a vehicle first from Vehicles.</div>}
+              {cars.length ? cars.map((car) => (
+                <VehiclePricingEditor key={car.id} car={car} onSaved={(updated) => setCars((list) => list.map((x) => (x.id === updated.id ? updated : x)))} />
+              )) : <div style={emptyCard}>Add a vehicle first from Vehicles.</div>}
             </>
           )}
           {section === "travel" && (
@@ -1418,16 +1445,16 @@ function BusinessControls({ cars, setCars }: any) {
   );
 }
 
-function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: any) {
+function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }) {
   const [tab, setTab] = useState("dashboard");
-  const [leadList, setLeadList] = useState<any[]>(Array.isArray(leads) ? leads : []);
+  const [leadList, setLeadList] = useState(Array.isArray(leads) ? leads : []);
   useEffect(() => {
     if (tab !== "leads") return;
     (async () => { try { const rows = await fetchLeads(); setLeadList(rows || []); } catch { setLeadList([]); } })();
   }, [tab]);
 
-  const [editingCar, setEditingCar] = useState<string | null>(null);
-  const [carForm, setCarForm] = useState<any>({
+  const [editingCar, setEditingCar] = useState(null);
+  const [carForm, setCarForm] = useState({
     name: "", type: "Hatchback", seats: 5, fuel: "Petrol", transmission: "Manual",
     price8: "", price12: "", price24: "", city: "", photos: [], available: true,
   });
@@ -1437,15 +1464,15 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
   const safeBookings = Array.isArray(bookings) ? bookings : [];
   const safeCities = Array.isArray(cities) ? cities : [];
 
-  const totalRevenue = safeBookings.reduce((s: number, b: any) => s + Number(b.paidAmount ?? b.total ?? 0), 0);
-  const totalPending = safeBookings.reduce((s: number, b: any) => s + Number(b.remainingAmount ?? 0), 0);
+  const totalRevenue = safeBookings.reduce((s, b) => s + Number(b.paidAmount ?? b.total ?? 0), 0);
+  const totalPending = safeBookings.reduce((s, b) => s + Number(b.remainingAmount ?? 0), 0);
 
   function resetCarForm() {
     setEditingCar(null);
-    setCarForm({ name: "", type: "Hatchback", seats: 5, fuel: "Petrol", transmission: "Manual", price8: "", price12: "", price24: "", city: cities.find((c: any) => c.active)?.name || "", photos: [], available: true });
+    setCarForm({ name: "", type: "Hatchback", seats: 5, fuel: "Petrol", transmission: "Manual", price8: "", price12: "", price24: "", city: cities.find((c) => c.active)?.name || "", photos: [], available: true });
   }
 
-  function editCar(car: any) {
+  function editCar(car) {
     setEditingCar(car.id);
     setCarForm({
       name: car.name || "", type: car.type || "Hatchback", seats: car.seats || 5,
@@ -1457,7 +1484,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
     setTab("cars");
   }
 
-  async function saveCar(e: React.FormEvent) {
+  async function saveCar(e) {
     e.preventDefault();
     if (!carForm.name.trim()) return alert("Enter car name.");
     if (!carForm.city) return alert("Select a city.");
@@ -1467,7 +1494,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
     if (!carForm.price12 || Number(carForm.price12) <= 0) return alert("Enter a valid 12-hour price.");
     if (!carForm.price24 || Number(carForm.price24) <= 0) return alert("Enter a valid 24-hour price.");
 
-    const vehicleData: any = {
+    const vehicleData = {
       ...carForm, name: carForm.name.trim(), seats: Number(carForm.seats),
       price8: Number(carForm.price8), price12: Number(carForm.price12), price24: Number(carForm.price24),
       hourlyRate: Number(carForm.price8), dailyRate: Number(carForm.price24),
@@ -1479,9 +1506,9 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
       extraKmRate: Number(DEFAULT_BUSINESS_SETTINGS.extraKmRate),
       driverCost: Number(DEFAULT_BUSINESS_SETTINGS.driverCostPerDay),
     };
-    let saved: any = { id: editingCar || undefined, ...vehicleData };
+    let saved = { id: editingCar || undefined, ...vehicleData };
     try {
-      const photos: string[] = [];
+      const photos = [];
       for (const p of saved.photos || []) {
         if (typeof p === "string" && p.startsWith("data:")) photos.push(await uploadPhoto(p));
         else photos.push(p);
@@ -1490,65 +1517,65 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
       const cloudId = await upsertCar(saved);
       if (cloudId) saved.id = cloudId;
       if (!saved.id) saved.id = uid("car");
-    } catch (err: any) { return alert("Cloud save failed: " + (err.message || err)); }
+    } catch (err) { return alert("Cloud save failed: " + (err.message || err)); }
 
-    if (editingCar) setCars((prev: any[]) => prev.map((c) => (c.id === editingCar ? { ...c, ...saved } : c)));
-    else setCars((prev: any[]) => [...prev, saved]);
+    if (editingCar) setCars((prev) => prev.map((c) => (c.id === editingCar ? { ...c, ...saved } : c)));
+    else setCars((prev) => [...prev, saved]);
     const wasEditing = Boolean(editingCar);
     resetCarForm();
     alert(wasEditing ? "Car updated successfully." : "Car added successfully.");
   }
 
-  async function deleteCar(id: string) {
-    const car = cars.find((c: any) => c.id === id);
+  async function deleteCar(id) {
+    const car = cars.find((c) => c.id === id);
     if (!car) return;
     if (!window.confirm(`Delete ${car.name}?`)) return;
     try { await deleteCarCloud(id); } catch (e) { console.error(e); }
-    setCars((prev: any[]) => prev.filter((c) => c.id !== id));
+    setCars((prev) => prev.filter((c) => c.id !== id));
   }
 
-  function toggleAvailability(id: string) {
-    setCars((prev: any[]) => prev.map((c) => (c.id === id ? { ...c, available: !c.available } : c)));
+  function toggleAvailability(id) {
+    setCars((prev) => prev.map((c) => (c.id === id ? { ...c, available: !c.available } : c)));
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>, carId: string | null = null) {
+  async function handlePhotoUpload(e, carId = null) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     try {
-      const compressed: string[] = [];
+      const compressed = [];
       for (const f of files) { if (!f.type.startsWith("image/")) continue; compressed.push(await compressImage(f)); }
-      if (carId) setCars((prev: any[]) => prev.map((c) => (c.id === carId ? { ...c, photos: [...(c.photos || []), ...compressed] } : c)));
-      else setCarForm((prev: any) => ({ ...prev, photos: [...(prev.photos || []), ...compressed] }));
+      if (carId) setCars((prev) => prev.map((c) => (c.id === carId ? { ...c, photos: [...(c.photos || []), ...compressed] } : c)));
+      else setCarForm((prev) => ({ ...prev, photos: [...(prev.photos || []), ...compressed] }));
     } catch { alert("Unable to process the selected image."); }
     e.target.value = "";
   }
 
-  function removeFormPhoto(index: number) {
-    setCarForm((prev: any) => ({ ...prev, photos: prev.photos.filter((_: any, i: number) => i !== index) }));
+  function removeFormPhoto(index) {
+    setCarForm((prev) => ({ ...prev, photos: prev.photos.filter((_, i) => i !== index) }));
   }
-  function removeCarPhoto(carId: string, index: number) {
-    setCars((prev: any[]) => prev.map((c) => c.id === carId ? { ...c, photos: (c.photos || []).filter((_: any, i: number) => i !== index) } : c));
+  function removeCarPhoto(carId, index) {
+    setCars((prev) => prev.map((c) => c.id === carId ? { ...c, photos: (c.photos || []).filter((_, i) => i !== index) } : c));
   }
 
-  async function addCity(e: React.FormEvent) {
+  async function addCity(e) {
     e.preventDefault();
     const name = newCity.trim();
     if (!name) return;
-    if (cities.some((c: any) => c.name.toLowerCase() === name.toLowerCase())) return alert("City already exists.");
+    if (cities.some((c) => c.name.toLowerCase() === name.toLowerCase())) return alert("City already exists.");
     const city = { name, active: true };
-    try { await upsertCity(city); } catch (err: any) { return alert("City save failed: " + (err.message || err)); }
-    setCities((prev: any[]) => [...prev, { id: uid("city"), ...city }]);
+    try { await upsertCity(city); } catch (err) { return alert("City save failed: " + (err.message || err)); }
+    setCities((prev) => [...prev, { id: uid("city"), ...city }]);
     setNewCity("");
   }
-  function toggleCity(id: string) {
-    setCities((prev: any[]) => prev.map((c) => (c.id === id ? { ...c, active: !c.active } : c)));
+  function toggleCity(id) {
+    setCities((prev) => prev.map((c) => (c.id === id ? { ...c, active: !c.active } : c)));
   }
-  function deleteCity(id: string) {
-    const city = cities.find((c: any) => c.id === id);
+  function deleteCity(id) {
+    const city = cities.find((c) => c.id === id);
     if (!city) return;
-    if (cars.some((c: any) => c.city === city.name)) return alert("This city is currently assigned to one or more cars. Change those cars first.");
+    if (cars.some((c) => c.city === city.name)) return alert("This city is currently assigned to one or more cars. Change those cars first.");
     if (!window.confirm(`Delete ${city.name}?`)) return;
-    setCities((prev: any[]) => prev.filter((c) => c.id !== id));
+    setCities((prev) => prev.filter((c) => c.id !== id));
   }
 
   return (
@@ -1570,12 +1597,12 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 16px", display: "flex", gap: 8, overflowX: "auto" }}>
           {[["dashboard","Dashboard"],["cars","Vehicles"],["bookings","Bookings"],["leads","Leads"],["cities","Cities"],["business","Business"]].map(([value, label]) => (
             <button type="button" key={value} onClick={() => setTab(value)}
-              style={{ border: "none", borderRadius: 12, padding: "10px 14px", background: tab === value ? C.blue : C.grayLight, color: tab === value ? C.white : C.navy, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" }}>
+              style={{ border: "none", borderRadius: 12div, padding: "10px 14px", background: tab === value ? C.blue : C.grayLight, color: tab === value ? C.white : C.navy, fontWeight: 850, cursor: "pointer", whiteSpace: "nowrap" }}>
               {label}
             </button>
           ))}
         </div>
-      </div>
+      </>
 
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "22px 16px 60px" }}>
         {tab === "dashboard" && (
@@ -1586,8 +1613,8 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 12 }}>
               <StatCard icon={<Car size={21} />} label="Total Vehicles" value={safeCars.length} color={C.blue} />
-              <StatCard icon={<CheckCircle2 size={21} />} label="Available" value={safeCars.filter((c: any) => c.available).length} color={C.green} />
-              <StatCard icon={<Clock3 size={21} />} label="Rented" value={safeCars.filter((c: any) => !c.available).length} color={C.orange} />
+              <StatCard icon={<CheckCircle2 size={21} />} label="Available" value={safeCars.filter((c) => c.available).length} color={C.green} />
+              <StatCard icon={<Clock3 size={21} />} label="Rented" value={safeCars.filter((c) => !c.available).length} color={C.orange} />
               <StatCard icon={<IndianRupee size={21} />} label="Money Collected" value={fmtINR(totalRevenue)} color={C.green} />
               <StatCard icon={<CreditCard size={21} />} label="Pending Later" value={fmtINR(totalPending)} color={C.orange} />
               <StatCard icon={<CalendarDays size={21} />} label="Total Bookings" value={safeBookings.length} color={C.blue} />
@@ -1614,31 +1641,31 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
               <form onSubmit={saveCar}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(180px, 100%), 1fr))", gap: 13 }}>
                   <div><label style={labelStyle}>Car Name</label>
-                    <input value={carForm.name} onChange={(e) => setCarForm((p: any) => ({ ...p, name: e.target.value }))} placeholder="Maruti Swift" style={inputStyle} /></div>
+                    <input value={carForm.name} onChange={(e) => setCarForm((p) => ({ ...p, name: e.target.value }))} placeholder="Maruti Swift" style={inputStyle} /></div>
                   <div><label style={labelStyle}>Type</label>
-                    <select value={carForm.type} onChange={(e) => setCarForm((p: any) => ({ ...p, type: e.target.value }))} style={inputStyle}>
+                    <select value={carForm.type} onChange={(e) => setCarForm((p) => ({ ...p, type: e.target.value }))} style={inputStyle}>
                       <option>Hatchback</option><option>Sedan</option><option>SUV</option><option>MUV</option><option>Luxury</option>
                     </select></div>
                   <div><label style={labelStyle}>Seats</label>
-                    <input type="number" min="2" max="12" value={carForm.seats} onChange={(e) => setCarForm((p: any) => ({ ...p, seats: e.target.value }))} style={inputStyle} /></div>
+                    <input type="number" min="2" max="12" value={carForm.seats} onChange={(e) => setCarForm((p) => ({ ...p, seats: e.target.value }))} style={inputStyle} /></div>
                   <div><label style={labelStyle}>Fuel</label>
-                    <select value={carForm.fuel} onChange={(e) => setCarForm((p: any) => ({ ...p, fuel: e.target.value }))} style={inputStyle}>
+                    <select value={carForm.fuel} onChange={(e) => setCarForm((p) => ({ ...p, fuel: e.target.value }))} style={inputStyle}>
                       <option>Petrol</option><option>Diesel</option><option>CNG</option><option>Electric</option>
                     </select></div>
                   <div><label style={labelStyle}>Transmission</label>
-                    <select value={carForm.transmission} onChange={(e) => setCarForm((p: any) => ({ ...p, transmission: e.target.value }))} style={inputStyle}>
+                    <select value={carForm.transmission} onChange={(e) => setCarForm((p) => ({ ...p, transmission: e.target.value }))} style={inputStyle}>
                       <option>Manual</option><option>Automatic</option>
                     </select></div>
                   <div><label style={labelStyle}>8 Hour Price</label>
-                    <input type="number" min="1" value={carForm.price8} onChange={(e) => setCarForm((p: any) => ({ ...p, price8: e.target.value }))} placeholder="999" style={inputStyle} /></div>
+                    <input type="number" min="1" value={carForm.price8} onChange={(e) => setCarForm((p) => ({ ...p, price8: e.target.value }))} placeholder="999" style={inputStyle} /></div>
                   <div><label style={labelStyle}>12 Hour Price</label>
-                    <input type="number" min="1" value={carForm.price12} onChange={(e) => setCarForm((p: any) => ({ ...p, price12: e.target.value }))} placeholder="1499" style={inputStyle} /></div>
+                    <input type="number" min="1" value={carForm.price12} onChange={(e) => setCarForm((p) => ({ ...p, price12: e.target.value }))} placeholder="1499" style={inputStyle} /></div>
                   <div><label style={labelStyle}>24 Hour Price</label>
-                    <input type="number" min="1" value={carForm.price24} onChange={(e) => setCarForm((p: any) => ({ ...p, price24: e.target.value }))} placeholder="2499" style={inputStyle} /></div>
+                    <input type="number" min="1" value={carForm.price24} onChange={(e) => setCarForm((p) => ({ ...p, price24: e.target.value }))} placeholder="2499" style={inputStyle} /></div>
                   <div><label style={labelStyle}>City</label>
-                    <select value={carForm.city} onChange={(e) => setCarForm((p: any) => ({ ...p, city: e.target.value }))} style={inputStyle}>
+                    <select value={carForm.city} onChange={(e) => setCarForm((p) => ({ ...p, city: e.target.value }))} style={inputStyle}>
                       <option value="">Select City</option>
-                      {cities.filter((c: any) => c.active).map((c: any) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      {cities.filter((c) => c.active).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select></div>
                 </div>
 
@@ -1655,7 +1682,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
                   </div>
                   {carForm.photos.length > 0 && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10, marginTop: 14 }}>
-                      {carForm.photos.map((photo: string, i: number) => (
+                      {carForm.photos.map((photo, i) => (
                         <div key={`${photo}-${i}`} style={{ position: "relative", aspectRatio: "4 / 3", borderRadius: 12, overflow: "hidden", background: "#e2e8f0" }}>
                           <img src={photo} alt={`Vehicle ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           <button type="button" onClick={() => removeFormPhoto(i)} style={{ position: "absolute", right: 5, top: 5, width: 28, height: 28, borderRadius: 999, border: "none", background: "rgba(220,38,38,.9)", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1683,7 +1710,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
                   <div style={{ fontSize: 12, marginTop: 4 }}>Use "Add Vehicle" to add your first car.</div>
                 </div>
               )}
-              {cars.map((car: any) => (
+              {cars.map((car) => (
                 <div key={car.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 12, display: "grid", gridTemplateColumns: "90px minmax(0,1fr)", gap: 13 }}>
                   <CarThumb car={car} size={90} />
                   <div style={{ minWidth: 0 }}>
@@ -1709,7 +1736,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
                     </div>
                     {car.photos?.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-                        {car.photos.map((photo: string, i: number) => (
+                        {car.photos.map((photo, i) => (
                           <div key={`${car.id}-${i}`} style={{ position: "relative", width: 75, height: 55, borderRadius: 9, overflow: "hidden" }}>
                             <img src={photo} alt={`${car.name} ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                             <button type="button" onClick={() => removeCarPhoto(car.id, i)} style={{ position: "absolute", right: 3, top: 3, width: 21, height: 21, borderRadius: 999, border: "none", background: "rgba(220,38,38,.9)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={12} /></button>
@@ -1734,7 +1761,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 40, textAlign: "center", color: C.gray }}>No bookings yet.</div>
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
-                {bookings.slice().reverse().map((b: any) => (
+                {bookings.slice().reverse().map((b) => (
                   <div key={b.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 16 }}>
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12 }}>
                       <div>
@@ -1774,7 +1801,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 40, textAlign: "center", color: C.gray }}>No leads yet.</div>
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
-                {leadList.map((l: any) => (
+                {leadList.map((l) => (
                   <div key={l.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 16 }}>
                     <strong style={{ fontSize: 18 }}>{l.phone}</strong>
                     <div style={{ color: C.gray, fontSize: 13, marginTop: 6 }}>{l.name || "—"} · {l.city || "—"} · {l.car_name || "—"}</div>
@@ -1800,7 +1827,7 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
               <button type="submit" style={primaryButton}><Plus size={16} /> Add City</button>
             </form>
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              {cities.map((c: any) => (
+              {cities.map((c) => (
                 <div key={c.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: 14, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <MapPin size={19} color={C.blue} />
@@ -1823,10 +1850,10 @@ function AdminView({ cars, setCars, cities, setCities, bookings, leads = [] }: a
   );
 }
 
-class AdminErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; message: string }> {
-  constructor(props: any) { super(props); this.state = { hasError: false, message: "" }; }
-  static getDerivedStateFromError(error: any) { return { hasError: true, message: error?.message || "Admin panel error" }; }
-  componentDidCatch(error: any, info: any) { console.error("Sawariya Admin Panel Error", error, info); }
+class AdminErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, message: "" }; }
+  static getDerivedStateFromError(error) { return { hasError: true, message: error?.message || "Admin panel error" }; }
+  componentDidCatch(error, info) { console.error("Sawariya Admin Panel Error", error, info); }
   render() {
     if (this.state.hasError) {
       return (
@@ -1845,10 +1872,10 @@ class AdminErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   }
 }
 
-function AdminGate({ cars, setCars, cities, setCities, bookings, leads = [] }: any) {
+function AdminGate({ cars, setCars, cities, setCities, bookings, leads = [] }) {
   const [passcode, setPasscode] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
-  function login(e: React.FormEvent) {
+  function login(e) {
     e.preventDefault();
     if (passcode === ADMIN_PASSCODE) { setLoggedIn(true); setPasscode(""); }
     else alert("Incorrect admin passcode.");
@@ -1878,10 +1905,10 @@ function AdminGate({ cars, setCars, cities, setCities, bookings, leads = [] }: a
 /* ===================== APP ROOT ===================== */
 
 function App() {
-  const [cars, setCars] = useState<any[]>(() => loadCars());
-  const [cities, setCities] = useState<any[]>(() => loadShared("sawariya_cities", seedCities));
-  const [bookings, setBookings] = useState<any[]>(() => loadShared("sawariya_bookings", []));
-  const [leads, setLeads] = useState<any[]>([]);
+  const [cars, setCars] = useState(() => loadCars());
+  const [cities, setCities] = useState(() => loadShared("sawariya_cities", seedCities));
+  const [bookings, setBookings] = useState(() => loadShared("sawariya_bookings", []));
+  const [leads, setLeads] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -1896,7 +1923,7 @@ function App() {
         const [c, ci, b, l] = await Promise.all([fetchCars(), fetchCities(), fetchBookings(), fetchLeads()]);
         setCars(c);
         const fetched = Array.isArray(ci) ? ci : [];
-        const missing = seedCities.filter((s) => !fetched.some((x: any) => x.name === s.name));
+        const missing = seedCities.filter((s) => !fetched.some((x) => x.name === s.name));
         setCities([...fetched, ...missing]);
         if (b.length) setBookings(b);
         setLeads(Array.isArray(l) ? l : []);
@@ -1904,7 +1931,7 @@ function App() {
     })();
   }, []);
 
-  function confirmBooking(data: any) {
+  function confirmBooking(data) {
     const booking = { id: uid("booking"), createdAt: new Date().toISOString(), ...data };
     insertBooking(booking).catch((err) => console.error(err));
     setBookings((prev) => [...prev, booking]);
