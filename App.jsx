@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
   MapPin,
@@ -758,15 +758,33 @@ function BookingModal({ car, onClose, onConfirm }) {
 
 function Field({ label, children }) { return <div><div style={labelStyle}>{label}</div>{children}</div>; }
 
-/* =========================================================
-   ADMIN STAT CARD
-========================================================= */
-
-const PHONE_1 = { show: "74152 28011", href: "tel:+917415228011" };
-const PHONE_2 = { show: "89828 02145", href: "tel:+918982802145" };
-const WHATSAPP = "https://wa.me/917415228011";
-const MAPS = "https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic";
-const MAP_EMBED = "https://maps.google.com/maps?q=22.7525840,75.8916329&z=16&output=embed";
+const SITE_DEFAULTS = {
+  address: "Indore",
+  lat: "22.7525840",
+  lng: "75.8916329",
+  mapsLink: "https://maps.app.goo.gl/7wp7CfqBHhb1BbDm9?g_st=ic",
+  phone1: "74152 28011",
+  phone2: "89828 02145",
+  whatsapp: "917415228011",
+};
+const onlyDigits = (p) => String(p || "").replace(/\D/g, "");
+const withCode = (p) => {
+  const d = onlyDigits(p);
+  return d.length === 10 ? `91${d}` : d;
+};
+function buildContact(info) {
+  const i = { ...SITE_DEFAULTS, ...(info || {}) };
+  return {
+    address: i.address,
+    p1: { show: i.phone1, href: `tel:+${withCode(i.phone1)}` },
+    p2: { show: i.phone2, href: `tel:+${withCode(i.phone2)}` },
+    wa: `https://wa.me/${withCode(i.whatsapp)}`,
+    maps: i.mapsLink,
+    embed: `https://maps.google.com/maps?q=${i.lat},${i.lng}&z=16&output=embed`,
+  };
+}
+const ContactCtx = createContext(buildContact(SITE_DEFAULTS));
+const useContact = () => useContext(ContactCtx);
 
 const inr = (v) => fmtINR(v);
 const carPrice = (c) =>
@@ -858,6 +876,7 @@ function Logo({ id = "a", dark }) {
 
 /* ------------------------------ header ------------------------------ */
 function SiteHeader({ profile, onLogin }) {
+  const k = useContact();
   const [open, setOpen] = useState(false);
   const [stuck, setStuck] = useState(false);
   useEffect(() => {
@@ -886,8 +905,8 @@ function SiteHeader({ profile, onLogin }) {
           ))}
         </nav>
         <div className="sw-header-cta">
-          <a className="sw-call" href={PHONE_1.href}>
-            <Phone size={16} /> {PHONE_1.show}
+          <a className="sw-call" href={k.p1.href}>
+            <Phone size={16} /> {k.p1.show}
           </a>
           <button className="sw-login" onClick={onLogin}>
             {profile?.name ? `Hi, ${profile.name.split(" ")[0]}` : "Login"}
@@ -1171,6 +1190,7 @@ function CarTile({ car, onOpen }) {
 }
 
 function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClearSchedule, onOpen }) {
+  const k = useContact();
   const [type, setType] = useState("All");
   const [q, setQ] = useState("");
   const types = useMemo(
@@ -1243,8 +1263,8 @@ function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClea
           <div className="sw-empty">
             <Car size={40} strokeWidth={1.3} />
             <h3>No cars to show right now</h3>
-            <p>Call {PHONE_1.show} or message us on WhatsApp and we will check what is free.</p>
-            <a className="sw-btn sw-btn-saf" href={WHATSAPP} target="_blank" rel="noreferrer">
+            <p>Call {k.p1.show} or message us on WhatsApp and we will check what is free.</p>
+            <a className="sw-btn sw-btn-saf" href={k.wa} target="_blank" rel="noreferrer">
               <MessageCircle size={16} /> Ask on WhatsApp
             </a>
           </div>
@@ -1256,6 +1276,7 @@ function CarsSection({ cars, cities, cityFilter, setCityFilter, schedule, onClea
 
 /* ------------------------------ car detail ------------------------------ */
 function CarDetail({ car, settings, onBack, onBook, onZoom }) {
+  const k = useContact();
   const [idx, setIdx] = useState(0);
   const photos = car.photos || [];
   const hourly = Number(car.hourlyRate ?? car.price8 ?? settings.hourlyStartingPrice);
@@ -1275,7 +1296,7 @@ function CarDetail({ car, settings, onBack, onBook, onZoom }) {
           <ChevronLeft size={18} /> Back
         </button>
         <strong>Sawariya Rentals</strong>
-        <a href={WHATSAPP} target="_blank" rel="noreferrer">WhatsApp</a>
+        <a href={k.wa} target="_blank" rel="noreferrer">WhatsApp</a>
       </div>
       <div className="sw-wrap sw-detail-grid">
         <div>
@@ -1313,10 +1334,10 @@ function CarDetail({ car, settings, onBack, onBook, onZoom }) {
           <button className="sw-btn sw-btn-pea sw-wide" disabled={!car.available} onClick={() => onBook(car)}>
             Book this car
           </button>
-          <a className="sw-btn sw-btn-wa sw-wide" href={`${WHATSAPP}?text=Hi%20Sawariya%20Rentals`} target="_blank" rel="noreferrer">
-            <MessageCircle size={17} /> WhatsApp us, {PHONE_1.show}
+          <a className="sw-btn sw-btn-wa sw-wide" href={`${k.wa}?text=Hi%20Sawariya%20Rentals`} target="_blank" rel="noreferrer">
+            <MessageCircle size={17} /> WhatsApp us, {k.p1.show}
           </a>
-          <p className="sw-note center">or call {PHONE_2.show}</p>
+          <p className="sw-note center">or call {k.p2.show}</p>
 
           <div className="sw-info">
             <h3>About Sawariya Rentals</h3>
@@ -1384,11 +1405,12 @@ function Stats({ cars, cities, s }) {
 
 /* ------------------------------ why ------------------------------ */
 function Why() {
+  const k = useContact();
   const items = [
     { i: <Home size={26} />, t: "Delivery and pickup at your door", d: "Choose home delivery while booking and tell us where and when." },
     { i: <Gauge size={26} />, t: "Plans that fit the trip", d: "Hourly, daily, weekly, monthly or a 2-year plan. Extra kilometres are charged by the km." },
     { i: <Wrench size={26} />, t: "Cars that are looked after", d: "Clean, maintained cars with clear rates." },
-    { i: <Headphones size={26} />, t: "A real person on the phone", d: `Call ${PHONE_1.show} or message us on WhatsApp.` },
+    { i: <Headphones size={26} />, t: "A real person on the phone", d: `Call ${k.p1.show} or message us on WhatsApp.` },
   ];
   return (
     <section className="sw-section" id="why">
@@ -1447,6 +1469,7 @@ function Faqs({ s }) {
 
 /* ------------------------------ callback ------------------------------ */
 function Callback({ city }) {
+  const k = useContact();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [state, setState] = useState("idle");
@@ -1475,8 +1498,8 @@ function Callback({ city }) {
           <h2>Not sure which car fits?</h2>
           <p>Leave your number and we will call you back, or call us directly.</p>
           <div className="sw-callback-links">
-            <a href={PHONE_1.href}><Phone size={16} /> {PHONE_1.show}</a>
-            <a href={PHONE_2.href}><Phone size={16} /> {PHONE_2.show}</a>
+            <a href={k.p1.href}><Phone size={16} /> {k.p1.show}</a>
+            <a href={k.p2.href}><Phone size={16} /> {k.p2.show}</a>
           </div>
         </div>
         {state === "done" ? (
@@ -1507,19 +1530,20 @@ function Callback({ city }) {
 
 /* ------------------------------ footer ------------------------------ */
 function SiteFooter({ cities }) {
+  const k = useContact();
   return (
     <>
       <section className="sw-section">
         <div className="sw-wrap sw-visit">
           <div>
             <h2>Visit Sawariya Rentals</h2>
-            <p className="sw-visit-text">Indore. Call {PHONE_1.show} or {PHONE_2.show}.</p>
-            <a className="sw-btn sw-btn-pea" href={MAPS} target="_blank" rel="noreferrer">
+            <p className="sw-visit-text">{k.address}. Call {k.p1.show} or {k.p2.show}.</p>
+            <a className="sw-btn sw-btn-pea" href={k.maps} target="_blank" rel="noreferrer">
               <MapPin size={17} /> Open in Maps
             </a>
           </div>
           <div className="sw-map">
-            <iframe title="Sawariya Rentals location" src={MAP_EMBED} width="100%" height="280" style={{ border: 0 }} loading="lazy" />
+            <iframe title="Sawariya Rentals location" src={k.embed} width="100%" height="280" style={{ border: 0 }} loading="lazy" />
           </div>
         </div>
       </section>
@@ -1531,10 +1555,10 @@ function SiteFooter({ cities }) {
           </div>
           <div>
             <h4>Contact</h4>
-            <a href={PHONE_1.href}>{PHONE_1.show}</a>
-            <a href={PHONE_2.href}>{PHONE_2.show}</a>
-            <a href={WHATSAPP} target="_blank" rel="noreferrer">WhatsApp</a>
-            <a href={MAPS} target="_blank" rel="noreferrer">Find our location</a>
+            <a href={k.p1.href}>{k.p1.show}</a>
+            <a href={k.p2.href}>{k.p2.show}</a>
+            <a href={k.wa} target="_blank" rel="noreferrer">WhatsApp</a>
+            <a href={k.maps} target="_blank" rel="noreferrer">Find our location</a>
           </div>
           <div>
             <h4>Cities</h4>
@@ -1562,7 +1586,7 @@ function SiteFooter({ cities }) {
    CUSTOMER VIEW (new storefront)
 ========================================================= */
 
-      function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
+function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   const cars = Array.isArray(carsProp) ? carsProp : [];
   const cities = (Array.isArray(citiesProp) ? citiesProp : []).filter((c) => c.active);
 
@@ -1606,7 +1630,6 @@ function SiteFooter({ cities }) {
     setLoginPhone(profile?.phone || "");
     setLoginOpen(true);
   }
-
   function saveProfile() {
     const name = loginName.trim();
     const phone = loginPhone.replace(/\D/g, "");
@@ -1618,17 +1641,21 @@ function SiteFooter({ cities }) {
     setProfile(p);
     setLoginOpen(false);
   }
-
   function handleConfirmBooking(data) {
     onBook(data);
     setBookingCar(null);
     setDetailCar(null);
   }
 
+  const contact = useMemo(
+    () => buildContact(loadShared("sawariya_site_info", SITE_DEFAULTS)),
+    []
+  );
   const callbackCity =
     cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
 
   return (
+    <ContactCtx.Provider value={contact}>
     <div className="sw">
       <style>{CSS}</style>
       <SiteHeader profile={profile} onLogin={openLogin} />
@@ -1659,7 +1686,7 @@ function SiteFooter({ cities }) {
       <Callback city={callbackCity} />
       <SiteFooter cities={cities} />
 
-      <a className="sw-wa" href={WHATSAPP} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp">
+      <a className="sw-wa" href={contact.wa} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp">
         <MessageCircle size={26} />
       </a>
 
@@ -1714,9 +1741,9 @@ function SiteFooter({ cities }) {
         />
       )}
     </div>
+    </ContactCtx.Provider>
   );
 }
-
 
 /* ------------------------------ storefront styles ------------------------------ */
 const CSS = `
@@ -1983,3073 +2010,1210 @@ html{scroll-behavior:smooth}
 }
 `;
 
-
 /* =========================================================
-   ADMIN STAT CARD
+   ADMIN (passcode gate + panel)
 ========================================================= */
 
-function StatCard({
-  icon,
-  label,
-  value,
-  color = C.blue,
-}) {
+const ADMIN_SESSION_KEY = "sawariya_admin_ok";
+
+const snake = (k) => k.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());
+const val = (o, k) => {
+  if (!o) return "";
+  for (const key of [k, snake(k)]) {
+    const v = o[key];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return "";
+};
+const num = (o, k) => Number(val(o, k)) || 0;
+const money = (v) => (v === "" ? "" : fmtINR(v));
+const labelize = (k) =>
+  String(k).replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+const when = (v) => {
+  if (!v) return "";
+  const d = new Date(v);
+  return isNaN(d)
+    ? String(v)
+    : d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+};
+const waLink = (p) => `https://wa.me/${withCode(p)}`;
+const telLink = (p) => `tel:+${withCode(p)}`;
+const ts = (o) => new Date(val(o, "createdAt") || 0).getTime() || 0;
+
+function downloadCSV(name, columns, rows) {
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [
+    columns.map((c) => esc(c[0])).join(","),
+    ...rows.map((r) => columns.map((c) => esc(c[1](r))).join(",")),
+  ].join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function Facts({ title, items }) {
+  const shown = items.filter(([, v]) => v !== "" && v !== undefined && v !== null);
+  if (!shown.length) return null;
   return (
-    <div
-      style={{
-        background:
-          C.white,
-        border:
-          `1px solid ${C.border}`,
-        borderRadius:
-          18,
-        padding: 18,
-        display:
-          "flex",
-        alignItems:
-          "center",
-        gap: 13,
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius:
-            14,
-          background:
-            `${color}12`,
-          color,
-          display:
-            "flex",
-          alignItems:
-            "center",
-          justifyContent:
-            "center",
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-
-      <div
-        style={{
-          minWidth: 0,
-        }}
-      >
-        <div
-          style={{
-            color:
-              C.gray,
-            fontSize:
-              12,
-            fontWeight:
-              700,
-          }}
-        >
-          {label}
-        </div>
-
-        <div
-          style={{
-            color:
-              C.navy,
-            fontSize:
-              22,
-            fontWeight:
-              950,
-            marginTop:
-              2,
-            wordBreak:
-              "break-word",
-          }}
-        >
-          {value}
-        </div>
-      </div>
+    <div className="ad-facts">
+      <h4>{title}</h4>
+      <dl>
+        {shown.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
 
-/* =========================================================
-   ADMIN VIEW
-========================================================= */
-
-function AdminView({
-  cars,
-  setCars,
-  cities,
-  setCities,
-  bookings,
-  leads = [],
-}) {
-  const [tab, setTab] =
-    useState("dashboard");
-
-    const [leadList, setLeadList] = useState(Array.isArray(leads) ? leads : []);
-
-  useEffect(() => {
-    if (tab !== "leads") return;
-    (async () => {
-      try {
-        const rows = await fetchLeads();
-        setLeadList(rows || []);
-      } catch (err) {
-        console.error(err);
-        setLeadList([]);
-      }
-    })();
-  }, [tab]);
-  
-  const [editingCar, setEditingCar] =
-    useState(null);
-
-  const [carForm, setCarForm] =
-    useState({
-      name: "",
-      type: "Hatchback",
-      seats: 5,
-      fuel: "Petrol",
-      transmission: "Manual",
-      price8: "",
-      price12: "",
-      price24: "",
-      city: "",
-      photos: [],
-      available: true,
-    });
-
-  const [newCity, setNewCity] =
-    useState("");
-
-    const safeCars = Array.isArray(cars) ? cars : [];
-  const safeBookings = Array.isArray(bookings) ? bookings : [];
-  const safeCities = Array.isArray(cities) ? cities : [];
-
-  const totalCars = safeCars.length;
-
-  const availableCars = safeCars.filter(
-    (car) => car.available
-  ).length;
-
-  const rentedCars = safeCars.filter(
-    (car) => !car.available
-  ).length;
-
-  const totalRevenue = safeBookings.reduce(
-    (sum, booking) =>
-      sum + Number(booking.paidAmount ?? booking.total ?? 0),
-    0
+function RawTable({ obj }) {
+  const rows = Object.entries(obj || {}).filter(([k]) => k !== "photos");
+  return (
+    <table className="ad-raw">
+      <tbody>
+        {rows.map(([k, v]) => {
+          let t = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+          if (t.length > 160) t = t.slice(0, 160) + "…";
+          return (
+            <tr key={k}>
+              <th>{labelize(k)}</th>
+              <td>{t || "-"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
+}
 
-  const totalPending = safeBookings.reduce(
-    (sum, booking) =>
-      sum + Number(booking.remainingAmount ?? 0),
-    0
+function AdField({ label, hint, children, wide }) {
+  return (
+    <label className={`ad-f ${wide ? "wide" : ""}`}>
+      <span>{label}</span>
+      {children}
+      {hint && <em>{hint}</em>}
+    </label>
   );
+}
 
-  function resetCarForm() {
-    setEditingCar(null);
+/* ---------------- dashboard ---------------- */
+function DashboardTab({ cars, bookings, leads, go }) {
+  const free = cars.filter((c) => c.available).length;
+  const revenue = bookings.reduce((a, b) => a + num(b, "paidAmount"), 0);
+  const balance = bookings.reduce((a, b) => a + num(b, "remainingAmount"), 0);
+  const recentB = [...bookings].sort((a, b) => ts(b) - ts(a)).slice(0, 5);
+  const recentL = [...leads].sort((a, b) => ts(b) - ts(a)).slice(0, 5);
+  const cards = [
+    ["Cars", cars.length, `${free} available, ${cars.length - free} rented`, "cars"],
+    ["Bookings", bookings.length, "all time", "bookings"],
+    ["Leads", leads.length, "callback and form numbers", "leads"],
+    ["Paid so far", fmtINR(revenue), "advance and full payments", "bookings"],
+    ["Balance to collect", fmtINR(balance), "remaining on bookings", "bookings"],
+  ];
+  return (
+    <>
+      <div className="ad-cards">
+        {cards.map(([t, v, n, tab]) => (
+          <button key={t} className="ad-card" onClick={() => go(tab)}>
+            <span>{t}</span>
+            <strong>{v}</strong>
+            <em>{n}</em>
+          </button>
+        ))}
+      </div>
+      <div className="ad-two">
+        <section className="ad-box">
+          <h3>Latest bookings</h3>
+          {recentB.length === 0 && <p className="ad-muted">No bookings yet.</p>}
+          {recentB.map((b, i) => (
+            <div key={val(b, "id") || i} className="ad-line">
+              <b>{val(b, "carName") || "Car"}</b>
+              <span>
+                {val(b, "name")} {val(b, "pickupDate")}
+              </span>
+              <strong>{money(val(b, "total"))}</strong>
+            </div>
+          ))}
+        </section>
+        <section className="ad-box">
+          <h3>Latest leads</h3>
+          {recentL.length === 0 && <p className="ad-muted">No leads yet.</p>}
+          {recentL.map((l, i) => (
+            <div key={val(l, "id") || i} className="ad-line">
+              <b>{val(l, "phone")}</b>
+              <span>{[val(l, "name"), val(l, "city")].filter(Boolean).join(", ")}</span>
+              <a href={telLink(val(l, "phone"))}>Call</a>
+            </div>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
 
-    setCarForm({
-      name: "",
-      type: "Hatchback",
-      seats: 5,
-      fuel: "Petrol",
-      transmission: "Manual",
-      price8: "",
-      price12: "",
-      price24: "",
-      city:
-        cities.find(
-          (c) => c.active
-        )?.name || "",
-      photos: [],
-      available: true,
-    });
+/* ---------------- cars ---------------- */
+const NUM_KEYS = [
+  "dailyRate",
+  "hourlyRate",
+  "price12",
+  "weeklyRate",
+  "monthlyRate",
+  "longTermRate",
+  "hourlyKm",
+  "dailyKm",
+  "extraKmRate",
+  "driverCost",
+  "fuelCostPerKm",
+  "securityDeposit",
+];
+
+function blankCar(cities) {
+  const f = {
+    name: "",
+    type: "Hatchback",
+    city: cities[0]?.name || "",
+    fuel: "Petrol",
+    transmission: "Manual",
+    seats: 5,
+    available: true,
+    photos: [],
+  };
+  NUM_KEYS.forEach((k) => (f[k] = ""));
+  return f;
+}
+function carToForm(car, cities) {
+  const f = { ...blankCar(cities), ...car, photos: [...(car.photos || [])] };
+  f.dailyRate = car.dailyRate ?? car.price24 ?? "";
+  f.hourlyRate = car.hourlyRate ?? car.price8 ?? "";
+  f.price12 = car.price12 ?? "";
+  NUM_KEYS.forEach((k) => {
+    if (f[k] === undefined || f[k] === null) f[k] = "";
+  });
+  return f;
+}
+
+function CarsTab({ cars, setCars, cities }) {
+  const [editing, setEditing] = useState(null); // null | "new" | car id
+  const [form, setForm] = useState(() => blankCar(cities));
+  const [busy, setBusy] = useState("");
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  function startNew() {
+    setForm(blankCar(cities));
+    setEditing("new");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function startEdit(car) {
+    setForm(carToForm(car, cities));
+    setEditing(car.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function cancel() {
+    setEditing(null);
+    setBusy("");
   }
 
-  function editCar(car) {
-    setEditingCar(
-      car.id
-    );
-
-    setCarForm({
-      name:
-        car.name || "",
-
-      type:
-        car.type ||
-        "Hatchback",
-
-      seats:
-        car.seats || 5,
-
-      fuel:
-        car.fuel ||
-        "Petrol",
-
-      transmission:
-        car.transmission ||
-        "Manual",
-
-      price8:
-        car.price8 ||
-        car.price ||
-        "",
-
-      price12:
-        car.price12 ||
-        car.price ||
-        "",
-
-      price24:
-        car.price24 ||
-        "",
-
-      city:
-        car.city || "",
-
-      photos:
-        car.photos || [],
-
-      available:
-        car.available !==
-        false,
-    });
-
-    setTab("cars");
-  }
-
-  async function saveCar(e) {
-    e.preventDefault();
-
-    if (!carForm.name.trim()) {
-      alert(
-        "Enter car name."
-      );
-      return;
-    }
-
-    if (!carForm.city) {
-      alert(
-        "Select a city."
-      );
-      return;
-    }
-
-    const vehicleText = `${carForm.name} ${carForm.type}`.toLowerCase();
-    if (/bike|scooter|motorcycle|motorbike|moped/.test(vehicleText)) {
-      alert("Sawariya Rentals accepts cars only. Two-wheelers cannot be added.");
-      return;
-    }
-
-    if (
-      !carForm.price8 ||
-      Number(
-        carForm.price8
-      ) <= 0
-    ) {
-      alert(
-        "Enter a valid 8-hour price."
-      );
-      return;
-    }
-
-    if (
-      !carForm.price12 ||
-      Number(
-        carForm.price12
-      ) <= 0
-    ) {
-      alert(
-        "Enter a valid 12-hour price."
-      );
-      return;
-    }
-
-    if (
-      !carForm.price24 ||
-      Number(
-        carForm.price24
-      ) <= 0
-    ) {
-      alert(
-        "Enter a valid 24-hour price."
-      );
-      return;
-    }
-
-    const vehicleData = {
-      ...carForm,
-      name:
-        carForm.name.trim(),
-      seats: Number(
-        carForm.seats
-      ),
-      price8:
-        Number(
-          carForm.price8
-        ),
-      price12:
-        Number(
-          carForm.price12
-        ),
-      price24:
-        Number(
-          carForm.price24
-        ),
-      hourlyRate: Number(carForm.price8),
-      dailyRate: Number(carForm.price24),
-      weeklyRate: Number(DEFAULT_BUSINESS_SETTINGS.weeklyStartingPrice),
-      monthlyRate: Number(DEFAULT_BUSINESS_SETTINGS.monthlyStartingPrice),
-      longTermRate: Number(DEFAULT_BUSINESS_SETTINGS.longTermMonthlyPrice),
-      hourlyKm: Number(DEFAULT_BUSINESS_SETTINGS.hourlyIncludedKm),
-      dailyKm: Number(DEFAULT_BUSINESS_SETTINGS.dailyIncludedKm),
-      extraKmRate: Number(DEFAULT_BUSINESS_SETTINGS.extraKmRate),
-      driverCost: Number(DEFAULT_BUSINESS_SETTINGS.driverCostPerDay),
-    };
-
-    let saved = {
-      id: editingCar || undefined,
-      ...vehicleData,
-    };
-
+  async function addPhotos(e) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+    e.target.value = "";
+    if (!files.length) return;
+    setBusy("Preparing photos");
     try {
-      const photos = [];
-      for (const p of saved.photos || []) {
-        if (typeof p === "string" && p.startsWith("data:")) {
-          photos.push(await uploadPhoto(p));
-        } else {
-          photos.push(p);
-        }
-      }
-      saved.photos = photos;
-      const cloudId = await upsertCar(saved);
-      if (cloudId) saved.id = cloudId;
-      if (!saved.id) saved.id = uid("car");
-    } catch (err) {
-      alert("Cloud save failed: " + (err.message || err));
-      return;
-    }
-
-    if (editingCar) {
-      setCars(
-        (prev) =>
-          prev.map(
-            (car) =>
-              car.id ===
-              editingCar
-                ? {
-                    ...car,
-                    ...saved,
-                  }
-                : car
-          )
-      );
-    } else {
-      setCars(
-        (prev) => [
-          ...prev,
-          saved,
-        ]
-      );
-    }
-
-    const wasEditing =
-      Boolean(
-        editingCar
-      );
-
-    resetCarForm();
-
-    alert(
-      wasEditing
-        ? "Car updated successfully."
-        : "Car added successfully."
-    );
-  }
-
-    async function deleteCar(id) {
-    const car =
-      cars.find(
-        (item) =>
-          item.id === id
-      );
-
-    if (!car) return;
-
-    if (
-      !window.confirm(
-        `Delete ${car.name}?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await deleteCarCloud(id);
+      const out = [];
+      for (const f of files) out.push(await compressImage(f));
+      setForm((p) => ({ ...p, photos: [...(p.photos || []), ...out].slice(0, 10) }));
     } catch (err) {
       console.error(err);
+      alert("One of the photos could not be read. Try a different image.");
     }
-
-    setCars(
-      (prev) =>
-        prev.filter(
-          (item) =>
-            item.id !== id
-        )
-    );
+    setBusy("");
   }
+  const removePhoto = (i) => setForm((p) => ({ ...p, photos: p.photos.filter((_, x) => x !== i) }));
+  const makeMain = (i) =>
+    setForm((p) => ({ ...p, photos: [p.photos[i], ...p.photos.filter((_, x) => x !== i)] }));
 
-  function toggleAvailability(
-    id
-  ) {
-    setCars(
-      (prev) =>
-        prev.map(
-          (car) =>
-            car.id === id
-              ? {
-                  ...car,
-                  available:
-                    !car.available,
-                }
-              : car
-        )
-    );
-  }
-
-  async function handlePhotoUpload(
-    e,
-    carId = null
-  ) {
-    const files =
-      Array.from(
-        e.target.files ||
-          []
-      );
-
-    if (!files.length)
-      return;
-
-    try {
-      const compressed =
-        [];
-
-      for (
-        const file of files
-      ) {
-        if (
-          !file.type.startsWith(
-            "image/"
-          )
-        ) {
-          continue;
-        }
-
-        const image =
-          await compressImage(
-            file
-          );
-
-        compressed.push(
-          image
-        );
-      }
-
-      if (carId) {
-        setCars(
-          (prev) =>
-            prev.map(
-              (car) =>
-                car.id ===
-                carId
-                  ? {
-                      ...car,
-                      photos: [
-                        ...(car.photos ||
-                          []),
-                        ...compressed,
-                      ],
-                    }
-                  : car
-            )
-        );
-      } else {
-        setCarForm(
-          (prev) => ({
-            ...prev,
-            photos: [
-              ...(prev.photos ||
-                []),
-              ...compressed,
-            ],
-          })
-        );
-      }
-    } catch (error) {
-      console.error(
-        error
-      );
-
-      alert(
-        "Unable to process the selected image."
-      );
-    }
-
-    e.target.value =
-      "";
-  }
-
-  function removeFormPhoto(
-    index
-  ) {
-    setCarForm(
-      (prev) => ({
-        ...prev,
-        photos:
-          prev.photos.filter(
-            (_, i) =>
-              i !== index
-          ),
-      })
-    );
-  }
-
-  function removeCarPhoto(
-    carId,
-    index
-  ) {
-    setCars(
-      (prev) =>
-        prev.map(
-          (car) =>
-            car.id === carId
-              ? {
-                  ...car,
-                  photos:
-                    (
-                      car.photos ||
-                      []
-                    ).filter(
-                      (_, i) =>
-                        i !==
-                        index
-                    ),
-                }
-              : car
-        )
-    );
-  }
-
-  async function addCity(e) {
+  async function save(e) {
     e.preventDefault();
+    if (!form.name.trim()) return alert("Enter the car name.");
+    if (!form.city) return alert("Choose a city. Add one in the Cities tab if the list is empty.");
+    if (!(Number(form.dailyRate) > 0)) return alert("Enter the daily price.");
 
-    const name =
-      newCity.trim();
-
-    if (!name) return;
-
-    const exists =
-      cities.some(
-        (city) =>
-          city.name
-            .toLowerCase() ===
-          name.toLowerCase()
-      );
-
-    if (exists) {
-      alert(
-        "City already exists."
-      );
-      return;
-    }
-
-    const city = {
-      name,
-      active: true,
+    const existing = editing && editing !== "new" ? cars.find((c) => c.id === editing) : null;
+    const data = {
+      ...(existing || {}),
+      name: form.name.trim(),
+      type: String(form.type || "").trim() || "Hatchback",
+      city: form.city,
+      fuel: form.fuel,
+      transmission: form.transmission,
+      seats: Number(form.seats) || 5,
+      available: !!form.available,
     };
+    NUM_KEYS.forEach((k) => {
+      const v = form[k];
+      if (v !== "" && v !== null && !isNaN(Number(v))) data[k] = Number(v);
+      else delete data[k];
+    });
+    data.price24 = data.dailyRate;
+    if (data.hourlyRate !== undefined) data.price8 = data.hourlyRate;
+    else delete data.price8;
+    if (existing) data.id = existing.id;
+    else delete data.id;
 
+    setBusy("Saving car");
     try {
-      await upsertCity(city);
+      const photos = [];
+      for (const p of form.photos || []) {
+        photos.push(typeof p === "string" && p.startsWith("data:") ? await uploadPhoto(p) : p);
+      }
+      data.photos = photos;
+      const cloudId = await upsertCar(data);
+      if (cloudId) data.id = cloudId;
+      if (!data.id) data.id = uid("car");
     } catch (err) {
-      alert(
-        "City save failed: " +
-          (err.message || err)
-      );
-      return;
+      console.error(err);
+      setBusy("");
+      return alert("Could not save the car: " + (err?.message || err));
     }
-
-    setCities(
-      (prev) => [
-        ...prev,
-        {
-          id: uid("city"),
-          ...city,
-        },
-      ]
+    setCars((prev) =>
+      existing ? prev.map((c) => (c.id === existing.id ? { ...c, ...data } : c)) : [...prev, data]
     );
-
-    setNewCity("");
+    setBusy("");
+    setEditing(null);
   }
 
-  function toggleCity(id) {
-    setCities(
-      (prev) =>
-        prev.map(
-          (city) =>
-            city.id === id
-              ? {
-                  ...city,
-                  active:
-                    !city.active,
-                }
-              : city
-        )
-    );
+  async function toggle(car) {
+    const updated = { ...car, available: !car.available };
+    setCars((prev) => prev.map((c) => (c.id === car.id ? updated : c)));
+    try {
+      await upsertCar(updated);
+    } catch (err) {
+      console.error(err);
+      alert("Changed on this screen, but the cloud save failed: " + (err?.message || err));
+    }
   }
-
-  function deleteCity(id) {
-    const city =
-      cities.find(
-        (item) =>
-          item.id === id
-      );
-
-    if (!city) return;
-
-    const used =
-      cars.some(
-        (car) =>
-          car.city ===
-          city.name
-      );
-
-    if (used) {
-      alert(
-        "This city is currently assigned to one or more cars. Change those cars first."
-      );
-      return;
+  async function remove(car) {
+    if (!window.confirm(`Delete ${car.name}? This cannot be undone.`)) return;
+    try {
+      await deleteCarCloud(car.id);
+    } catch (err) {
+      console.error(err);
+      return alert("Could not delete: " + (err?.message || err));
     }
-
-    if (
-      !window.confirm(
-        `Delete ${city.name}?`
-      )
-    ) {
-      return;
-    }
-
-    setCities(
-      (prev) =>
-        prev.filter(
-          (item) =>
-            item.id !== id
-        )
-    );
+    setCars((prev) => prev.filter((c) => c.id !== car.id));
   }
 
   return (
-    <div
-      style={{
-        minHeight:
-          "100vh",
-        background:
-          "#f8fafc",
-        color:
-          C.navy,
-      }}
-    >
-      {/* ADMIN HEADER */}
-
-      <header
-        style={{
-          background:
-            C.navy,
-          color:
-            C.white,
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1200,
-            margin:
-              "0 auto",
-            padding: 16,
-            display:
-              "flex",
-            flexWrap:
-              "wrap",
-            alignItems:
-              "center",
-            justifyContent:
-              "space-between",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              display:
-                "flex",
-              alignItems:
-                "center",
-              gap: 10,
-            }}
-          >
-            <Settings
-              size={22}
-            />
-
-            <div>
-              <div
-                style={{
-                  fontWeight:
-                    950,
-                  fontSize:
-                    18,
-                }}
-              >
-                SAWARIYA ADMIN
-              </div>
-
-              <div
-                style={{
-                  opacity:
-                    0.7,
-                  fontSize:
-                    11,
-                }}
-              >
-                Fleet & Booking Management
-              </div>
-            </div>
-          </div>
-
-          <Badge color="#38bdf8">
-            <ShieldCheck
-              size={13}
-            />
-            Admin Mode
-          </Badge>
-        </div>
-      </header>
-
-      {/* ADMIN NAV */}
-
-      <div
-        style={{
-          background:
-            C.white,
-          borderBottom:
-            `1px solid ${C.border}`,
-          position:
-            "sticky",
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        <div
-          style={{
-            maxWidth:
-              1200,
-            margin:
-              "0 auto",
-            padding:
-              "10px 16px",
-            display:
-              "flex",
-            gap: 8,
-            overflowX:
-              "auto",
-          }}
-        >
-          {[
-            [
-              "dashboard",
-              "Dashboard",
-            ],
-            [
-              "cars",
-              "Vehicles",
-            ],
-            [
-              "bookings",
-              "Bookings",
-            ],
-            [
-              "leads",
-              "Leads",
-            ],
-            [
-              "cities",
-              "Cities",
-            ],
-            [
-              "business",
-              "Business",
-            ],
-          ].map(
-            ([
-              value,
-              label,
-            ]) => (
-              <button
-                type="button"
-                key={
-                  value
-                }
-                onClick={() =>
-                  setTab(
-                    value
-                  )
-                }
-                style={{
-                  border:
-                    "none",
-                  borderRadius:
-                    12,
-                  padding:
-                    "10px 14px",
-                  background:
-                    tab ===
-                    value
-                      ? C.blue
-                      : C.grayLight,
-                  color:
-                    tab ===
-                    value
-                      ? C.white
-                      : C.navy,
-                  fontWeight:
-                    850,
-                  cursor:
-                    "pointer",
-                  whiteSpace:
-                    "nowrap",
-                }}
-              >
-                {
-                  label
-                }
-              </button>
-            )
-          )}
-        </div>
+    <>
+      <div className="ad-head">
+        <h2>Cars ({cars.length})</h2>
+        {editing === null && (
+          <button className="ad-btn pri" onClick={startNew}>
+            <Plus size={17} /> Add car
+          </button>
+        )}
       </div>
 
-      <main
-        style={{
-          maxWidth:
-            1200,
-          margin:
-            "0 auto",
-          padding:
-            "22px 16px 60px",
-        }}
-      >
-        {/* DASHBOARD */}
-
-        {tab ===
-          "dashboard" && (
-          <>
-            <div
-              style={{
-                marginBottom:
-                  18,
-              }}
-            >
-              <h1
-                style={{
-                  margin:
-                    0,
-                  fontSize:
-                    28,
-                  fontWeight:
-                    950,
-                }}
-              >
-                Dashboard
-              </h1>
-
-              <p
-                style={{
-                  color:
-                    C.gray,
-                  margin:
-                    "5px 0 0",
-                }}
-              >
-                Overview of your rental
-                business.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
-                gap: 12,
-              }}
-            >
-              <StatCard
-                icon={
-                  <Car size={21} />
-                }
-                label="Total Vehicles"
-                value={
-                  totalCars
-                }
-                color={
-                  C.blue
-                }
-              />
-
-              <StatCard
-                icon={
-                  <CheckCircle2
-                    size={21}
-                  />
-                }
-                label="Available"
-                value={
-                  availableCars
-                }
-                color={
-                  C.green
-                }
-              />
-
-              <StatCard
-                icon={
-                  <Clock3
-                    size={21}
-                  />
-                }
-                label="Rented"
-                value={
-                  rentedCars
-                }
-                color={
-                  C.orange
-                }
-              />
-
-              <StatCard
-                icon={
-                  <IndianRupee
-                    size={21}
-                  />
-                }
-                label="Money Collected"
-                value={fmtINR(
-                  totalRevenue
-                )}
-                color={
-                  C.green
-                }
-              />
-
-              <StatCard
-                icon={
-                  <CreditCard
-                    size={21}
-                  />
-                }
-                label="Pending Later"
-                value={fmtINR(
-                  totalPending
-                )}
-                color={
-                  C.orange
-                }
-              />
-
-              <StatCard
-                icon={
-                  <CalendarDays
-                    size={21}
-                  />
-                }
-                label="Total Bookings"
-                value={
-                  bookings.length
-                }
-                color={
-                  C.blue
-                }
-              />
-            </div>
-          </>
-        )}
-
-        {/* VEHICLES */}
-
-        {tab === "cars" && (
-          <>
-            <div
-              style={{
-                display:
-                  "flex",
-                flexWrap:
-                  "wrap",
-                justifyContent:
-                  "space-between",
-                alignItems:
-                  "center",
-                gap: 12,
-                marginBottom:
-                  18,
-              }}
-            >
-              <div>
-                <h1
-                  style={{
-                    margin:
-                      0,
-                    fontSize:
-                      28,
-                    fontWeight:
-                      950,
-                  }}
-                >
-                  Vehicles
-                </h1>
-
-                <p
-                  style={{
-                    color:
-                      C.gray,
-                    margin:
-                      "5px 0 0",
-                  }}
-                >
-                  Add cars, 8/12 hour
-                  prices and photos.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  resetCarForm
-                }
-                style={
-                  primaryButton
-                }
-              >
-                <Plus
-                  size={17}
-                />
-                Add Vehicle
-              </button>
-            </div>
-
-            {/* CAR FORM */}
-
-            <div
-              style={{
-                background:
-                  C.white,
-                border:
-                  `1px solid ${C.border}`,
-                borderRadius:
-                  20,
-                padding: 18,
-                marginBottom:
-                  20,
-              }}
-            >
-              <div
-                style={{
-                  display:
-                    "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems:
-                    "center",
-                  gap: 10,
-                  marginBottom:
-                    14,
-                }}
-              >
-                <h2
-                  style={{
-                    margin:
-                      0,
-                    fontSize:
-                      18,
-                    fontWeight:
-                      950,
-                  }}
-                >
-                  {editingCar
-                    ? "Edit Vehicle"
-                    : "Add Vehicle"}
-                </h2>
-
-                {editingCar && (
-                  <button
-                    type="button"
-                    onClick={
-                      resetCarForm
-                    }
-                    style={
-                      smallButton
-                    }
-                  >
-                    <X
-                      size={14}
-                    />
-                    Cancel
-                  </button>
-                )}
-              </div>
-
-              <form
-                onSubmit={
-                  saveCar
-                }
-              >
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(min(180px, 100%), 1fr))",
-                    gap: 13,
-                  }}
-                >
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Car Name
-                    </label>
-
-                    <input
-                      value={
-                        carForm.name
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            name:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="Maruti Swift"
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Type
-                    </label>
-
-                    <select
-                      value={
-                        carForm.type
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            type:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option>
-                        Hatchback
-                      </option>
-                      <option>
-                        Sedan
-                      </option>
-                      <option>
-                        SUV
-                      </option>
-                      <option>
-                        MUV
-                      </option>
-                      <option>
-                        Luxury
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Seats
-                    </label>
-
-                    <input
-                      type="number"
-                      min="2"
-                      max="12"
-                      value={
-                        carForm.seats
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            seats:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Fuel
-                    </label>
-
-                    <select
-                      value={
-                        carForm.fuel
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            fuel:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option>
-                        Petrol
-                      </option>
-                      <option>
-                        Diesel
-                      </option>
-                      <option>
-                        CNG
-                      </option>
-                      <option>
-                        Electric
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      Transmission
-                    </label>
-
-                    <select
-                      value={
-                        carForm.transmission
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            transmission:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option>
-                        Manual
-                      </option>
-                      <option>
-                        Automatic
-                      </option>
-                    </select>
-                  </div>
-
-                  {/* 8 HOUR PRICE */}
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      8 Hour Price
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      value={
-                        carForm.price8
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            price8:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="999"
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  {/* 12 HOUR PRICE */}
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      12 Hour Price
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      value={
-                        carForm.price12
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            price12:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="1499"
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      24 Hour Price
-                    </label>
-
-                    <input
-                      type="number"
-                      min="1"
-                      value={
-                        carForm.price24
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            price24:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      placeholder="2499"
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={
-                        labelStyle
-                      }
-                    >
-                      City
-                    </label>
-
-                    <select
-                      value={
-                        carForm.city
-                      }
-                      onChange={(
-                        e
-                      ) =>
-                        setCarForm(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            city:
-                              e
-                                .target
-                                .value,
-                          })
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    >
-                      <option value="">
-                        Select City
-                      </option>
-
-                      {cities
-                        .filter(
-                          (
-                            city
-                          ) =>
-                            city.active
-                        )
-                        .map(
-                          (
-                            city
-                          ) => (
-                            <option
-                              key={
-                                city.id
-                              }
-                              value={
-                                city.name
-                              }
-                            >
-                              {
-                                city.name
-                              }
-                            </option>
-                          )
-                        )}
-                    </select>
-                  </div>
-                </div>
-
-                {/* PHOTO UPLOAD */}
-
-                <div
-                  style={{
-                    marginTop:
-                      18,
-                    padding:
-                      15,
-                    borderRadius:
-                      17,
-                    background:
-                      C.grayLight,
-                    border:
-                      `1px solid ${C.border}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      display:
-                        "flex",
-                      flexWrap:
-                        "wrap",
-                      alignItems:
-                        "center",
-                      justifyContent:
-                        "space-between",
-                      gap: 10,
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          fontWeight:
-                            900,
-                          color:
-                            C.navy,
-                        }}
-                      >
-                        Vehicle Photos
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize:
-                            12,
-                          color:
-                            C.gray,
-                          marginTop:
-                            3,
-                        }}
-                      >
-                        Add one or more
-                        photos. JPG/PNG
-                        supported.
-                      </div>
-                    </div>
-
-                    <label
-                      style={{
-                        ...smallButton,
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      <ImagePlus
-                        size={
-                          15
-                        }
-                      />
-                      Add Photos
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(
-                          e
-                        ) =>
-                          handlePhotoUpload(
-                            e
-                          )
-                        }
-                        style={{
-                          display:
-                            "none",
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {carForm
-                    .photos
-                    .length >
-                    0 && (
-                    <div
-                      style={{
-                        display:
-                          "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(110px, 1fr))",
-                        gap: 10,
-                        marginTop:
-                          14,
-                      }}
-                    >
-                      {carForm.photos.map(
-                        (
-                          photo,
-                          index
-                        ) => (
-                          <div
-                            key={`${photo}-${index}`}
-                            style={{
-                              position:
-                                "relative",
-                              aspectRatio:
-                                "4 / 3",
-                              borderRadius:
-                                12,
-                              overflow:
-                                "hidden",
-                              background:
-                                "#e2e8f0",
-                            }}
-                          >
-                            <img
-                              src={
-                                photo
-                              }
-                              alt={`Vehicle ${
-                                index +
-                                1
-                              }`}
-                              style={{
-                                width:
-                                  "100%",
-                                height:
-                                  "100%",
-                                objectFit:
-                                  "cover",
-                              }}
-                            />
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removeFormPhoto(
-                                  index
-                                )
-                              }
-                              style={{
-                                position:
-                                  "absolute",
-                                right: 5,
-                                top: 5,
-                                width: 28,
-                                height: 28,
-                                borderRadius:
-                                  999,
-                                border:
-                                  "none",
-                                background:
-                                  "rgba(220,38,38,.9)",
-                                color:
-                                  "white",
-                                cursor:
-                                  "pointer",
-                                display:
-                                  "flex",
-                                alignItems:
-                                  "center",
-                                justifyContent:
-                                  "center",
-                              }}
-                            >
-                              <X
-                                size={
-                                  15
-                                }
-                              />
-                            </button>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-                    flexWrap:
-                      "wrap",
-                    gap: 10,
-                    marginTop:
-                      16,
-                  }}
-                >
-                  <button
-                    type="submit"
-                    style={
-                      primaryButton
-                    }
-                  >
-                    <CheckCircle2
-                      size={
-                        17
-                      }
-                    />
-
-                    {editingCar
-                      ? "Update Vehicle"
-                      : "Save Vehicle"}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* VEHICLE LIST */}
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gap: 12,
-              }}
-            >
-              {cars.length ===
-                0 && (
-                <div
-                  style={{
-                    padding:
-                      35,
-                    textAlign:
-                      "center",
-                    background:
-                      C.white,
-                    border:
-                      `1px solid ${C.border}`,
-                    borderRadius:
-                      18,
-                    color:
-                      C.gray,
-                  }}
-                >
-                  <Car
-                    size={
-                      45
-                    }
-                    color={
-                      C.blue
-                    }
-                  />
-
-                  <div
-                    style={{
-                      marginTop:
-                        10,
-                      fontWeight:
-                        900,
-                      color:
-                        C.navy,
-                    }}
-                  >
-                    No vehicles added
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize:
-                        12,
-                      marginTop:
-                        4,
-                    }}
-                  >
-                    Use "Add Vehicle" to
-                    add your first car.
-                  </div>
-                </div>
-              )}
-
-              {cars.map(
-                (car) => (
-                  <div
-                    key={
-                      car.id
-                    }
-                    style={{
-                      background:
-                        C.white,
-                      border:
-                        `1px solid ${C.border}`,
-                      borderRadius:
-                        18,
-                      padding:
-                        12,
-                      display:
-                        "grid",
-                      gridTemplateColumns:
-                        "90px minmax(0,1fr)",
-                      gap: 13,
-                    }}
-                  >
-                    <CarThumb
-                      car={
-                        car
-                      }
-                      size={
-                        90
-                      }
-                    />
-
-                    <div
-                      style={{
-                        minWidth:
-                          0,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          flexWrap:
-                            "wrap",
-                          alignItems:
-                            "center",
-                          justifyContent:
-                            "space-between",
-                          gap: 8,
-                        }}
-                      >
-                        <div>
-                          <strong
-                            style={{
-                              fontSize:
-                                16,
-                              wordBreak:
-                                "break-word",
-                            }}
-                          >
-                            {
-                              car.name
-                            }
-                          </strong>
-
-                          <div
-                            style={{
-                              color:
-                                C.gray,
-                              fontSize:
-                                12,
-                              marginTop:
-                                3,
-                            }}
-                          >
-                            {
-                              car.type
-                            }{" "}
-                            •{" "}
-                            {
-                              car.city
-                            }
-                          </div>
-
-                          <div
-                            style={{
-                              display:
-                                "flex",
-                              gap: 6,
-                              flexWrap:
-                                "wrap",
-                              marginTop:
-                                7,
-                            }}
-                          >
-                            <Badge
-                              color={
-                                C.blue
-                              }
-                            >
-                              8H{" "}
-                              {fmtINR(
-                                car.price8 ||
-                                  car.price
-                              )}
-                            </Badge>
-
-                            <Badge
-                              color={
-                                C.green
-                              }
-                            >
-                              12H{" "}
-                              {fmtINR(
-                                car.price12 ||
-                                  car.price
-                              )}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <Badge
-                          color={
-                            car.available
-                              ? C.green
-                              : C.red
-                          }
-                        >
-                          {car.available
-                            ? "Available"
-                            : "Rented"}
-                        </Badge>
-                      </div>
-
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          flexWrap:
-                            "wrap",
-                          gap: 7,
-                          marginTop:
-                            10,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            toggleAvailability(
-                              car.id
-                            )
-                          }
-                          style={
-                            smallButton
-                          }
-                        >
-                          <Clock3
-                            size={
-                              14
-                            }
-                          />
-
-                          {car.available
-                            ? "Mark Rented"
-                            : "Mark Available"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            editCar(
-                              car
-                            )
-                          }
-                          style={
-                            smallButton
-                          }
-                        >
-                          <Pencil
-                            size={
-                              14
-                            }
-                          />
-                          Edit
-                        </button>
-
-                        <label
-                          style={{
-                            ...smallButton,
-                            cursor:
-                              "pointer",
-                          }}
-                        >
-                          <Camera
-                            size={
-                              14
-                            }
-                          />
-                          Add Photo
-
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(
-                              e
-                            ) =>
-                              handlePhotoUpload(
-                                e,
-                                car.id
-                              )
-                            }
-                            style={{
-                              display:
-                                "none",
-                            }}
-                          />
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteCar(
-                              car.id
-                            )
-                          }
-                          style={
-                            dangerButton
-                          }
-                        >
-                          <Trash2
-                            size={
-                              14
-                            }
-                          />
-                          Delete
-                        </button>
-                      </div>
-
-                      {car.photos
-                        ?.length >
-                        0 && (
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            flexWrap:
-                              "wrap",
-                            gap: 8,
-                            marginTop:
-                              12,
-                          }}
-                        >
-                          {car.photos.map(
-                            (
-                              photo,
-                              index
-                            ) => (
-                              <div
-                                key={`${car.id}-${index}`}
-                                style={{
-                                  position:
-                                    "relative",
-                                  width: 75,
-                                  height: 55,
-                                  borderRadius:
-                                    9,
-                                  overflow:
-                                    "hidden",
-                                }}
-                              >
-                                <img
-                                  src={
-                                    photo
-                                  }
-                                  alt={`${car.name} ${
-                                    index +
-                                    1
-                                  }`}
-                                  style={{
-                                    width:
-                                      "100%",
-                                    height:
-                                      "100%",
-                                    objectFit:
-                                      "cover",
-                                  }}
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeCarPhoto(
-                                      car.id,
-                                      index
-                                    )
-                                  }
-                                  style={{
-                                    position:
-                                      "absolute",
-                                    right: 3,
-                                    top: 3,
-                                    width: 21,
-                                    height: 21,
-                                    borderRadius:
-                                      999,
-                                    border:
-                                      "none",
-                                    background:
-                                      "rgba(220,38,38,.9)",
-                                    color:
-                                      "white",
-                                    display:
-                                      "flex",
-                                    alignItems:
-                                      "center",
-                                    justifyContent:
-                                      "center",
-                                    cursor:
-                                      "pointer",
-                                  }}
-                                >
-                                  <X
-                                    size={
-                                      12
-                                    }
-                                  />
-                                </button>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          </>
-        )}
-
-        {/* BOOKINGS */}
-
-        {tab ===
-          "bookings" && (
-          <>
-            <div
-              style={{
-                marginBottom:
-                  18,
-              }}
-            >
-              <h1
-                style={{
-                  margin:
-                    0,
-                  fontSize:
-                    28,
-                  fontWeight:
-                    950,
-                }}
-              >
-                Bookings
-              </h1>
-
-              <p
-                style={{
-                  color:
-                    C.gray,
-                  margin:
-                    "5px 0 0",
-                }}
-              >
-                Payment and customer
-                records.
-              </p>
-            </div>
-
-            {bookings.length ===
-            0 ? (
-              <div
-                style={{
-                  background:
-                    C.white,
-                  border:
-                    `1px solid ${C.border}`,
-                  borderRadius:
-                    18,
-                  padding:
-                    40,
-                  textAlign:
-                    "center",
-                  color:
-                    C.gray,
-                }}
-              >
-                No bookings yet.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display:
-                    "grid",
-                  gap: 12,
-                }}
-              >
-                {bookings
-                  .slice()
-                  .reverse()
-                  .map(
-                    (
-                      booking
-                    ) => (
-                      <div
-                        key={
-                          booking.id
-                        }
-                        style={{
-                          background:
-                            C.white,
-                          border:
-                            `1px solid ${C.border}`,
-                          borderRadius:
-                            18,
-                          padding:
-                            16,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            flexWrap:
-                              "wrap",
-                            justifyContent:
-                              "space-between",
-                            gap: 12,
-                          }}
-                        >
-                          <div>
-                            <div
-                              style={{
-                                display:
-                                  "flex",
-                                flexWrap:
-                                  "wrap",
-                                alignItems:
-                                  "center",
-                                gap: 8,
-                              }}
-                            >
-                              <strong
-                                style={{
-                                  fontSize:
-                                    18,
-                                }}
-                              >
-                                {
-                                  booking.carName
-                                }
-                              </strong>
-
-                              <Badge
-                                color={
-                                  C.green
-                                }
-                              >
-                                {
-                                  booking.status
-                                }
-                              </Badge>
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop:
-                                  7,
-                                color:
-                                  C.gray,
-                                fontSize:
-                                  13,
-                              }}
-                            >
-                              {
-                                booking.name
-                              }{" "}
-                              •{" "}
-                              {
-                                booking.phone
-                              }
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop:
-                                  5,
-                                color:
-                                  C.gray,
-                                fontSize:
-                                  13,
-                              }}
-                            >
-                              Pickup:{" "}
-                              {
-                                booking.pickupDate
-                              }{" "}
-                              at{" "}
-                              {
-                                booking.pickupTime
-                              }
-                            </div>
-
-                            <div
-                              style={{
-                                marginTop:
-                                  5,
-                                color:
-                                  C.blue,
-                                fontWeight:
-                                  800,
-                                fontSize:
-                                  13,
-                              }}
-                            >
-                              Duration:{" "}
-                              {
-                                booking.rentalDuration
-                              }{" "}
-                              Hours
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              textAlign:
-                                "right",
-                            }}
-                          >
-                            <div
-                              style={{
-                                color:
-                                  C.green,
-                                fontWeight:
-                                  950,
-                                fontSize:
-                                  18,
-                              }}
-                            >
-                              Paid{" "}
-                              {fmtINR(
-                                booking.paidAmount
-                              )}
-                            </div>
-
-                            <div
-                              style={{
-                                color:
-                                  C.navy,
-                                fontWeight:
-                                  800,
-                                fontSize:
-                                  13,
-                                marginTop:
-                                  4,
-                              }}
-                            >
-                              Total{" "}
-                              {fmtINR(
-                                booking.total
-                              )}
-                            </div>
-
-                            <div
-                              style={{
-                                color:
-                                  C.orange,
-                                fontSize:
-                                  13,
-                                marginTop:
-                                  4,
-                              }}
-                            >
-                              Remaining{" "}
-                              {fmtINR(
-                                booking.remainingAmount
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop:
-                              13,
-                            paddingTop:
-                              12,
-                            borderTop:
-                              `1px solid ${C.border}`,
-                            display:
-                              "flex",
-                            flexWrap:
-                              "wrap",
-                            gap: 8,
-                          }}
-                        >
-                          <Badge
-                            color={
-                              booking.paymentType ===
-                              "advance"
-                                ? C.orange
-                                : C.green
-                            }
-                          >
-                            <CreditCard
-                              size={
-                                12
-                              }
-                            />
-
-                            {booking.paymentType ===
-                            "advance"
-                              ? "₹500 Advance"
-                              : "Full Payment"}
-                          </Badge>
-
-                          {booking.orderId && (
-                            <Badge
-                              color={
-                                C.gray
-                              }
-                            >
-                              Order:{" "}
-                              {
-                                booking.orderId
-                              }
-                            </Badge>
-                          )}
-
-                          {booking.paymentId && (
-                            <Badge
-                              color={
-                                C.gray
-                              }
-                            >
-                              Payment:{" "}
-                              {
-                                booking.paymentId
-                              }
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* CITIES */}
-
-        {tab === "leads" && (
-          <>
-            <div style={{ marginBottom: 18 }}>
-              <h1 style={{ margin: 0, fontSize: 28, fontWeight: 950 }}>
-                Leads
-              </h1>
-              <p style={{ color: C.gray, margin: "5px 0 0" }}>
-                Numbers saved from the booking form.
-              </p>
-            </div>
-
-             {(leadList || []).length === 0 ? (
-              <div
-                style={{
-                  background: C.white,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 18,
-                  padding: 40,
-                  textAlign: "center",
-                  color: C.gray,
-                }}
-              >
-                No leads yet.
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 12 }}>
-              {(leadList || []).map((lead) => (
-                  <div
-                    key={lead.id}
-                    style={{
-                      background: C.white,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: 18,
-                      padding: 16,
-                    }}
-                  >
-                    <strong style={{ fontSize: 18 }}>{lead.phone}</strong>
-                    <div style={{ color: C.gray, fontSize: 13, marginTop: 6 }}>
-                      {lead.name || "—"} · {lead.city || "—"} · {lead.car_name || "—"}
-                    </div>
-                    <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-                      <a href={`tel:+91${String(lead.phone || "").replace(/\D/g, "")}`} style={{ color: C.blue, fontWeight: 800 }}>
-                        Call
-                      </a>
-                      <a
-                        href={`https://wa.me/91${String(lead.phone || "").replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: C.green, fontWeight: 800 }}
-                      >
-                        WhatsApp
-                      </a>
-                    </div>
-                  </div>
+      {editing !== null && (
+        <form className="ad-box ad-form" onSubmit={save}>
+          <div className="ad-head">
+            <h3>{editing === "new" ? "Add a car" : `Edit ${form.name || "car"}`}</h3>
+            <button type="button" className="ad-x" onClick={cancel} aria-label="Close">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="ad-grid">
+            <AdField label="Car name" wide>
+              <input value={form.name} onChange={set("name")} placeholder="Maruti Baleno CNG" />
+            </AdField>
+            <AdField label="Type">
+              <input list="ad-types" value={form.type} onChange={set("type")} />
+              <datalist id="ad-types">
+                {["Hatchback", "Sedan", "SUV", "MUV", "Luxury"].map((t) => (
+                  <option key={t} value={t} />
                 ))}
+              </datalist>
+            </AdField>
+            <AdField label="City">
+              <select value={form.city} onChange={set("city")}>
+                <option value="">Select city</option>
+                {cities.map((c) => (
+                  <option key={c.id || c.name}>{c.name}</option>
+                ))}
+              </select>
+            </AdField>
+            <AdField label="Fuel">
+              <select value={form.fuel} onChange={set("fuel")}>
+                {["Petrol", "Diesel", "CNG", "Electric"].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </AdField>
+            <AdField label="Transmission">
+              <select value={form.transmission} onChange={set("transmission")}>
+                {["Manual", "Automatic"].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </AdField>
+            <AdField label="Seats">
+              <input type="number" min="2" max="12" value={form.seats} onChange={set("seats")} />
+            </AdField>
+            <AdField label="Status">
+              <select
+                value={form.available ? "yes" : "no"}
+                onChange={(e) => setForm((p) => ({ ...p, available: e.target.value === "yes" }))}
+              >
+                <option value="yes">Available</option>
+                <option value="no">Rented out</option>
+              </select>
+            </AdField>
+          </div>
+
+          <h4 className="ad-sub">Prices</h4>
+          <div className="ad-grid">
+            <AdField label="Daily price (₹) *">
+              <input type="number" min="0" value={form.dailyRate} onChange={set("dailyRate")} />
+            </AdField>
+            <AdField label="Hourly price (₹ per hour)" hint="Blank uses the default">
+              <input type="number" min="0" value={form.hourlyRate} onChange={set("hourlyRate")} />
+            </AdField>
+            <AdField label="12 hour price (₹)">
+              <input type="number" min="0" value={form.price12} onChange={set("price12")} />
+            </AdField>
+            <AdField label="Weekly price (₹)" hint="Blank uses the default">
+              <input type="number" min="0" value={form.weeklyRate} onChange={set("weeklyRate")} />
+            </AdField>
+            <AdField label="Monthly price (₹)" hint="Blank uses the default">
+              <input type="number" min="0" value={form.monthlyRate} onChange={set("monthlyRate")} />
+            </AdField>
+            <AdField label="2-year plan (₹ per month)" hint="Blank uses the default">
+              <input type="number" min="0" value={form.longTermRate} onChange={set("longTermRate")} />
+            </AdField>
+            <AdField label="Included km per hour">
+              <input type="number" min="0" value={form.hourlyKm} onChange={set("hourlyKm")} />
+            </AdField>
+            <AdField label="Included km per day">
+              <input type="number" min="0" value={form.dailyKm} onChange={set("dailyKm")} />
+            </AdField>
+            <AdField label="Extra km rate (₹ per km)">
+              <input type="number" min="0" value={form.extraKmRate} onChange={set("extraKmRate")} />
+            </AdField>
+            <AdField label="Driver cost (₹ per day)">
+              <input type="number" min="0" value={form.driverCost} onChange={set("driverCost")} />
+            </AdField>
+            <AdField label="Fuel cost (₹ per km)">
+              <input type="number" min="0" step="0.01" value={form.fuelCostPerKm} onChange={set("fuelCostPerKm")} />
+            </AdField>
+            <AdField label="Security deposit (₹)" hint="Only you see this">
+              <input type="number" min="0" value={form.securityDeposit} onChange={set("securityDeposit")} />
+            </AdField>
+          </div>
+
+          <h4 className="ad-sub">Photos ({(form.photos || []).length}/10)</h4>
+          <div className="ad-photos">
+            {(form.photos || []).map((p, i) => (
+              <div key={i} className="ad-photo">
+                <img src={p} alt="" />
+                {i === 0 && <span className="ad-main">Main</span>}
+                <div>
+                  {i > 0 && (
+                    <button type="button" onClick={() => makeMain(i)}>
+                      Make main
+                    </button>
+                  )}
+                  <button type="button" onClick={() => removePhoto(i)}>
+                    Remove
+                  </button>
+                </div>
               </div>
+            ))}
+            {(form.photos || []).length < 10 && (
+              <label className="ad-add-photo">
+                <ImagePlus size={26} />
+                <span>Add photos</span>
+                <input type="file" accept="image/*" multiple hidden onChange={addPhotos} />
+              </label>
             )}
-          </>
-        )}
+          </div>
 
-        {tab === "cities" && (
-          <>
-            <div
-              style={{
-                marginBottom:
-                  18,
-              }}
-            >
-              <h1
-                style={{
-                  margin:
-                    0,
-                  fontSize:
-                    28,
-                  fontWeight:
-                    950,
-                }}
-              >
-                Cities
-              </h1>
+          <div className="ad-actions">
+            <button className="ad-btn pri" disabled={!!busy}>
+              {busy || (editing === "new" ? "Save car" : "Save changes")}
+            </button>
+            <button type="button" className="ad-btn" onClick={cancel} disabled={!!busy}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
-              <p
-                style={{
-                  color:
-                    C.gray,
-                  margin:
-                    "5px 0 0",
-                }}
-              >
-                Manage rental locations.
-              </p>
+      {cars.length === 0 && editing === null && (
+        <div className="ad-empty">
+          <Car size={38} strokeWidth={1.3} />
+          <p>No cars yet. Tap Add car to list your first one.</p>
+        </div>
+      )}
+      <div className="ad-list">
+        {cars.map((car) => (
+          <div key={car.id} className="ad-row">
+            <div className="ad-thumb">
+              {car.photos?.[0] ? <img src={car.photos[0]} alt="" /> : <Car size={30} strokeWidth={1.3} />}
             </div>
-
-            <form
-              onSubmit={
-                addCity
-              }
-              style={{
-                background:
-                  C.white,
-                border:
-                  `1px solid ${C.border}`,
-                borderRadius:
-                  18,
-                padding:
-                  16,
-                display:
-                  "flex",
-                flexWrap:
-                  "wrap",
-                gap: 10,
-              }}
-            >
-              <input
-                value={
-                  newCity
-                }
-                onChange={(
-                  e
-                ) =>
-                  setNewCity(
-                    e.target
-                      .value
-                  )
-                }
-                placeholder="Enter city name"
-                style={{
-                  ...inputStyle,
-                  flex:
-                    "1 1 220px",
-                }}
-              />
-
-              <button
-                type="submit"
-                style={
-                  primaryButton
-                }
-              >
-                <Plus
-                  size={
-                    16
-                  }
-                />
-                Add City
+            <div className="ad-row-main">
+              <b>{car.name}</b>
+              <span>
+                {[car.city, car.type, car.fuel, car.transmission, `${car.seats || 5} seats`].filter(Boolean).join(", ")}
+              </span>
+              <span>
+                {fmtINR(Number(car.dailyRate ?? car.price24 ?? 0))} per day, {(car.photos || []).length} photos
+              </span>
+            </div>
+            <div className="ad-row-actions">
+              <button className={`ad-chip ${car.available ? "ok" : "no"}`} onClick={() => toggle(car)} title="Tap to change">
+                {car.available ? "Available" : "Rented out"}
               </button>
-            </form>
-
-            <div
-              style={{
-                display:
-                  "grid",
-                gap: 10,
-                marginTop:
-                  16,
-              }}
-            >
-              {cities.map(
-                (city) => (
-                  <div
-                    key={
-                      city.id
-                    }
-                    style={{
-                      background:
-                        C.white,
-                      border:
-                        `1px solid ${C.border}`,
-                      borderRadius:
-                        16,
-                      padding:
-                        14,
-                      display:
-                        "flex",
-                      flexWrap:
-                        "wrap",
-                      justifyContent:
-                        "space-between",
-                      alignItems:
-                        "center",
-                      gap: 10,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display:
-                          "flex",
-                        alignItems:
-                          "center",
-                        gap: 10,
-                      }}
-                    >
-                      <MapPin
-                        size={
-                          19
-                        }
-                        color={
-                          C.blue
-                        }
-                      />
-
-                      <strong>
-                        {
-                          city.name
-                        }
-                      </strong>
-
-                      <Badge
-                        color={
-                          city.active
-                            ? C.green
-                            : C.gray
-                        }
-                      >
-                        {city.active
-                          ? "Active"
-                          : "Inactive"}
-                      </Badge>
-                    </div>
-
-                    <div
-                      style={{
-                        display:
-                          "flex",
-                        flexWrap:
-                          "wrap",
-                        gap: 7,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          toggleCity(
-                            city.id
-                          )
-                        }
-                        style={
-                          smallButton
-                        }
-                      >
-                        {city.active
-                          ? "Disable"
-                          : "Enable"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteCity(
-                            city.id
-                          )
-                        }
-                        style={
-                          dangerButton
-                        }
-                      >
-                        <Trash2
-                          size={
-                            14
-                          }
-                        />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )
-              )}
+              <button className="ad-icon" onClick={() => startEdit(car)} aria-label="Edit">
+                <Pencil size={17} />
+              </button>
+              <button className="ad-icon danger" onClick={() => remove(car)} aria-label="Delete">
+                <Trash2 size={17} />
+              </button>
             </div>
-          </>
-        )}
-        {tab === "business" && (
-          <BusinessControls
-            cars={cars}
-            setCars={setCars}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ---------------- bookings ---------------- */
+function BookingCard({ b }) {
+  const [open, setOpen] = useState(false);
+  const status = val(b, "status") || "Pending";
+  const remaining = num(b, "remainingAmount");
+  const phone = val(b, "phone");
+  const duration = val(b, "rentalDuration");
+  return (
+    <article className="ad-bk">
+      <div className="ad-bk-top" onClick={() => setOpen((v) => !v)}>
+        <div>
+          <b>{val(b, "carName") || "Car"}</b>
+          <span>
+            {val(b, "name") || "Customer"}, {phone}
+          </span>
+          <span>
+            Pickup {val(b, "pickupDate")} {val(b, "pickupTime")}, plan {val(b, "plan") || (duration ? `${duration} hours` : "")}
+          </span>
+        </div>
+        <div className="ad-bk-money">
+          <strong>{money(val(b, "total"))}</strong>
+          <span className="paid">Paid {money(num(b, "paidAmount"))}</span>
+          {remaining > 0 && <span className="due">Due {fmtINR(remaining)}</span>}
+          <em className={`ad-status ${String(status).toLowerCase()}`}>{status}</em>
+        </div>
+      </div>
+      <div className="ad-bk-actions">
+        <a href={telLink(phone)}>Call</a>
+        <a href={waLink(phone)} target="_blank" rel="noreferrer">WhatsApp</a>
+        {val(b, "email") && <a href={`mailto:${val(b, "email")}`}>Email</a>}
+        <button onClick={() => setOpen((v) => !v)}>{open ? "Hide details" : "Full details"}</button>
+      </div>
+      {open && (
+        <div className="ad-bk-detail">
+          <Facts
+            title="Customer"
+            items={[
+              ["Name", val(b, "name")],
+              ["Mobile", phone],
+              ["Email", val(b, "email")],
+            ]}
           />
-        )}
+          <Facts
+            title="Trip"
+            items={[
+              ["Car", val(b, "carName")],
+              ["Pickup city", val(b, "city")],
+              ["Pickup date", val(b, "pickupDate")],
+              ["Pickup time", val(b, "pickupTime")],
+              ["Plan", val(b, "plan")],
+              ["Rental hours", duration],
+              ["Trip type", val(b, "tripType")],
+              ["Service", val(b, "serviceType")],
+              ["Fuel option", val(b, "fuelOption")],
+              ["Destination", val(b, "dropCity")],
+              ["Distance (km)", val(b, "estimatedDistanceKm")],
+              ["Drive hours", val(b, "estimatedDriveHours")],
+            ]}
+          />
+          <Facts
+            title="Price and payment"
+            items={[
+              ["Rental", money(val(b, "rental"))],
+              ["Extra km", money(val(b, "extraKmCost"))],
+              ["Fuel", money(val(b, "fuelCost"))],
+              ["Driver", money(val(b, "driverCost"))],
+              ["Guide", money(val(b, "guideCost"))],
+              ["Recovery fuel", money(val(b, "recoveryFuel"))],
+              ["Recovery time", money(val(b, "recoveryTime"))],
+              ["Home delivery", money(val(b, "deliveryCost"))],
+              ["Margin", money(val(b, "margin"))],
+              ["Total", money(val(b, "total"))],
+              ["Paid", money(val(b, "paidAmount"))],
+              ["Advance paid", money(val(b, "advancePaid"))],
+              ["Remaining", money(val(b, "remainingAmount"))],
+              ["Payment type", val(b, "paymentType")],
+              ["Payment ID", val(b, "paymentId")],
+              ["Order ID", val(b, "orderId")],
+              ["Status", status],
+            ]}
+          />
+          <Facts
+            title="Record"
+            items={[
+              ["Booking ID", val(b, "id")],
+              ["Created", when(val(b, "createdAt"))],
+            ]}
+          />
+          <details className="ad-all">
+            <summary>Everything stored for this booking</summary>
+            <RawTable obj={b} />
+          </details>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function BookingsTab({ bookings, onRefresh }) {
+  const [q, setQ] = useState("");
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return [...bookings]
+      .sort((a, b) => ts(b) - ts(a))
+      .filter(
+        (b) =>
+          !t ||
+          [val(b, "name"), val(b, "phone"), val(b, "carName"), val(b, "email"), val(b, "paymentId")]
+            .join(" ")
+            .toLowerCase()
+            .includes(t)
+      );
+  }, [bookings, q]);
+  function exportCSV() {
+    downloadCSV(
+      "bookings.csv",
+      [
+        ["Created", (b) => when(val(b, "createdAt"))],
+        ["Car", (b) => val(b, "carName")],
+        ["Name", (b) => val(b, "name")],
+        ["Mobile", (b) => val(b, "phone")],
+        ["Email", (b) => val(b, "email")],
+        ["City", (b) => val(b, "city")],
+        ["Pickup date", (b) => val(b, "pickupDate")],
+        ["Pickup time", (b) => val(b, "pickupTime")],
+        ["Plan", (b) => val(b, "plan")],
+        ["Trip type", (b) => val(b, "tripType")],
+        ["Service", (b) => val(b, "serviceType")],
+        ["Destination", (b) => val(b, "dropCity")],
+        ["Total", (b) => val(b, "total")],
+        ["Paid", (b) => val(b, "paidAmount")],
+        ["Remaining", (b) => val(b, "remainingAmount")],
+        ["Payment type", (b) => val(b, "paymentType")],
+        ["Payment ID", (b) => val(b, "paymentId")],
+        ["Status", (b) => val(b, "status")],
+      ],
+      list
+    );
+  }
+  return (
+    <>
+      <div className="ad-head">
+        <h2>Bookings ({bookings.length})</h2>
+        <div className="ad-actions tight">
+          <button className="ad-btn" onClick={onRefresh}>Refresh</button>
+          <button className="ad-btn" onClick={exportCSV} disabled={!list.length}>Download CSV</button>
+        </div>
+      </div>
+      <div className="ad-search">
+        <Search size={17} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, mobile, car or payment ID" />
+      </div>
+      {list.length === 0 ? (
+        <div className="ad-empty"><p>No bookings to show.</p></div>
+      ) : (
+        <div className="ad-list">
+          {list.map((b, i) => (
+            <BookingCard key={val(b, "id") || i} b={b} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------------- leads ---------------- */
+function LeadCard({ l }) {
+  const [open, setOpen] = useState(false);
+  const phone = val(l, "phone");
+  return (
+    <article className="ad-bk">
+      <div className="ad-bk-top" onClick={() => setOpen((v) => !v)}>
+        <div>
+          <b>{phone}</b>
+          <span>{[val(l, "name"), val(l, "city")].filter(Boolean).join(", ") || "No name"}</span>
+          {val(l, "carName") && <span>Interested in {val(l, "carName")}</span>}
+        </div>
+        <div className="ad-bk-money">
+          <span>{when(val(l, "createdAt"))}</span>
+        </div>
+      </div>
+      <div className="ad-bk-actions">
+        <a href={telLink(phone)}>Call</a>
+        <a href={waLink(phone)} target="_blank" rel="noreferrer">WhatsApp</a>
+        <button onClick={() => setOpen((v) => !v)}>{open ? "Hide details" : "Full details"}</button>
+      </div>
+      {open && (
+        <div className="ad-bk-detail">
+          <Facts
+            title="Lead"
+            items={[
+              ["Name", val(l, "name")],
+              ["Mobile", phone],
+              ["City", val(l, "city")],
+              ["Car", val(l, "carName")],
+              ["Message", val(l, "message")],
+              ["Received", when(val(l, "createdAt"))],
+              ["Lead ID", val(l, "id")],
+            ]}
+          />
+          <details className="ad-all">
+            <summary>Everything stored for this lead</summary>
+            <RawTable obj={l} />
+          </details>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function LeadsTab({ leads, onRefresh }) {
+  const [q, setQ] = useState("");
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return [...leads]
+      .sort((a, b) => ts(b) - ts(a))
+      .filter(
+        (l) =>
+          !t ||
+          [val(l, "name"), val(l, "phone"), val(l, "city"), val(l, "carName"), val(l, "message")]
+            .join(" ")
+            .toLowerCase()
+            .includes(t)
+      );
+  }, [leads, q]);
+  function exportCSV() {
+    downloadCSV(
+      "leads.csv",
+      [
+        ["Received", (l) => when(val(l, "createdAt"))],
+        ["Name", (l) => val(l, "name")],
+        ["Mobile", (l) => val(l, "phone")],
+        ["City", (l) => val(l, "city")],
+        ["Car", (l) => val(l, "carName")],
+        ["Message", (l) => val(l, "message")],
+      ],
+      list
+    );
+  }
+  return (
+    <>
+      <div className="ad-head">
+        <h2>Leads ({leads.length})</h2>
+        <div className="ad-actions tight">
+          <button className="ad-btn" onClick={onRefresh}>Refresh</button>
+          <button className="ad-btn" onClick={exportCSV} disabled={!list.length}>Download CSV</button>
+        </div>
+      </div>
+      <div className="ad-search">
+        <Search size={17} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, mobile, city or car" />
+      </div>
+      {list.length === 0 ? (
+        <div className="ad-empty"><p>No leads yet. Numbers from the booking form and the callback form land here.</p></div>
+      ) : (
+        <div className="ad-list">
+          {list.map((l, i) => (
+            <LeadCard key={val(l, "id") || i} l={l} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------------- cities ---------------- */
+function CitiesTab({ cities, setCities }) {
+  const [name, setName] = useState("");
+  async function add(e) {
+    e.preventDefault();
+    const n = name.trim();
+    if (!n) return;
+    if (cities.some((c) => c.name.toLowerCase() === n.toLowerCase())) return alert("That city is already in the list.");
+    try {
+      await upsertCity({ name: n, active: true });
+    } catch (err) {
+      return alert("Could not save the city: " + (err?.message || err));
+    }
+    setCities((prev) => [...prev, { id: uid("city"), name: n, active: true }]);
+    setName("");
+  }
+  async function toggle(c) {
+    const next = { ...c, active: !c.active };
+    setCities((prev) => prev.map((x) => (x.name === c.name ? next : x)));
+    try {
+      await upsertCity({ name: c.name, active: next.active });
+    } catch (err) {
+      console.error(err);
+      alert("Changed on this screen, but the cloud save failed: " + (err?.message || err));
+    }
+  }
+  return (
+    <>
+      <div className="ad-head"><h2>Cities</h2></div>
+      <form className="ad-box ad-inline" onSubmit={add}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New city name" />
+        <button className="ad-btn pri"><Plus size={17} /> Add city</button>
+      </form>
+      <div className="ad-list">
+        {cities.map((c) => (
+          <div key={c.id || c.name} className="ad-row">
+            <div className="ad-row-main">
+              <b>{c.name}</b>
+              <span>{c.active ? "Shown on the website" : "Hidden from the website"}</span>
+            </div>
+            <div className="ad-row-actions">
+              <button className={`ad-chip ${c.active ? "ok" : "no"}`} onClick={() => toggle(c)}>
+                {c.active ? "Active" : "Hidden"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ---------------- site content ---------------- */
+const SETTING_FIELDS = [
+  ["hourlyStartingPrice", "Hourly starting price (₹ per hour)"],
+  ["hourlyIncludedKm", "Included km per hour"],
+  ["dailyStartingPrice", "Daily starting price (₹)"],
+  ["dailyIncludedKm", "Included km per day"],
+  ["weeklyStartingPrice", "Weekly starting price (₹)"],
+  ["monthlyStartingPrice", "1-month price (₹)"],
+  ["longTermMonthlyPrice", "2-year plan (₹ per month)"],
+  ["longTermMonths", "2-year plan months"],
+  ["extraKmRate", "Extra km rate (₹ per km)"],
+  ["driverCostPerDay", "Driver cost (₹ per day)"],
+  ["guideCostPerDay", "Guide cost (₹ per day)"],
+  ["cngCostPerKm", "CNG cost (₹ per km)"],
+  ["dieselCostPerKm", "Diesel cost (₹ per km)"],
+  ["petrolCostPerKm", "Petrol cost (₹ per km)"],
+  ["returnTimeCostPerHour", "Recovery time cost (₹ per hour)"],
+  ["deliveryFlatCharge", "Home delivery charge (₹)"],
+  ["marginPercent", "Business margin (%)"],
+  ["bookingAdvance", "Booking advance (₹)"],
+];
+
+function ContentTab() {
+  const [section, setSection] = useState("places");
+  const [settings, setSettings] = useState(() => ({
+    ...DEFAULT_BUSINESS_SETTINGS,
+    ...(loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS) || {}),
+  }));
+  const [packages, setPackages] = useState(() => {
+    const p = loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES);
+    return Array.isArray(p) ? p : DEFAULT_TRAVEL_PACKAGES;
+  });
+  const [decor, setDecor] = useState(() => {
+    const d = loadShared("sawariya_decorations", DEFAULT_DECORATIONS);
+    return Array.isArray(d) ? d : DEFAULT_DECORATIONS;
+  });
+  const [info, setInfo] = useState(() => ({
+    ...SITE_DEFAULTS,
+    ...(loadShared("sawariya_site_info", SITE_DEFAULTS) || {}),
+  }));
+
+  const upd = (setter, i, k, v) => setter((list) => list.map((x, n) => (n === i ? { ...x, [k]: v } : x)));
+  const del = (setter, i) => setter((list) => list.filter((_, n) => n !== i));
+  const saved = (what) => alert(`${what} saved on this device.`);
+
+  const tabs = [
+    ["places", "Places to visit"],
+    ["decor", "Car decoration"],
+    ["location", "Location and contact"],
+    ["pricing", "Default pricing"],
+  ];
+  return (
+    <>
+      <div className="ad-head"><h2>Website content</h2></div>
+      <div className="ad-subtabs">
+        {tabs.map(([id, t]) => (
+          <button key={id} className={section === id ? "on" : ""} onClick={() => setSection(id)}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {section === "places" && (
+        <>
+          <p className="ad-muted">Travel packages shown on the home page, such as Ujjain or Mandu.</p>
+          {packages.map((p, i) => (
+            <div key={p.id || i} className="ad-box">
+              <div className="ad-grid">
+                <AdField label="Place name"><input value={p.name || ""} onChange={(e) => upd(setPackages, i, "name", e.target.value)} /></AdField>
+                <AdField label="Days"><input type="number" min="1" value={p.days ?? 1} onChange={(e) => upd(setPackages, i, "days", Number(e.target.value))} /></AdField>
+                <AdField label="Self-drive price (₹)"><input type="number" min="0" value={p.selfDrivePrice ?? 0} onChange={(e) => upd(setPackages, i, "selfDrivePrice", Number(e.target.value))} /></AdField>
+                <AdField label="With driver price (₹)"><input type="number" min="0" value={p.driverPrice ?? 0} onChange={(e) => upd(setPackages, i, "driverPrice", Number(e.target.value))} /></AdField>
+                <AdField label="With guide price (₹)"><input type="number" min="0" value={p.guidePrice ?? 0} onChange={(e) => upd(setPackages, i, "guidePrice", Number(e.target.value))} /></AdField>
+                <AdField label="Description" wide><textarea rows="2" value={p.description || ""} onChange={(e) => upd(setPackages, i, "description", e.target.value)} /></AdField>
+              </div>
+              <button className="ad-btn danger" onClick={() => del(setPackages, i)}><Trash2 size={16} /> Remove</button>
+            </div>
+          ))}
+          <div className="ad-actions">
+            <button className="ad-btn" onClick={() => setPackages((l) => [...l, { id: uid("pkg"), name: "", days: 1, description: "", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0 }])}>
+              <Plus size={16} /> Add place
+            </button>
+            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_travel_packages", packages); saved("Places"); }}>Save places</button>
+          </div>
+        </>
+      )}
+
+      {section === "decor" && (
+        <>
+          <p className="ad-muted">Decoration options shown on the home page, such as birthday or wedding.</p>
+          {decor.map((d, i) => (
+            <div key={d.id || i} className="ad-box">
+              <div className="ad-grid">
+                <AdField label="Name"><input value={d.name || ""} onChange={(e) => upd(setDecor, i, "name", e.target.value)} /></AdField>
+                <AdField label="Price (₹)" hint="0 shows Price on request"><input type="number" min="0" value={d.price ?? 0} onChange={(e) => upd(setDecor, i, "price", Number(e.target.value))} /></AdField>
+                <AdField label="Description" wide><textarea rows="2" value={d.description || ""} onChange={(e) => upd(setDecor, i, "description", e.target.value)} /></AdField>
+              </div>
+              <button className="ad-btn danger" onClick={() => del(setDecor, i)}><Trash2 size={16} /> Remove</button>
+            </div>
+          ))}
+          <div className="ad-actions">
+            <button className="ad-btn" onClick={() => setDecor((l) => [...l, { id: uid("dec"), name: "", description: "", price: 0 }])}>
+              <Plus size={16} /> Add decoration
+            </button>
+            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_decorations", decor); saved("Decorations"); }}>Save decorations</button>
+          </div>
+        </>
+      )}
+
+      {section === "location" && (
+        <div className="ad-box">
+          <p className="ad-muted">Shown in the Visit us section, the header and the footer. WhatsApp number: country code plus number, for example 917415228011.</p>
+          <div className="ad-grid">
+            <AdField label="Address text" wide><input value={info.address} onChange={(e) => setInfo((p) => ({ ...p, address: e.target.value }))} /></AdField>
+            <AdField label="Map latitude"><input value={info.lat} onChange={(e) => setInfo((p) => ({ ...p, lat: e.target.value }))} /></AdField>
+            <AdField label="Map longitude"><input value={info.lng} onChange={(e) => setInfo((p) => ({ ...p, lng: e.target.value }))} /></AdField>
+            <AdField label="Open in Maps link" wide><input value={info.mapsLink} onChange={(e) => setInfo((p) => ({ ...p, mapsLink: e.target.value }))} /></AdField>
+            <AdField label="Phone 1"><input value={info.phone1} onChange={(e) => setInfo((p) => ({ ...p, phone1: e.target.value }))} /></AdField>
+            <AdField label="Phone 2"><input value={info.phone2} onChange={(e) => setInfo((p) => ({ ...p, phone2: e.target.value }))} /></AdField>
+            <AdField label="WhatsApp number"><input value={info.whatsapp} onChange={(e) => setInfo((p) => ({ ...p, whatsapp: e.target.value }))} /></AdField>
+          </div>
+          <div className="ad-actions">
+            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_site_info", info); saved("Location and contact"); }}>Save location</button>
+            <button className="ad-btn" onClick={() => setInfo({ ...SITE_DEFAULTS })}>Reset to original</button>
+          </div>
+        </div>
+      )}
+
+      {section === "pricing" && (
+        <div className="ad-box">
+          <p className="ad-muted">Default prices used on the website and in the booking form. Prices set on a car override these.</p>
+          <div className="ad-grid">
+            {SETTING_FIELDS.map(([k, label]) => (
+              <AdField key={k} label={label}>
+                <input type="number" min="0" step="any" value={settings[k] ?? ""} onChange={(e) => setSettings((p) => ({ ...p, [k]: Number(e.target.value) }))} />
+              </AdField>
+            ))}
+          </div>
+          <div className="ad-actions">
+            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_business_settings", settings); saved("Pricing"); }}>Save pricing</button>
+          </div>
+        </div>
+      )}
+
+      <p className="ad-warn">
+        Places, decorations, location and default pricing are stored in this browser only. Customers on other phones
+        will not see changes until they are connected to your Supabase database.
+      </p>
+    </>
+  );
+}
+
+/* ---------------- panel + gate ---------------- */
+function AdminPanel({ cars, setCars, cities, setCities, bookings, leads, onRefresh, onExit, onLock }) {
+  const [tab, setTab] = useState("dashboard");
+  useEffect(() => {
+    onRefresh();
+    // eslint-disable-next-line
+  }, []);
+  const tabs = [
+    ["dashboard", "Dashboard"],
+    ["cars", "Cars"],
+    ["bookings", "Bookings"],
+    ["leads", "Leads"],
+    ["cities", "Cities"],
+    ["content", "Website content"],
+  ];
+  return (
+    <div className="ad">
+      <style>{ADMIN_CSS}</style>
+      <header className="ad-top">
+        <div className="ad-top-in">
+          <Logo id="ad" />
+          <b className="ad-badge">Admin</b>
+          <div className="ad-top-actions">
+            <button className="ad-btn" onClick={onExit}>View website</button>
+            <button className="ad-btn" onClick={onLock}>Lock</button>
+          </div>
+        </div>
+        <nav className="ad-tabs">
+          {tabs.map(([id, t]) => (
+            <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+              {t}
+              {id === "leads" && leads.length > 0 && <i>{leads.length}</i>}
+              {id === "bookings" && bookings.length > 0 && <i>{bookings.length}</i>}
+            </button>
+          ))}
+        </nav>
+      </header>
+      <main className="ad-main">
+        {tab === "dashboard" && <DashboardTab cars={cars} bookings={bookings} leads={leads} go={setTab} />}
+        {tab === "cars" && <CarsTab cars={cars} setCars={setCars} cities={cities} />}
+        {tab === "bookings" && <BookingsTab bookings={bookings} onRefresh={onRefresh} />}
+        {tab === "leads" && <LeadsTab leads={leads} onRefresh={onRefresh} />}
+        {tab === "cities" && <CitiesTab cities={cities} setCities={setCities} />}
+        {tab === "content" && <ContentTab />}
       </main>
     </div>
   );
 }
 
-class AdminErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, message: "" };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, message: error?.message || "Admin panel error" };
-  }
-  componentDidCatch(error, info) {
-    console.error("Sawariya Admin Panel Error", error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ minHeight: "100vh", background: C.grayLight, padding: 20, boxSizing: "border-box" }}>
-          <div style={{ maxWidth: 720, margin: "60px auto", background: C.white, border: `1px solid ${C.border}`, borderRadius: 22, padding: 24, boxShadow: "0 18px 50px rgba(15,23,42,.08)" }}>
-            <Badge color={C.red}>Admin error caught safely</Badge>
-            <h2 style={{ margin: "12px 0 8px" }}>The admin panel hit an error</h2>
-            <p style={{ color: C.gray, lineHeight: 1.6 }}>Your customer website is still protected. Refresh the page and try Admin again. If it happens again, the error below helps us locate the exact component.</p>
-            <pre style={{ whiteSpace: "pre-wrap", background: C.grayLight, padding: 12, borderRadius: 12, fontSize: 12, overflowX: "auto" }}>{this.state.message}</pre>
-            <button type="button" onClick={() => window.location.reload()} style={primaryButton}>Reload Admin</button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function VehiclePricingEditor({ car, onSaved }) {
-  const [form, setForm] = useState({
-    hourlyRate: car.hourlyRate ?? "",
-    dailyRate: car.dailyRate ?? car.price24 ?? "",
-    weeklyRate: car.weeklyRate ?? "",
-    monthlyRate: car.monthlyRate ?? "",
-    longTermRate: car.longTermRate ?? "",
-    hourlyKm: car.hourlyKm ?? 20,
-    dailyKm: car.dailyKm ?? 280,
-    extraKmRate: car.extraKmRate ?? 6,
-    driverCost: car.driverCost ?? 1000,
-    fuelCostPerKm: car.fuelCostPerKm ?? "",
-    securityDeposit: car.securityDeposit ?? "",
-  });
-  async function save() {
-    const updated = { ...car, ...form };
-    ["hourlyRate", "dailyRate", "weeklyRate", "monthlyRate", "longTermRate", "hourlyKm", "dailyKm", "extraKmRate", "driverCost", "fuelCostPerKm", "securityDeposit"].forEach((key) => {
-      if (form[key] !== "") updated[key] = Number(form[key]);
-    });
+function AdminGate(props) {
+  const [ok, setOk] = useState(() => {
     try {
-      await upsertCar(updated);
-      onSaved(updated);
-      alert(`${car.name} pricing saved.`);
-    } catch (error) {
-      console.error(error);
-      alert(error?.message || "Could not save vehicle pricing.");
+      return sessionStorage.getItem(ADMIN_SESSION_KEY) === "1";
+    } catch {
+      return false;
     }
-  }
-  const field = (key, label) => <Field label={label}><input type="number" value={form[key]} onChange={(e) => setForm((old) => ({ ...old, [key]: e.target.value }))} style={inputStyle} /></Field>;
-  return (
-    <div style={{ padding: 14, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 12 }}>
-      <strong>{car.name}</strong><div style={{ color: C.gray, fontSize: 12, margin: "3px 0 12px" }}>{car.city} · {car.fuel}</div>
-      <div style={fieldGrid}>{field("hourlyRate", "Hourly ₹/hr")}{field("dailyRate", "Daily ₹")}{field("weeklyRate", "Weekly ₹")}{field("monthlyRate", "Monthly ₹")}{field("longTermRate", "24-month ₹/month")}{field("hourlyKm", "Hourly included KM")}{field("dailyKm", "Daily included KM")}{field("extraKmRate", "Extra ₹/km")}{field("driverCost", "Driver cost/day")}{field("fuelCostPerKm", "Fuel cost/km")}{field("securityDeposit", "Security deposit (admin only)")}</div>
-      <button type="button" onClick={save} style={{ ...primaryButton, marginTop: 12 }}>Save {car.name}</button>
-    </div>
-  );
+  });
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
+  const [tries, setTries] = useState(0);
+  const [lockUntil, setLockUntil] = useState(0);
 
-}
-
-function BusinessControls({ cars, setCars }) {
-  const [settings, setSettings] = useState(() => loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS));
-  const [packages, setPackages] = useState(() => loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES));
-  const [decorations, setDecorations] = useState(() => loadShared("sawariya_decorations", DEFAULT_DECORATIONS));
-  const [section, setSection] = useState("pricing");
-  const saveSettings = () => { saveShared("sawariya_business_settings", settings); alert("Pricing settings saved."); };
-  const saveContent = () => { saveShared("sawariya_travel_packages", packages); saveShared("sawariya_decorations", decorations); alert("Travel packages and decorations saved."); };
-  const update = (setter, index, key, value) => setter((list) => list.map((item, i) => i === index ? { ...item, [key]: value } : item));
-  const numberField = (key, label) => <Field label={label}><input type="number" value={settings[key]} onChange={(e) => setSettings((old) => ({ ...old, [key]: Number(e.target.value) }))} style={inputStyle} /></Field>;
-  return (
-    <section style={{ background: C.grayLight, minHeight: "calc(100vh - 120px)", padding: "20px 16px 60px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ ...whiteCard, padding: 18 }}>
-          <h1 style={{ margin: 0, fontSize: 28 }}>Business Controls</h1>
-          <p style={{ margin: "6px 0 18px", color: C.gray }}>Change public pricing, vehicle pricing, travel packages and decorated-car options. Security deposit values stay admin-only.</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-            {[['pricing','Pricing'],['vehicles','Vehicle pricing'],['travel','Travel packages'],['decor','Decorations']].map(([id,label]) => <button type="button" key={id} onClick={() => setSection(id)} style={section === id ? primaryButton : secondaryButton}>{label}</button>)}
-          </div>
-          {section === "pricing" && <>
-            <div style={fieldGrid}>{numberField("hourlyStartingPrice", "Hourly starting ₹/hr")}{numberField("hourlyIncludedKm", "Hourly included KM")}{numberField("dailyStartingPrice", "Daily starting ₹")}{numberField("dailyIncludedKm", "Daily included KM")}{numberField("weeklyStartingPrice", "Weekly starting ₹")}{numberField("monthlyStartingPrice", "1-month price ₹")}{numberField("longTermMonthlyPrice", "24-month ₹/month")}{numberField("longTermMonths", "Long-term months")}{numberField("extraKmRate", "Extra ₹/km")}{numberField("driverCostPerDay", "Driver cost/day")}{numberField("cngCostPerKm", "CNG cost/km")}{numberField("dieselCostPerKm", "Diesel cost/km")}{numberField("petrolCostPerKm", "Petrol cost/km")}{numberField("guideCostPerDay", "Guide cost/day")}{numberField("returnTimeCostPerHour", "Recovery time cost/hour")}{numberField("deliveryFlatCharge", "Home delivery charge")}{numberField("marginPercent", "Business margin %")}{numberField("bookingAdvance", "Booking advance")}</div>
-            <button type="button" onClick={saveSettings} style={{ ...primaryButton, marginTop: 16 }}>Save pricing</button>
-          </>}
-          {section === "vehicles" && <><h2 style={{ marginTop: 0 }}>Vehicle-specific pricing</h2><p style={{ color: C.gray }}>Leave a field blank to use the business default. Security deposit is stored only for admin use.</p>{cars.length ? cars.map((car) => <VehiclePricingEditor key={car.id} car={car} onSaved={(updated) => setCars((list) => list.map((x) => x.id === updated.id ? updated : x))} />) : <div style={emptyCard}>Add a vehicle first from Vehicles.</div>}</>}
-          {section === "travel" && <><h2 style={{ marginTop: 0 }}>Travel packages</h2>{packages.map((item, index) => <div key={item.id} style={{ ...whiteCard, padding: 14, marginBottom: 10 }}><div style={fieldGrid}><Field label="Name"><input value={item.name} onChange={(e) => update(setPackages,index,"name",e.target.value)} style={inputStyle}/></Field><Field label="Days"><input type="number" value={item.days} onChange={(e) => update(setPackages,index,"days",Number(e.target.value))} style={inputStyle}/></Field><Field label="Self-drive ₹"><input type="number" value={item.selfDrivePrice} onChange={(e) => update(setPackages,index,"selfDrivePrice",Number(e.target.value))} style={inputStyle}/></Field><Field label="Driver ₹"><input type="number" value={item.driverPrice} onChange={(e) => update(setPackages,index,"driverPrice",Number(e.target.value))} style={inputStyle}/></Field><Field label="Driver + guide ₹"><input type="number" value={item.guidePrice} onChange={(e) => update(setPackages,index,"guidePrice",Number(e.target.value))} style={inputStyle}/></Field></div><Field label="Description"><input value={item.description} onChange={(e) => update(setPackages,index,"description",e.target.value)} style={inputStyle}/></Field></div>)}<button type="button" onClick={saveContent} style={primaryButton}>Save travel packages</button></>}
-          {section === "decor" && <><h2 style={{ marginTop: 0 }}>Decorated cars</h2>{decorations.map((item,index) => <div key={item.id} style={{ ...whiteCard, padding: 14, marginBottom: 10 }}><div style={fieldGrid}><Field label="Name"><input value={item.name} onChange={(e) => update(setDecorations,index,"name",e.target.value)} style={inputStyle}/></Field><Field label="Price ₹"><input type="number" value={item.price} onChange={(e) => update(setDecorations,index,"price",Number(e.target.value))} style={inputStyle}/></Field></div><Field label="Description"><input value={item.description} onChange={(e) => update(setDecorations,index,"description",e.target.value)} style={inputStyle}/></Field></div>)}<button type="button" onClick={saveContent} style={primaryButton}>Save decorations</button></>}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =========================================================
-   ADMIN GATE
-========================================================= */
-
-function AdminGate({
-  cars,
-  setCars,
-  cities,
-  setCities,
-  bookings,
-  leads = [],
-}) {
-  const [passcode, setPasscode] =
-    useState("");
-
-  const [loggedIn, setLoggedIn] =
-    useState(false);
-
-  function login(e) {
+  function submit(e) {
     e.preventDefault();
-
-    if (
-      passcode ===
-      ADMIN_PASSCODE
-    ) {
-      setLoggedIn(true);
-      setPasscode("");
+    if (Date.now() < lockUntil) {
+      return setErr("Too many wrong tries. Wait 30 seconds and try again.");
+    }
+    if (code === ADMIN_PASSCODE) {
+      try {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, "1");
+      } catch {}
+      setErr("");
+      setCode("");
+      setTries(0);
+      setOk(true);
+      return;
+    }
+    const n = tries + 1;
+    setTries(n);
+    setCode("");
+    if (n >= 5) {
+      setLockUntil(Date.now() + 30000);
+      setTries(0);
+      setErr("Too many wrong tries. Wait 30 seconds and try again.");
     } else {
-      alert(
-        "Incorrect admin passcode."
-      );
+      setErr("Wrong passcode.");
     }
   }
-
-    if (loggedIn) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", padding: 20 }}>
-        <h1 style={{ marginTop: 0 }}>SAWARIYA ADMIN</h1>
-        <p>Login OK. Full panel will be restored next.</p>
-        <p><b>Cars:</b> {Array.isArray(cars) ? cars.length : 0}</p>
-        <p><b>Bookings:</b> {Array.isArray(bookings) ? bookings.length : 0}</p>
-        <p><b>Cities:</b> {Array.isArray(cities) ? cities.length : 0}</p>
-        <p><b>Leads:</b> {Array.isArray(leads) ? leads.length : 0}</p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          style={{ marginTop: 16, padding: "12px 16px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 12, fontWeight: 800 }}
-        >
-          Exit Admin
-        </button>
-      </div>
-    );
+  function lock() {
+    try {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    } catch {}
+    setOk(false);
   }
-  
+
+  if (ok) return <AdminPanel {...props} onLock={lock} />;
+
   return (
-    <div
-      style={{
-        minHeight:
-          "100vh",
-        background:
-          "linear-gradient(135deg,#eff6ff,#f8fafc)",
-        display:
-          "flex",
-        alignItems:
-          "center",
-        justifyContent:
-          "center",
-        padding: 16,
-        boxSizing:
-          "border-box",
-      }}
-    >
-      <form
-        onSubmit={
-          login
-        }
-        style={{
-          width:
-            "100%",
-          maxWidth:
-            420,
-          background:
-            C.white,
-          border:
-            `1px solid ${C.border}`,
-          borderRadius:
-            24,
-          padding:
-            24,
-          boxShadow:
-            "0 20px 60px rgba(15,23,42,.10)",
-          boxSizing:
-            "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius:
-              16,
-            background:
-              C.navy,
-            color:
-              C.white,
-            display:
-              "flex",
-            alignItems:
-              "center",
-            justifyContent:
-              "center",
-            marginBottom:
-              16,
-          }}
-        >
-          <ShieldCheck
-            size={
-              27
-            }
-          />
-        </div>
-
-        <h1
-          style={{
-            margin:
-              0,
-            fontSize:
-              25,
-            fontWeight:
-              950,
-            color:
-              C.navy,
-          }}
-        >
-          Admin Login
-        </h1>
-
-        <p
-          style={{
-            color:
-              C.gray,
-            fontSize:
-              13,
-            lineHeight:
-              1.5,
-          }}
-        >
-          Enter your admin passcode to manage
-          vehicles, bookings and cities.
-        </p>
-
-        <label
-          style={
-            labelStyle
-          }
-        >
-          Admin Passcode
-        </label>
-
+    <div className="ad ad-gate">
+      <style>{ADMIN_CSS}</style>
+      <form className="ad-gate-card" onSubmit={submit}>
+        <Logo id="gate" />
+        <h2>Admin login</h2>
+        <p>Enter the admin passcode to manage cars, bookings and leads.</p>
         <input
           type="password"
-          value={
-            passcode
-          }
-          onChange={(
-            e
-          ) =>
-            setPasscode(
-              e.target
-                .value
-            )
-          }
-          placeholder="Enter passcode"
-          style={
-            inputStyle
-          }
+          inputMode="numeric"
           autoFocus
+          autoComplete="off"
+          placeholder="Passcode"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
         />
-
-        <button
-          type="submit"
-          style={{
-            ...primaryButton,
-            width:
-              "100%",
-            marginTop:
-              14,
-          }}
-        >
-          <ShieldCheck
-            size={
-              18
-            }
-          />
-          Login
-        </button>
-
-        <div
-          style={{
-            marginTop:
-              12,
-            textAlign:
-              "center",
-            color:
-              C.gray,
-            fontSize:
-              11,
-          }}
-        >
-          SAWARIYA RENTALS
-        </div>
+        {err && <small>{err}</small>}
+        <button className="ad-btn pri">Unlock</button>
+        <button type="button" className="ad-btn" onClick={props.onExit}>Back to website</button>
       </form>
     </div>
   );
 }
+
+const ADMIN_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+.ad{--ink:#0b1b2b;--pea:#0e7c86;--pead:#0a5f67;--saf:#f59e0b;--mist:#f2f7f8;--line:#e0e9ec;--muted:#566774;--bad:#b42318;--good:#117a4a;
+ font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--mist);min-height:100vh;line-height:1.5}
+.ad *{box-sizing:border-box}
+.ad h2,.ad h3,.ad h4{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0;letter-spacing:-.02em}
+.ad a{color:var(--pea);font-weight:700;text-decoration:none}
+.ad button{font-family:inherit;cursor:pointer}
+.ad :focus-visible{outline:3px solid var(--saf);outline-offset:2px}
+.sw-logo{display:inline-flex;align-items:center;gap:10px}
+.sw-logo-text{display:flex;flex-direction:column;line-height:1}
+.sw-logo-text b{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.03em}
+.sw-logo-text i{font-style:normal;font-size:11px;font-weight:600;color:var(--pea);margin-top:3px;letter-spacing:.14em}
+.ad-top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.ad-top-in{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ad-badge{background:var(--ink);color:#fff;border-radius:999px;padding:3px 12px;font-size:12px}
+.ad-top-actions{margin-left:auto;display:flex;gap:8px}
+.ad-tabs{max-width:1100px;margin:0 auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
+.ad-tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px;font-weight:700;font-size:15px;color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.ad-tabs button.on{color:var(--ink);border-color:var(--saf)}
+.ad-tabs i{font-style:normal;font-size:12px;background:var(--pea);color:#fff;border-radius:999px;padding:1px 8px}
+.ad-main{max-width:1100px;margin:0 auto;padding:22px 16px 80px}
+.ad-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.ad-head h2{font-size:26px;font-weight:800}
+.ad-muted{color:var(--muted);font-size:14px;margin:0 0 14px}
+.ad-warn{margin-top:22px;padding:12px 14px;border-radius:12px;background:#fff7e6;border:1px solid #f6d58b;color:#7a4b00;font-size:14px}
+.ad-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:11px;padding:0 16px;min-height:42px;font-weight:700;font-size:14.5px;transition:transform .15s,background .15s}
+.ad-btn:hover:not(:disabled){transform:translateY(-1px);border-color:var(--pea)}
+.ad-btn:disabled{opacity:.55;cursor:not-allowed}
+.ad-btn.pri{background:var(--pea);border-color:var(--pea);color:#fff}
+.ad-btn.pri:hover:not(:disabled){background:var(--pead)}
+.ad-btn.danger{color:var(--bad);border-color:#f3c9c4;margin-top:6px}
+.ad-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.ad-actions.tight{margin:0}
+.ad-x{background:none;border:0;color:var(--muted);padding:6px}
+.ad-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.ad-card{text-align:left;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:2px;transition:border-color .2s,transform .2s}
+.ad-card:hover{border-color:var(--pea);transform:translateY(-2px)}
+.ad-card span{font-size:13px;color:var(--muted);font-weight:600}
+.ad-card strong{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800}
+.ad-card em{font-style:normal;font-size:12.5px;color:var(--muted)}
+.ad-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ad-box{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+.ad-box h3{font-size:18px;margin-bottom:10px}
+.ad-line{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:9px 0;border-top:1px dashed var(--line);font-size:14px}
+.ad-line span{color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ad-form{border-color:var(--pea)}
+.ad-sub{margin:22px 0 10px;font-size:16px}
+.ad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.ad-f{display:flex;flex-direction:column;gap:5px}
+.ad-f.wide{grid-column:1/-1}
+.ad-f span{font-size:13px;font-weight:700;color:var(--muted)}
+.ad-f em{font-style:normal;font-size:12px;color:var(--muted)}
+.ad input,.ad select,.ad textarea{width:100%;font:inherit;font-size:15px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;min-height:44px}
+.ad textarea{resize:vertical}
+.ad input:focus,.ad select:focus,.ad textarea:focus{outline:0;border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
+.ad-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.ad-photo{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.ad-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.ad-photo div{display:flex;justify-content:space-between;gap:4px;padding:6px 8px}
+.ad-photo button{background:none;border:0;color:var(--pea);font-weight:700;font-size:12.5px;padding:2px}
+.ad-photo button:last-child{color:var(--bad);margin-left:auto}
+.ad-main-tag,.ad-main{position:absolute;top:8px;left:8px;background:var(--saf);color:var(--ink);font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px}
+.ad-add-photo{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--line);border-radius:14px;min-height:120px;color:var(--pea);font-weight:700;font-size:14px;cursor:pointer;transition:border-color .2s,background .2s}
+.ad-add-photo:hover{border-color:var(--pea);background:#f6fbfb}
+.ad-list{display:grid;gap:10px}
+.ad-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}
+.ad-thumb{width:96px;height:68px;border-radius:12px;background:linear-gradient(135deg,#d9eef0,#f6fafb);display:grid;place-items:center;color:var(--pea);overflow:hidden;flex-shrink:0}
+.ad-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ad-row-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.ad-row-main b{font-size:16px}
+.ad-row-main span{font-size:13px;color:var(--muted)}
+.ad-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ad-chip{border:0;border-radius:999px;padding:6px 14px;font-weight:700;font-size:13px}
+.ad-chip.ok{background:#e3f6ec;color:var(--good)}
+.ad-chip.no{background:#fdeceb;color:var(--bad)}
+.ad-icon{width:40px;height:40px;border-radius:11px;border:1.5px solid var(--line);background:#fff;color:var(--ink);display:grid;place-items:center}
+.ad-icon:hover{border-color:var(--pea);color:var(--pea)}
+.ad-icon.danger:hover{border-color:var(--bad);color:var(--bad)}
+.ad-empty{background:#fff;border:1.5px dashed var(--line);border-radius:16px;padding:36px 16px;text-align:center;color:var(--muted)}
+.ad-search{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;margin-bottom:14px;color:var(--pea)}
+.ad-search input{border:0;box-shadow:none!important;padding:10px 0}
+.ad-bk{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.ad-bk-top{display:flex;justify-content:space-between;gap:14px;padding:14px 16px;cursor:pointer}
+.ad-bk-top>div:first-child{display:flex;flex-direction:column;min-width:0}
+.ad-bk-top b{font-size:16px}
+.ad-bk-top span{font-size:13px;color:var(--muted)}
+.ad-bk-money{display:flex;flex-direction:column;align-items:flex-end;gap:1px;text-align:right}
+.ad-bk-money strong{font-size:18px;font-family:'Bricolage Grotesque',sans-serif}
+.ad-bk-money .paid{color:var(--good);font-weight:700}
+.ad-bk-money .due{color:var(--bad);font-weight:700}
+.ad-status{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--mist);color:var(--muted);margin-top:4px}
+.ad-status.confirmed{background:#e3f6ec;color:var(--good)}
+.ad-bk-actions{display:flex;gap:16px;flex-wrap:wrap;padding:10px 16px;border-top:1px dashed var(--line);font-size:14px}
+.ad-bk-actions button{background:none;border:0;color:var(--ink);font-weight:700;margin-left:auto;font-size:14px}
+.ad-bk-detail{border-top:1px solid var(--line);padding:6px 16px 16px;background:#fbfdfd}
+.ad-facts{margin-top:12px}
+.ad-facts h4{font-size:15px;margin-bottom:6px}
+.ad-facts dl{margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 16px}
+.ad-facts dt{font-size:12px;color:var(--muted);font-weight:600}
+.ad-facts dd{margin:0;font-weight:700;font-size:14.5px;word-break:break-word}
+.ad-all{margin-top:14px;font-size:14px}
+.ad-all summary{cursor:pointer;font-weight:700;color:var(--pea)}
+.ad-raw{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.ad-raw th{text-align:left;color:var(--muted);font-weight:600;padding:5px 10px 5px 0;vertical-align:top;white-space:nowrap}
+.ad-raw td{padding:5px 0;word-break:break-word}
+.ad-raw tr{border-top:1px solid var(--line)}
+.ad-inline{display:flex;gap:10px}
+.ad-inline input{flex:1}
+.ad-subtabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
+.ad-subtabs button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;color:var(--ink)}
+.ad-subtabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.ad-gate{display:grid;place-items:center;padding:20px}
+.ad-gate-card{width:100%;max-width:380px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:28px;display:grid;gap:12px;box-shadow:0 30px 60px -30px rgba(11,27,43,.35)}
+.ad-gate-card h2{font-size:26px;margin-top:8px}
+.ad-gate-card p{margin:0;color:var(--muted);font-size:15px}
+.ad-gate-card input{text-align:center;font-size:22px;letter-spacing:.4em}
+.ad-gate-card small{color:var(--bad);font-weight:700}
+@media (max-width:760px){
+ .ad-two{grid-template-columns:1fr}
+ .ad-row{flex-wrap:wrap}
+ .ad-row-actions{width:100%;justify-content:flex-start}
+ .ad-bk-top{flex-direction:column}
+ .ad-bk-money{align-items:flex-start;text-align:left}
+ .ad-inline{flex-direction:column}
+}
+`;
 
 /* =========================================================
    MAIN APP
@@ -5109,23 +3273,27 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [c, ci, b, l] = await Promise.all([
-          fetchCars(),
-          fetchCities(),
-          fetchBookings(),
-          fetchLeads(),
-        ]);
+        const [c, ci] = await Promise.all([fetchCars(), fetchCities()]);
         setCars(c);
         const fetchedCities = Array.isArray(ci) ? ci : [];
         const missingCities = seedCities.filter((seed) => !fetchedCities.some((city) => city.name === seed.name));
         setCities([...fetchedCities, ...missingCities]);
-        if (b.length) setBookings(b);
-        setLeads(Array.isArray(l) ? l : []);
+
       } catch (err) {
         console.error(err);
       }
     })();
   }, []);
+  async function loadAdminData() {
+    try {
+      const [b, l] = await Promise.all([fetchBookings(), fetchLeads()]);
+      if (Array.isArray(b) && b.length) setBookings(b);
+      setLeads(Array.isArray(l) ? l : []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
 
   /* -----------------------------------------------
      CONFIRM BOOKING
@@ -5296,20 +3464,16 @@ function App() {
 
     if (isAdmin) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", padding: 20 }}>
-        <h1 style={{ marginTop: 0 }}>SAWARIYA ADMIN</h1>
-        <p>Admin shell OK (no login gate).</p>
-        <p><b>Cars:</b> {Array.isArray(cars) ? cars.length : 0}</p>
-        <p><b>Bookings:</b> {Array.isArray(bookings) ? bookings.length : 0}</p>
-        <p><b>Cities:</b> {Array.isArray(cities) ? cities.length : 0}</p>
-        <button
-          type="button"
-          onClick={() => setIsAdmin(false)}
-          style={{ marginTop: 16, padding: "12px 16px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 12, fontWeight: 800 }}
-        >
-          Exit Admin
-        </button>
-      </div>
+      <AdminGate
+        cars={Array.isArray(cars) ? cars : []}
+        setCars={setCars}
+        cities={Array.isArray(cities) ? cities : []}
+        setCities={setCities}
+        bookings={Array.isArray(bookings) ? bookings : []}
+        leads={Array.isArray(leads) ? leads : []}
+        onRefresh={loadAdminData}
+        onExit={() => setIsAdmin(false)}
+      />
     );
   }
   return (
