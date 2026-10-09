@@ -1,3 +1,5 @@
+import ScorpioShowcase from './ScorpioShowcase';
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
