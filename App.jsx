@@ -1632,15 +1632,10 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     <div className="sw">
       <style>{CSS}</style>
       <SiteHeader profile={profile} onLogin={openLogin} />
-      <Hero
-        cities={cities}
-        settings={settings}
-        onSearch={(s) => {
-          setSchedule(s);
-          setCityFilter(s.city || "All");
-        }}
-      />
+    
+      <ScorpioShowcase />
       <Plans s={settings} packages={packages} decorations={decorations} />
+
       <CarsSection
         cars={cars}
         cities={cities}
