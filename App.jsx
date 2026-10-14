@@ -917,10 +917,32 @@ function Hero({ cities, settings, onSearch }) {
   const [pt, setPt] = useState("09:00");
   const [dd, setDd] = useState(today);
   const [dt, setDt] = useState("18:00");
+  const vref = useRef(null);
 
   useEffect(() => {
     if (!cities.find((c) => c.name === city) && cities[0]) setCity(cities[0].name);
   }, [cities]); // eslint-disable-line
+
+  // Some phones (Low Power Mode) block autoplay. Try once, then retry on the first touch.
+  useEffect(() => {
+    const v = vref.current;
+    if (!v) return;
+    v.muted = true;
+    const tryPlay = () => {
+      const r = v.play();
+      return r && r.catch ? r.catch(() => {}) : r;
+    };
+    const r = v.play();
+    if (r && r.catch) {
+      r.catch(() => {
+        const kick = () => {
+          tryPlay();
+        };
+        window.addEventListener("touchstart", kick, { once: true, passive: true });
+        window.addEventListener("click", kick, { once: true });
+      });
+    }
+  }, []);
 
   const names = cities.map((c) => c.name);
   const cityText =
@@ -940,12 +962,16 @@ function Hero({ cities, settings, onSearch }) {
     <>
       <section className="sw-hero" id="top">
         <video
+          ref={vref}
           className="sw-hero-video"
           src={HERO_VIDEO}
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
+          controls={false}
+          disablePictureInPicture
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
@@ -1806,6 +1832,7 @@ html{scroll-behavior:smooth;background:#000}
 @supports (height:100svh){.sw-hero{height:100svh}}
 .sw-hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sw-ov{position:absolute;inset:0;pointer-events:none}
+.sw-hero-video::-webkit-media-controls,.sw-hero-video::-webkit-media-controls-panel,.sw-hero-video::-webkit-media-controls-play-button,.sw-hero-video::-webkit-media-controls-start-playback-button,.sw-hero-video::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none;opacity:0;pointer-events:none}
 .sw-glow{position:absolute;top:-14%;left:50%;transform:translateX(-50%);width:1000px;height:720px;max-width:140%;background:radial-gradient(ellipse at 50% 30%,rgba(6,95,70,.18) 0%,transparent 68%);pointer-events:none}
 .sw-hero-body{position:relative;z-index:10;display:flex;flex-direction:column;height:100%;justify-content:flex-start;padding:24vh 24px 0 64px}
 .sw-in{opacity:0;transform:translateY(18px);animation:swin .8s ease-out forwards}
@@ -2008,6 +2035,7 @@ html{scroll-behavior:smooth;background:#000}
  .sw-section{padding:58px 0}
  .sw-hero-body{padding:20vh 20px 0 20px}
  .sw-socials{left:20px;bottom:26px}
+ .sw-hero-video{object-position:62% 50%}
  .sw-search{grid-template-columns:1fr 1fr}
  .sw-search label:first-child{grid-column:1/-1}
  .sw-plans{grid-auto-flow:column;grid-auto-columns:72%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
