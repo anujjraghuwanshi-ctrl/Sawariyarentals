@@ -42,6 +42,7 @@ import {
   insertLead,
   fetchLeads,
 } from "./supabase";
+import * as sb from "./supabase";
 
 /* =========================================================
    CONFIG
@@ -787,6 +788,68 @@ const ContactCtx = createContext(buildContact(SITE_DEFAULTS));
 const useContact = () => useContext(ContactCtx);
 
 const inr = (v) => fmtINR(v);
+
+const asArr = (v, fallback) => (Array.isArray(v) ? v : fallback);
+
+/* ---------- cloud saving for website content (needs the site_content table) ---------- */
+const sbOf = (name) => sb[name];
+const cloudClient = () => sbOf("supabase") || sbOf("client") || sbOf("supabaseClient") || null;
+const ENV = import.meta.env || {};
+const restHeaders = (extra) => ({
+  apikey: ENV.VITE_SUPABASE_ANON_KEY,
+  Authorization: `Bearer ${ENV.VITE_SUPABASE_ANON_KEY}`,
+  ...(extra || {}),
+});
+const hasRest = () => !!(ENV.VITE_SUPABASE_URL && ENV.VITE_SUPABASE_ANON_KEY);
+
+async function cloudGet(key) {
+  try {
+    const c = cloudClient();
+    if (c && c.from) {
+      const { data, error } = await c.from("site_content").select("value").eq("key", key).maybeSingle();
+      if (error) return { ok: false };
+      return { ok: true, value: data ? data.value : undefined };
+    }
+    if (hasRest()) {
+      const r = await fetch(`${ENV.VITE_SUPABASE_URL}/rest/v1/site_content?key=eq.${encodeURIComponent(key)}&select=value`, {
+        headers: restHeaders(),
+      });
+      if (!r.ok) return { ok: false };
+      const rows = await r.json();
+      return { ok: true, value: rows[0] ? rows[0].value : undefined };
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return { ok: false };
+}
+
+async function cloudSet(key, value) {
+  try {
+    const c = cloudClient();
+    if (c && c.from) {
+      const { error } = await c.from("site_content").upsert({ key, value, updated_at: new Date().toISOString() });
+      return !error;
+    }
+    if (hasRest()) {
+      const r = await fetch(`${ENV.VITE_SUPABASE_URL}/rest/v1/site_content?on_conflict=key`, {
+        method: "POST",
+        headers: restHeaders({ "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" }),
+        body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+      });
+      return r.ok;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return false;
+}
+
+async function saveContent(key, value) {
+  saveShared(key, value);
+  return (await cloudSet(key, value)) ? "cloud" : "local";
+}
+
 const carPrice = (c) =>
   Number(c.price24 || c.dailyRate || c.price12 || c.price8 || c.price || 0);
 
@@ -923,25 +986,47 @@ function Hero({ cities, settings, onSearch }) {
     if (!cities.find((c) => c.name === city) && cities[0]) setCity(cities[0].name);
   }, [cities]); // eslint-disable-line
 
-  // Some phones (Low Power Mode) block autoplay. Try once, then retry on the first touch.
+  // Start the hero video by itself. React does not write the "muted" attribute,
+  // and iPhones need it, so set everything by hand and keep retrying.
   useEffect(() => {
     const v = vref.current;
     if (!v) return;
     v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute("muted", "");
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
     const tryPlay = () => {
       const r = v.play();
-      return r && r.catch ? r.catch(() => {}) : r;
+      if (r && r.catch) r.catch(() => {});
     };
-    const r = v.play();
-    if (r && r.catch) {
-      r.catch(() => {
-        const kick = () => {
-          tryPlay();
-        };
-        window.addEventListener("touchstart", kick, { once: true, passive: true });
-        window.addEventListener("click", kick, { once: true });
-      });
+    const events = ["touchend", "pointerup", "click", "keydown"];
+    const off = () => events.forEach((e) => window.removeEventListener(e, kick));
+    function kick() {
+      tryPlay();
     }
+    const onPlaying = () => off();
+    const onVisible = () => {
+      if (!document.hidden && v.paused) tryPlay();
+    };
+    tryPlay();
+    v.addEventListener("loadedmetadata", tryPlay);
+    v.addEventListener("canplay", tryPlay);
+    v.addEventListener("playing", onPlaying);
+    document.addEventListener("visibilitychange", onVisible);
+    events.forEach((e) => window.addEventListener(e, kick, { passive: true }));
+    const retry = setInterval(() => {
+      if (v.paused) tryPlay();
+      else clearInterval(retry);
+    }, 1500);
+    return () => {
+      off();
+      clearInterval(retry);
+      v.removeEventListener("loadedmetadata", tryPlay);
+      v.removeEventListener("canplay", tryPlay);
+      v.removeEventListener("playing", onPlaying);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const names = cities.map((c) => c.name);
@@ -1101,7 +1186,7 @@ function Hero({ cities, settings, onSearch }) {
 }
 
 /* ------------------------------ plans, packages, decorations ------------------------------ */
-function Plans({ s, packages, decorations }) {
+function Plans({ s, packages, decorations, onOpen }) {
   const items = [
     { cls: "p1", icon: <Clock3 size={24} />, title: "Hourly", price: s.hourlyStartingPrice, unit: "per hour", note: `${s.hourlyIncludedKm} km included per hour` },
     { cls: "p2", icon: <Car size={24} />, title: "Daily", price: s.dailyStartingPrice, unit: "per day", note: `${s.dailyIncludedKm} km included per day` },
@@ -1130,18 +1215,31 @@ function Plans({ s, packages, decorations }) {
             <h2 className="sw-sub">Travel packages</h2>
             <p className="sw-sub-note">Ujjain, Omkareshwar, Mandu and more. Go self-drive, with a driver, or with a guide.</p>
             <div className="sw-row">
-              {packages.map((item) => (
-                <div key={item.id} className="sw-mini">
-                  <span className="sw-tag">{item.days} day{item.days === 1 ? "" : "s"}</span>
-                  <h3>{item.name}</h3>
-                  <p>{item.description}</p>
-                  <div className="sw-tags">
-                    <span className="sw-tag">Self drive</span>
-                    <span className="sw-tag">Driver</span>
-                    <span className="sw-tag">Guide</span>
+              {packages.map((item) => {
+                const photo = (Array.isArray(item.photos) && item.photos[0]) || item.photo || "";
+                return (
+                  <div
+                    key={item.id}
+                    className={`sw-mini ${photo ? "has-photo" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpen("package", item)}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen("package", item)}
+                  >
+                    {photo && <img className="sw-mini-bg" src={photo} alt="" loading="lazy" />}
+                    {photo && <span className="sw-mini-shade" />}
+                    <span className="sw-mini-go"><ChevronRight size={16} /></span>
+                    <span className="sw-tag">{item.days} day{item.days === 1 ? "" : "s"}</span>
+                    <h3>{item.name}</h3>
+                    <p>{item.description}</p>
+                    <div className="sw-tags">
+                      <span className="sw-tag">Self drive</span>
+                      <span className="sw-tag">Driver</span>
+                      <span className="sw-tag">Guide</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -1151,20 +1249,255 @@ function Plans({ s, packages, decorations }) {
             <h2 className="sw-sub">Decorated cars</h2>
             <p className="sw-sub-note">Birthday, wedding, anniversary, proposal and custom themes.</p>
             <div className="sw-row">
-              {decorations.map((item) => (
-                <div key={item.id} className="sw-mini">
-                  <h3>{item.name}</h3>
-                  <p>{item.description}</p>
-                  <strong className="sw-mini-price">
-                    {item.price ? `From ${inr(item.price)}` : "Price on request"}
-                  </strong>
-                </div>
-              ))}
+              {decorations.map((item) => {
+                const photo = (Array.isArray(item.photos) && item.photos[0]) || item.photo || "";
+                return (
+                  <div
+                    key={item.id}
+                    className={`sw-mini ${photo ? "has-photo" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpen("decoration", item)}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen("decoration", item)}
+                  >
+                    {photo && <img className="sw-mini-bg" src={photo} alt="" loading="lazy" />}
+                    {photo && <span className="sw-mini-shade" />}
+                    <span className="sw-mini-go"><ChevronRight size={16} /></span>
+                    <h3>{item.name}</h3>
+                    <p>{item.description}</p>
+                    <strong className="sw-mini-price">
+                      {item.price ? `From ${inr(item.price)}` : "Price on request"}
+                    </strong>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
       </div>
     </section>
+  );
+}
+
+/* ------------------------------ package / decoration booking sheet ------------------------------ */
+function RequestSheet({ kind, item, cars, cities, onClose, onZoom }) {
+  const k = useContact();
+  const isPkg = kind === "package";
+  const today = todayISO();
+  const profile = loadShared("sawariya_customer_profile", null);
+  const photos = Array.isArray(item.photos) ? item.photos : item.photo ? [item.photo] : [];
+  const [idx, setIdx] = useState(0);
+  const [option, setOption] = useState("self");
+  const [carId, setCarId] = useState("");
+  const [date, setDate] = useState(today);
+  const [time, setTime] = useState("07:00");
+  const [people, setPeople] = useState(2);
+  const [name, setName] = useState(profile?.name || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
+  const [notes, setNotes] = useState("");
+  const [state, setState] = useState("idle");
+  const [err, setErr] = useState("");
+  const [sent, setSent] = useState("");
+
+  const freeCars = cars.filter((c) => c.available);
+  const car = freeCars.find((c) => String(c.id) === String(carId));
+  const options = [
+    ["self", "Self drive", Number(item.selfDrivePrice) || 0],
+    ["driver", "With driver", Number(item.driverPrice) || 0],
+    ["guide", "Driver + guide", Number(item.guidePrice) || 0],
+  ];
+  const chosen = options.find((o) => o[0] === option);
+  const price = isPkg ? chosen[2] : Number(item.price) || 0;
+  const includes = String(item.includes || "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const days = Number(item.days) || 1;
+
+  async function submit(e) {
+    e.preventDefault();
+    const clean = phone.replace(/\D/g, "");
+    if (!name.trim()) return setErr("Please enter your name.");
+    if (!/^\d{10}$/.test(clean)) return setErr("Please enter a valid 10-digit mobile number.");
+    if (!date || date < today) return setErr("Please choose today or a later date.");
+    setErr("");
+    setState("sending");
+    const lines = isPkg
+      ? [
+          "TRAVEL PACKAGE REQUEST",
+          `Package: ${item.name} (${days} day${days === 1 ? "" : "s"})`,
+          `Option: ${chosen[1]}`,
+          `Package price: ${price > 0 ? fmtINR(price) : "to be confirmed"}`,
+          `Car: ${car ? `${car.name} (${car.city})` : "Not chosen, please suggest"}`,
+          `Date: ${date} ${time}`,
+          `Travellers: ${people}`,
+          notes.trim() ? `Notes: ${notes.trim()}` : null,
+        ]
+      : [
+          "DECORATION REQUEST",
+          `Type: ${item.name}`,
+          `Price: ${price > 0 ? `from ${fmtINR(price)}` : "to be confirmed"}`,
+          `Car: ${car ? `${car.name} (${car.city})` : "Not chosen"}`,
+          `Date: ${date}`,
+          notes.trim() ? `Theme / message: ${notes.trim()}` : null,
+        ];
+    const text = lines.filter(Boolean).join("\n");
+    try {
+      await insertLead({
+        name: name.trim(),
+        phone: clean,
+        city: car?.city || cities[0]?.name || "Indore",
+        carName: car?.name || "",
+        message: text,
+      });
+      saveShared("sawariya_customer_profile", { name: name.trim(), phone: clean });
+      setSent(`${text}\nName: ${name.trim()}\nMobile: ${clean}`);
+      setState("done");
+    } catch (error) {
+      console.error(error);
+      setSent(`${text}\nName: ${name.trim()}\nMobile: ${clean}`);
+      setState("fail");
+    }
+  }
+
+  return (
+    <div className="sw-detail">
+      <div className="sw-detail-bar">
+        <button onClick={onClose}>
+          <ChevronLeft size={18} /> Back
+        </button>
+        <strong>{isPkg ? "Travel package" : "Car decoration"}</strong>
+        <a href={k.wa} target="_blank" rel="noreferrer">WhatsApp</a>
+      </div>
+      <div className="sw-wrap sw-detail-grid">
+        <div>
+          <div className={`sw-gallery-main ${photos[idx] ? "" : "empty"}`} onClick={() => photos[idx] && onZoom(photos[idx])}>
+            {photos[idx] ? <img src={photos[idx]} alt={item.name} /> : <MapPin size={64} strokeWidth={1.1} />}
+          </div>
+          {photos.length > 1 && (
+            <div className="sw-thumbs">
+              {photos.map((src, i) => (
+                <img key={i} src={src} alt="" className={i === idx ? "on" : ""} onClick={() => setIdx(i)} />
+              ))}
+            </div>
+          )}
+          {includes.length > 0 && (
+            <div className="sw-info">
+              <h3>What is included</h3>
+              <ul>
+                {includes.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="sw-detail-title">{item.name}</h2>
+          <p className="sw-detail-sub">{isPkg ? `${days} day${days === 1 ? "" : "s"} trip` : "Car decoration"}</p>
+          {item.description && <p className="sw-pk-desc">{item.description}</p>}
+
+          {state === "done" || state === "fail" ? (
+            <div className={`sw-sent ${state}`}>
+              <CheckCircle2 size={34} />
+              <h3>{state === "done" ? "Request received" : "Could not save online"}</h3>
+              <p>
+                {state === "done"
+                  ? "We will call you soon to confirm the details and the price."
+                  : "Please send this to us on WhatsApp so we do not miss it."}
+              </p>
+              <a className="sw-btn sw-btn-saf sw-wide" href={`${k.wa}?text=${encodeURIComponent(sent)}`} target="_blank" rel="noreferrer">
+                <MessageCircle size={17} /> Send details on WhatsApp
+              </a>
+              <a className="sw-btn sw-btn-wa sw-wide" href={k.p1.href}>
+                <Phone size={17} /> Call {k.p1.show}
+              </a>
+              <button className="sw-btn sw-btn-pea sw-wide" onClick={onClose}>
+                Done
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="sw-bookform">
+              {isPkg && (
+                <>
+                  <div className="sw-label">How do you want to travel?</div>
+                  <div className="sw-opts">
+                    {options.map(([id, label, p]) => (
+                      <button type="button" key={id} className={`sw-opt ${option === id ? "on" : ""}`} onClick={() => setOption(id)}>
+                        <b>{label}</b>
+                        <span>{p > 0 ? fmtINR(p) : "Price on request"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="sw-quote">
+                <span>{isPkg ? "Package price" : "Decoration price"}</span>
+                <strong>{price > 0 ? (isPkg ? fmtINR(price) : `From ${fmtINR(price)}`) : "We will confirm on call"}</strong>
+              </div>
+
+              <label className="sw-fld">
+                <span>{isPkg ? "Choose a car" : "Choose a car (optional)"}</span>
+                <select className="sw-input" value={carId} onChange={(e) => setCarId(e.target.value)}>
+                  <option value="">{isPkg ? "Not sure, suggest a car" : "I will tell you later"}</option>
+                  {freeCars.map((c) => (
+                    <option key={c.id || c.name} value={c.id}>
+                      {c.name} ({c.city}) {carPrice(c) > 0 ? `, ${fmtINR(carPrice(c))} per day` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="sw-two-col">
+                <label className="sw-fld">
+                  <span>Date</span>
+                  <input className="sw-input" type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} />
+                </label>
+                {isPkg ? (
+                  <label className="sw-fld">
+                    <span>Start time</span>
+                    <input className="sw-input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                  </label>
+                ) : (
+                  <span />
+                )}
+              </div>
+
+              {isPkg && (
+                <label className="sw-fld">
+                  <span>Travellers</span>
+                  <input className="sw-input" type="number" min="1" max="20" value={people} onChange={(e) => setPeople(e.target.value)} />
+                </label>
+              )}
+
+              <div className="sw-two-col">
+                <label className="sw-fld">
+                  <span>Your name</span>
+                  <input className="sw-input" value={name} onChange={(e) => setName(e.target.value)} />
+                </label>
+                <label className="sw-fld">
+                  <span>Mobile number</span>
+                  <input className="sw-input" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </label>
+              </div>
+
+              <label className="sw-fld">
+                <span>{isPkg ? "Anything we should know (optional)" : "Theme, colours and message (optional)"}</span>
+                <textarea className="sw-input" rows="3" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </label>
+
+              {err && <p className="sw-err">{err}</p>}
+              <button className="sw-btn sw-btn-pea sw-wide" disabled={state === "sending"}>
+                {state === "sending" ? "Sending" : isPkg ? "Request this package" : "Request this decoration"}
+              </button>
+              <p className="sw-note center">No payment now. We call you to confirm.</p>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1188,7 +1521,7 @@ function CarTile({ car, onOpen }) {
   }
   return (
     <article className="sw-tile" ref={ref} onPointerMove={move} onPointerLeave={leave}>
-      <div className="sw-tile-img" onClick={() => onOpen(car)}>
+      <div className={`sw-tile-img ${photo ? "" : "empty"}`} onClick={() => onOpen(car)}>
         {photo ? <img src={photo} alt={car.name} loading="lazy" /> : <Car size={54} strokeWidth={1.2} />}
         <span className={`sw-status ${car.available ? "ok" : "no"}`}>
           {car.available ? "Available" : "Rented out"}
@@ -1332,7 +1665,7 @@ function CarDetail({ car, settings, onBack, onBook, onZoom }) {
       </div>
       <div className="sw-wrap sw-detail-grid">
         <div>
-          <div className="sw-gallery-main" onClick={() => photos[idx] && onZoom(photos[idx])}>
+          <div className={`sw-gallery-main ${photos[idx] ? "" : "empty"}`} onClick={() => photos[idx] && onZoom(photos[idx])}>
             {photos[idx] ? <img src={photos[idx]} alt={car.name} /> : <Car size={72} strokeWidth={1.1} />}
           </div>
           {photos.length > 1 && (
@@ -1633,30 +1966,62 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   const [loginName, setLoginName] = useState("");
   const [loginPhone, setLoginPhone] = useState("");
 
-  const settings = useMemo(
-    () => ({
+  const [content, setContent] = useState(() => ({
+    settings: {
       ...DEFAULT_BUSINESS_SETTINGS,
       ...(loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS) || {}),
-    }),
-    []
-  );
-  const packages = useMemo(() => {
-    const p = loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES);
-    return Array.isArray(p) ? p : DEFAULT_TRAVEL_PACKAGES;
-  }, []);
-  const decorations = useMemo(() => {
-    const d = loadShared("sawariya_decorations", DEFAULT_DECORATIONS);
-    return Array.isArray(d) ? d : DEFAULT_DECORATIONS;
+    },
+    packages: asArr(loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES), DEFAULT_TRAVEL_PACKAGES),
+    decorations: asArr(loadShared("sawariya_decorations", DEFAULT_DECORATIONS), DEFAULT_DECORATIONS),
+    info: { ...SITE_DEFAULTS, ...(loadShared("sawariya_site_info", SITE_DEFAULTS) || {}) },
+  }));
+  const settings = content.settings;
+  const packages = content.packages;
+  const decorations = content.decorations;
+  const [sheet, setSheet] = useState(null);
+
+  // newest saved website content from the database (when cloud saving is switched on)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const keys = [
+        ["settings", "sawariya_business_settings"],
+        ["packages", "sawariya_travel_packages"],
+        ["decorations", "sawariya_decorations"],
+        ["info", "sawariya_site_info"],
+      ];
+      for (const [name, key] of keys) {
+        const r = await cloudGet(key);
+        if (!alive) return;
+        if (r.ok && r.value !== undefined && r.value !== null) {
+          saveShared(key, r.value);
+          setContent((c) => ({
+            ...c,
+            [name]:
+              name === "settings"
+                ? { ...DEFAULT_BUSINESS_SETTINGS, ...r.value }
+                : name === "info"
+                ? { ...SITE_DEFAULTS, ...r.value }
+                : Array.isArray(r.value)
+                ? r.value
+                : c[name],
+          }));
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (!detailCar) return;
+    if (!detailCar && !sheet) return;
     const prev = document.body.style.overflowY;
     document.body.style.overflowY = "hidden";
     return () => {
       document.body.style.overflowY = prev;
     };
-  }, [detailCar]);
+  }, [detailCar, sheet]);
 
   function openLogin() {
     setLoginName(profile?.name || "");
@@ -1680,10 +2045,7 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     setDetailCar(null);
   }
 
-  const contact = useMemo(
-    () => buildContact(loadShared("sawariya_site_info", SITE_DEFAULTS)),
-    []
-  );
+  const contact = useMemo(() => buildContact(content.info), [content.info]);
   const callbackCity =
     cityFilter !== "All" ? cityFilter : cities[0]?.name || "Indore";
 
@@ -1700,7 +2062,12 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
           setCityFilter(s.city || "All");
         }}
       />
-      <Plans s={settings} packages={packages} decorations={decorations} />
+      <Plans
+        s={settings}
+        packages={packages}
+        decorations={decorations}
+        onOpen={(kind, item) => setSheet({ kind, item })}
+      />
       <CarsSection
         cars={cars}
         cities={cities}
@@ -1729,6 +2096,16 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
           settings={settings}
           onBack={() => setDetailCar(null)}
           onBook={setBookingCar}
+          onZoom={setZoom}
+        />
+      )}
+      {sheet && (
+        <RequestSheet
+          kind={sheet.kind}
+          item={sheet.item}
+          cars={cars}
+          cities={cities}
+          onClose={() => setSheet(null)}
           onZoom={setZoom}
         />
       )}
@@ -1887,6 +2264,14 @@ html{scroll-behavior:smooth;background:#000}
 .sw-row{display:flex;gap:14px;overflow-x:auto;padding:4px 0 10px;scroll-snap-type:x proximity}
 .sw-mini{flex:0 0 auto;width:250px;border:1px solid var(--line);border-radius:20px;padding:18px;background:var(--panel);scroll-snap-align:start;transition:border-color .2s,transform .25s}
 .sw-mini:hover{border-color:rgba(16,185,129,.55);transform:translateY(-3px)}
+.sw-mini{position:relative;overflow:hidden;cursor:pointer;text-align:left}
+.sw-mini>*{position:relative;z-index:1}
+.sw-mini>.sw-mini-bg,.sw-mini>.sw-mini-shade,.sw-mini>.sw-mini-go{position:absolute}
+.sw-mini-bg{inset:0;width:100%;height:100%;object-fit:cover;opacity:.45;z-index:0!important;transition:transform .6s,opacity .3s}
+.sw-mini:hover .sw-mini-bg{transform:scale(1.06);opacity:.58}
+.sw-mini-shade{inset:0;z-index:0!important;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.8) 100%)}
+.sw-mini-go{top:14px;right:14px;width:30px;height:30px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);display:grid;place-items:center;color:#fff}
+.sw-mini:focus-visible{outline:2px solid var(--em3);outline-offset:3px}
 .sw-mini h3{font-size:19px;font-weight:600;margin:10px 0 6px}
 .sw-mini p{margin:0;color:var(--muted);font-size:14px}
 .sw-mini-price{display:block;margin-top:12px;font-size:15px;color:var(--em3)}
@@ -1907,11 +2292,12 @@ html{scroll-behavior:smooth;background:#000}
 .sw-chip{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:999px;padding:8px 16px;font-weight:500;font-size:14px;white-space:nowrap;color:#fff;transition:all .2s}
 .sw-chip:hover{border-color:var(--em)}
 .sw-chip.on{background:#fff;border-color:#fff;color:#0a0a0a;font-weight:600}
-.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;margin-top:6px}
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;margin-top:6px;align-items:start}
 .sw-tile{--rx:0deg;--ry:0deg;background:var(--panel);border:1px solid var(--line);border-radius:24px;overflow:hidden;transform:perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));transition:transform .18s ease-out,box-shadow .25s,border-color .25s}
 .sw-tile:hover{border-color:rgba(16,185,129,.5);box-shadow:0 26px 50px -26px rgba(16,185,129,.35)}
-.sw-tile-img{position:relative;aspect-ratio:16/10;background:linear-gradient(135deg,#0d1f19,#050b09);display:grid;place-items:center;color:var(--em3);overflow:hidden;cursor:pointer}
-.sw-tile-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s}
+.sw-tile-img{position:relative;background:linear-gradient(135deg,#0d1f19,#050b09);color:var(--em3);overflow:hidden;cursor:pointer}
+.sw-tile-img.empty{aspect-ratio:16/10;display:grid;place-items:center}
+.sw-tile-img img{width:100%;height:auto;max-height:560px;object-fit:contain;display:block;transition:transform .6s}
 .sw-tile:hover .sw-tile-img img{transform:scale(1.07)}
 .sw-status{position:absolute;top:12px;left:12px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(0,0,0,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line);color:#fff}
 .sw-status.inline{position:static;display:inline-block}
@@ -1934,8 +2320,9 @@ html{scroll-behavior:smooth;background:#000}
 .sw-detail-bar button{display:inline-flex;align-items:center;gap:4px;background:none;border:0;color:#fff;font-weight:600;font-size:15px}
 .sw-detail-bar a{font-size:14px;font-weight:500;color:var(--em3)}
 .sw-detail-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;padding-top:28px;padding-bottom:60px;align-items:start}
-.sw-gallery-main{aspect-ratio:16/10;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#0d1f19,#050b09);display:grid;place-items:center;color:var(--em3);cursor:zoom-in;border:1px solid var(--line)}
-.sw-gallery-main img{width:100%;height:100%;object-fit:cover;display:block}
+.sw-gallery-main{border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#0d1f19,#050b09);color:var(--em3);cursor:zoom-in;border:1px solid var(--line)}
+.sw-gallery-main.empty{aspect-ratio:16/10;display:grid;place-items:center;cursor:default}
+.sw-gallery-main img{width:100%;height:auto;max-height:78vh;object-fit:contain;display:block;margin:0 auto}
 .sw-thumbs{display:flex;gap:10px;overflow-x:auto;margin-top:12px}
 .sw-thumbs img{height:76px;width:auto;border-radius:12px;cursor:pointer;border:2px solid transparent;display:block;opacity:.75}
 .sw-thumbs img.on{border-color:var(--em);opacity:1}
@@ -1951,6 +2338,28 @@ html{scroll-behavior:smooth;background:#000}
 .sw-info h3{font-size:18px;font-weight:600;margin-bottom:8px}
 .sw-info p{margin:0;color:var(--muted);font-size:15px}
 .sw-info ul{margin:0;padding-left:20px;color:var(--muted);font-size:15px;display:grid;gap:4px}
+.sw-pk-desc{margin:0 0 18px;color:var(--muted);font-size:16px}
+.sw-bookform{display:grid;gap:14px}
+.sw-label{font-size:14px;font-weight:600;color:#fff}
+.sw-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sw-opt{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:#fff;transition:border-color .2s,background .2s}
+.sw-opt span{font-size:12.5px;color:var(--muted)}
+.sw-opt.on{border-color:var(--em);background:rgba(16,185,129,.14)}
+.sw-opt.on span{color:#6ee7b7}
+.sw-quote{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.4)}
+.sw-quote span{font-size:14px;color:rgba(255,255,255,.75)}
+.sw-quote strong{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:600;color:#6ee7b7;text-align:right}
+.sw-fld{display:flex;flex-direction:column;gap:6px}
+.sw-fld span{font-size:13px;font-weight:500;color:var(--muted)}
+.sw-input{width:100%;font:inherit;font-size:15px;color:#fff;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:46px}
+.sw-input:focus{outline:0;border-color:var(--em);box-shadow:0 0 0 4px rgba(16,185,129,.16)}
+textarea.sw-input{resize:vertical}
+.sw-two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sw-err{margin:0;color:#f87171;font-weight:600;font-size:14px}
+.sw-sent{display:grid;gap:4px;padding:24px;border-radius:22px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.5);color:#6ee7b7}
+.sw-sent.fail{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.5);color:#fbbf24}
+.sw-sent h3{color:#fff;font-size:22px;margin-top:8px}
+.sw-sent p{margin:0 0 10px;color:var(--muted)}
 .sw-zoom{position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.94);display:grid;place-items:center;cursor:zoom-out}
 .sw-zoom img{max-width:94%;max-height:90%;display:block}
 
@@ -2032,6 +2441,8 @@ html{scroll-behavior:smooth;background:#000}
  .sw-burger{display:block}
 }
 @media (max-width:760px){
+ .sw-opts{grid-template-columns:1fr}
+ .sw-two-col{grid-template-columns:1fr}
  .sw-section{padding:58px 0}
  .sw-hero-body{padding:20vh 20px 0 20px}
  .sw-socials{left:20px;bottom:26px}
@@ -2081,6 +2492,12 @@ const when = (v) => {
 };
 const waLink = (p) => `https://wa.me/${withCode(p)}`;
 const telLink = (p) => `tel:+${withCode(p)}`;
+const leadTag = (l) => {
+  const m = String(val(l, "message"));
+  if (m.startsWith("TRAVEL PACKAGE")) return "Travel package";
+  if (m.startsWith("DECORATION")) return "Decoration";
+  return "";
+};
 const ts = (o) => new Date(val(o, "createdAt") || 0).getTime() || 0;
 
 function downloadCSV(name, columns, rows) {
@@ -2714,6 +3131,7 @@ function LeadCard({ l }) {
       <div className="ad-bk-top" onClick={() => setOpen((v) => !v)}>
         <div>
           <b>{phone}</b>
+          {leadTag(l) && <em className="ad-status confirmed">{leadTag(l)}</em>}
           <span>{[val(l, "name"), val(l, "city")].filter(Boolean).join(", ") || "No name"}</span>
           {val(l, "carName") && <span>Interested in {val(l, "carName")}</span>}
         </div>
@@ -2879,31 +3297,122 @@ const SETTING_FIELDS = [
   ["bookingAdvance", "Booking advance (₹)"],
 ];
 
+const SQL_SETUP = `create table if not exists site_content (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz default now()
+);
+alter table site_content enable row level security;
+create policy "read site_content" on site_content for select using (true);
+create policy "insert site_content" on site_content for insert with check (true);
+create policy "update site_content" on site_content for update using (true) with check (true);`;
+
+function PhotoPicker({ photos, onChange, max = 4 }) {
+  const [busy, setBusy] = useState(false);
+  const list = Array.isArray(photos) ? photos : [];
+  async function add(e) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+    e.target.value = "";
+    if (!files.length) return;
+    setBusy(true);
+    try {
+      const out = [];
+      for (const f of files.slice(0, max - list.length)) {
+        const data = await compressImage(f);
+        out.push(await uploadPhoto(data));
+      }
+      onChange([...list, ...out].slice(0, max));
+    } catch (err) {
+      console.error(err);
+      alert("Could not upload the photo: " + (err?.message || err));
+    }
+    setBusy(false);
+  }
+  return (
+    <div className="ad-photos">
+      {list.map((p, i) => (
+        <div key={i} className="ad-photo">
+          <img src={p} alt="" />
+          {i === 0 && <span className="ad-main">Main</span>}
+          <div>
+            {i > 0 && (
+              <button type="button" onClick={() => onChange([p, ...list.filter((_, x) => x !== i)])}>
+                Make main
+              </button>
+            )}
+            <button type="button" onClick={() => onChange(list.filter((_, x) => x !== i))}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+      {list.length < max && (
+        <label className="ad-add-photo">
+          <ImagePlus size={26} />
+          <span>{busy ? "Uploading" : list.length ? "Add photo" : "Add photo"}</span>
+          <input type="file" accept="image/*" multiple hidden disabled={busy} onChange={add} />
+        </label>
+      )}
+    </div>
+  );
+}
+
 function ContentTab() {
   const [section, setSection] = useState("places");
+  const [cloud, setCloud] = useState("checking");
   const [settings, setSettings] = useState(() => ({
     ...DEFAULT_BUSINESS_SETTINGS,
     ...(loadShared("sawariya_business_settings", DEFAULT_BUSINESS_SETTINGS) || {}),
   }));
-  const [packages, setPackages] = useState(() => {
-    const p = loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES);
-    return Array.isArray(p) ? p : DEFAULT_TRAVEL_PACKAGES;
-  });
-  const [decor, setDecor] = useState(() => {
-    const d = loadShared("sawariya_decorations", DEFAULT_DECORATIONS);
-    return Array.isArray(d) ? d : DEFAULT_DECORATIONS;
-  });
+  const [packages, setPackages] = useState(() => asArr(loadShared("sawariya_travel_packages", DEFAULT_TRAVEL_PACKAGES), DEFAULT_TRAVEL_PACKAGES));
+  const [decor, setDecor] = useState(() => asArr(loadShared("sawariya_decorations", DEFAULT_DECORATIONS), DEFAULT_DECORATIONS));
   const [info, setInfo] = useState(() => ({
     ...SITE_DEFAULTS,
     ...(loadShared("sawariya_site_info", SITE_DEFAULTS) || {}),
   }));
+  const [saving, setSaving] = useState("");
+
+  // show the newest saved copy from the database when this tab opens
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      const ping = await cloudGet("__ping__");
+      if (!on) return;
+      setCloud(ping.ok ? "on" : "off");
+      if (!ping.ok) return;
+      const [a, b, c, d] = await Promise.all([
+        cloudGet("sawariya_travel_packages"),
+        cloudGet("sawariya_decorations"),
+        cloudGet("sawariya_site_info"),
+        cloudGet("sawariya_business_settings"),
+      ]);
+      if (!on) return;
+      if (Array.isArray(a.value)) setPackages(a.value);
+      if (Array.isArray(b.value)) setDecor(b.value);
+      if (c.value && typeof c.value === "object") setInfo({ ...SITE_DEFAULTS, ...c.value });
+      if (d.value && typeof d.value === "object") setSettings({ ...DEFAULT_BUSINESS_SETTINGS, ...d.value });
+    })();
+    return () => {
+      on = false;
+    };
+  }, []);
 
   const upd = (setter, i, k, v) => setter((list) => list.map((x, n) => (n === i ? { ...x, [k]: v } : x)));
   const del = (setter, i) => setter((list) => list.filter((_, n) => n !== i));
-  const saved = (what) => alert(`${what} saved on this device.`);
+
+  async function persist(key, value, what) {
+    setSaving(what);
+    const res = await saveContent(key, value);
+    setSaving("");
+    alert(
+      res === "cloud"
+        ? `${what} saved. Visitors will see the change.`
+        : `${what} saved on this device only. Cloud saving is not switched on yet, see the setup box below.`
+    );
+  }
 
   const tabs = [
-    ["places", "Places to visit"],
+    ["places", "Travel packages"],
     ["decor", "Car decoration"],
     ["location", "Location and contact"],
     ["pricing", "Default pricing"],
@@ -2911,6 +3420,13 @@ function ContentTab() {
   return (
     <>
       <div className="ad-head"><h2>Website content</h2></div>
+
+      <div className={`ad-cloud ${cloud}`}>
+        {cloud === "checking" && "Checking cloud saving"}
+        {cloud === "on" && "Cloud saving is on. Changes here show on every phone."}
+        {cloud === "off" && "Cloud saving is not on yet. Changes stay on this device only."}
+      </div>
+
       <div className="ad-subtabs">
         {tabs.map(([id, t]) => (
           <button key={id} className={section === id ? "on" : ""} onClick={() => setSection(id)}>
@@ -2921,47 +3437,57 @@ function ContentTab() {
 
       {section === "places" && (
         <>
-          <p className="ad-muted">Travel packages shown on the home page, such as Ujjain or Mandu.</p>
+          <p className="ad-muted">Packages customers can open and request, such as Ujjain or Mandu. Leave a price at 0 to show Price on request.</p>
           {packages.map((p, i) => (
             <div key={p.id || i} className="ad-box">
               <div className="ad-grid">
-                <AdField label="Place name"><input value={p.name || ""} onChange={(e) => upd(setPackages, i, "name", e.target.value)} /></AdField>
+                <AdField label="Package name"><input value={p.name || ""} onChange={(e) => upd(setPackages, i, "name", e.target.value)} /></AdField>
                 <AdField label="Days"><input type="number" min="1" value={p.days ?? 1} onChange={(e) => upd(setPackages, i, "days", Number(e.target.value))} /></AdField>
                 <AdField label="Self-drive price (₹)"><input type="number" min="0" value={p.selfDrivePrice ?? 0} onChange={(e) => upd(setPackages, i, "selfDrivePrice", Number(e.target.value))} /></AdField>
                 <AdField label="With driver price (₹)"><input type="number" min="0" value={p.driverPrice ?? 0} onChange={(e) => upd(setPackages, i, "driverPrice", Number(e.target.value))} /></AdField>
-                <AdField label="With guide price (₹)"><input type="number" min="0" value={p.guidePrice ?? 0} onChange={(e) => upd(setPackages, i, "guidePrice", Number(e.target.value))} /></AdField>
-                <AdField label="Description" wide><textarea rows="2" value={p.description || ""} onChange={(e) => upd(setPackages, i, "description", e.target.value)} /></AdField>
+                <AdField label="Driver + guide price (₹)"><input type="number" min="0" value={p.guidePrice ?? 0} onChange={(e) => upd(setPackages, i, "guidePrice", Number(e.target.value))} /></AdField>
+                <AdField label="Short description" wide><textarea rows="2" value={p.description || ""} onChange={(e) => upd(setPackages, i, "description", e.target.value)} /></AdField>
+                <AdField label="What is included (one point per line)" wide><textarea rows="4" value={p.includes || ""} onChange={(e) => upd(setPackages, i, "includes", e.target.value)} placeholder={"Pickup and drop\nFuel for the route\nParking"} /></AdField>
               </div>
-              <button className="ad-btn danger" onClick={() => del(setPackages, i)}><Trash2 size={16} /> Remove</button>
+              <h4 className="ad-sub">Photos (the first one is the card background)</h4>
+              <PhotoPicker photos={p.photos || (p.photo ? [p.photo] : [])} max={4} onChange={(list) => upd(setPackages, i, "photos", list)} />
+              <button className="ad-btn danger" onClick={() => del(setPackages, i)}><Trash2 size={16} /> Remove package</button>
             </div>
           ))}
           <div className="ad-actions">
-            <button className="ad-btn" onClick={() => setPackages((l) => [...l, { id: uid("pkg"), name: "", days: 1, description: "", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0 }])}>
-              <Plus size={16} /> Add place
+            <button className="ad-btn" onClick={() => setPackages((l) => [...l, { id: uid("pkg"), name: "", days: 1, description: "", includes: "", selfDrivePrice: 0, driverPrice: 0, guidePrice: 0, photos: [] }])}>
+              <Plus size={16} /> Add package
             </button>
-            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_travel_packages", packages); saved("Places"); }}>Save places</button>
+            <button className="ad-btn pri" disabled={!!saving} onClick={() => persist("sawariya_travel_packages", packages, "Travel packages")}>
+              {saving === "Travel packages" ? "Saving" : "Save packages"}
+            </button>
           </div>
         </>
       )}
 
       {section === "decor" && (
         <>
-          <p className="ad-muted">Decoration options shown on the home page, such as birthday or wedding.</p>
+          <p className="ad-muted">Decoration options customers can open and request, such as birthday or wedding.</p>
           {decor.map((d, i) => (
             <div key={d.id || i} className="ad-box">
               <div className="ad-grid">
                 <AdField label="Name"><input value={d.name || ""} onChange={(e) => upd(setDecor, i, "name", e.target.value)} /></AdField>
-                <AdField label="Price (₹)" hint="0 shows Price on request"><input type="number" min="0" value={d.price ?? 0} onChange={(e) => upd(setDecor, i, "price", Number(e.target.value))} /></AdField>
+                <AdField label="Starting price (₹)" hint="0 shows Price on request"><input type="number" min="0" value={d.price ?? 0} onChange={(e) => upd(setDecor, i, "price", Number(e.target.value))} /></AdField>
                 <AdField label="Description" wide><textarea rows="2" value={d.description || ""} onChange={(e) => upd(setDecor, i, "description", e.target.value)} /></AdField>
+                <AdField label="What is included (one point per line)" wide><textarea rows="3" value={d.includes || ""} onChange={(e) => upd(setDecor, i, "includes", e.target.value)} placeholder={"Balloons and ribbons\nFlowers\nCustom message"} /></AdField>
               </div>
-              <button className="ad-btn danger" onClick={() => del(setDecor, i)}><Trash2 size={16} /> Remove</button>
+              <h4 className="ad-sub">Photos (the first one is the card background)</h4>
+              <PhotoPicker photos={d.photos || (d.photo ? [d.photo] : [])} max={3} onChange={(list) => upd(setDecor, i, "photos", list)} />
+              <button className="ad-btn danger" onClick={() => del(setDecor, i)}><Trash2 size={16} /> Remove decoration</button>
             </div>
           ))}
           <div className="ad-actions">
-            <button className="ad-btn" onClick={() => setDecor((l) => [...l, { id: uid("dec"), name: "", description: "", price: 0 }])}>
+            <button className="ad-btn" onClick={() => setDecor((l) => [...l, { id: uid("dec"), name: "", description: "", includes: "", price: 0, photos: [] }])}>
               <Plus size={16} /> Add decoration
             </button>
-            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_decorations", decor); saved("Decorations"); }}>Save decorations</button>
+            <button className="ad-btn pri" disabled={!!saving} onClick={() => persist("sawariya_decorations", decor, "Decorations")}>
+              {saving === "Decorations" ? "Saving" : "Save decorations"}
+            </button>
           </div>
         </>
       )}
@@ -2979,7 +3505,9 @@ function ContentTab() {
             <AdField label="WhatsApp number"><input value={info.whatsapp} onChange={(e) => setInfo((p) => ({ ...p, whatsapp: e.target.value }))} /></AdField>
           </div>
           <div className="ad-actions">
-            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_site_info", info); saved("Location and contact"); }}>Save location</button>
+            <button className="ad-btn pri" disabled={!!saving} onClick={() => persist("sawariya_site_info", info, "Location and contact")}>
+              {saving === "Location and contact" ? "Saving" : "Save location"}
+            </button>
             <button className="ad-btn" onClick={() => setInfo({ ...SITE_DEFAULTS })}>Reset to original</button>
           </div>
         </div>
@@ -2996,15 +3524,23 @@ function ContentTab() {
             ))}
           </div>
           <div className="ad-actions">
-            <button className="ad-btn pri" onClick={() => { saveShared("sawariya_business_settings", settings); saved("Pricing"); }}>Save pricing</button>
+            <button className="ad-btn pri" disabled={!!saving} onClick={() => persist("sawariya_business_settings", settings, "Pricing")}>
+              {saving === "Pricing" ? "Saving" : "Save pricing"}
+            </button>
           </div>
         </div>
       )}
 
-      <p className="ad-warn">
-        Places, decorations, location and default pricing are stored in this browser only. Customers on other phones
-        will not see changes until they are connected to your Supabase database.
-      </p>
+      {cloud === "off" && (
+        <details className="ad-box ad-sql">
+          <summary>Setup box: switch on cloud saving</summary>
+          <p className="ad-muted">
+            Open Supabase, go to SQL Editor, paste this and press Run. Then reload the site and this page should say
+            cloud saving is on.
+          </p>
+          <pre>{SQL_SETUP}</pre>
+        </details>
+      )}
     </>
   );
 }
@@ -3188,7 +3724,7 @@ const ADMIN_CSS = `
 .ad input:focus,.ad select:focus,.ad textarea:focus{outline:0;border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
 .ad-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .ad-photo{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
-.ad-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.ad-photo img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#eef4f5;display:block}
 .ad-photo div{display:flex;justify-content:space-between;gap:4px;padding:6px 8px}
 .ad-photo button{background:none;border:0;color:var(--pea);font-weight:700;font-size:12.5px;padding:2px}
 .ad-photo button:last-child{color:var(--bad);margin-left:auto}
@@ -3198,7 +3734,7 @@ const ADMIN_CSS = `
 .ad-list{display:grid;gap:10px}
 .ad-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}
 .ad-thumb{width:96px;height:68px;border-radius:12px;background:linear-gradient(135deg,#d9eef0,#f6fafb);display:grid;place-items:center;color:var(--pea);overflow:hidden;flex-shrink:0}
-.ad-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ad-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .ad-row-main{flex:1;min-width:0;display:flex;flex-direction:column}
 .ad-row-main b{font-size:16px}
 .ad-row-main span{font-size:13px;color:var(--muted)}
@@ -3230,13 +3766,20 @@ const ADMIN_CSS = `
 .ad-facts h4{font-size:15px;margin-bottom:6px}
 .ad-facts dl{margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 16px}
 .ad-facts dt{font-size:12px;color:var(--muted);font-weight:600}
-.ad-facts dd{margin:0;font-weight:700;font-size:14.5px;word-break:break-word}
+.ad-facts dd{margin:0;font-weight:700;font-size:14.5px;word-break:break-word;white-space:pre-wrap}
 .ad-all{margin-top:14px;font-size:14px}
 .ad-all summary{cursor:pointer;font-weight:700;color:var(--pea)}
 .ad-raw{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
 .ad-raw th{text-align:left;color:var(--muted);font-weight:600;padding:5px 10px 5px 0;vertical-align:top;white-space:nowrap}
 .ad-raw td{padding:5px 0;word-break:break-word}
 .ad-raw tr{border-top:1px solid var(--line)}
+.ad-bk-top .ad-status{align-self:flex-start;margin:4px 0}
+.ad-cloud{padding:11px 14px;border-radius:12px;font-size:14px;font-weight:600;margin-bottom:14px}
+.ad-cloud.on{background:#e3f6ec;color:var(--good);border:1px solid #bfe6d0}
+.ad-cloud.off{background:#fff7e6;color:#7a4b00;border:1px solid #f6d58b}
+.ad-cloud.checking{background:#fff;border:1px solid var(--line);color:var(--muted)}
+.ad-sql summary{cursor:pointer;font-weight:700;color:var(--pea)}
+.ad-sql pre{background:#0b1b2b;color:#d6f5ea;border-radius:12px;padding:14px;overflow-x:auto;font-size:13px;line-height:1.5;margin:10px 0 0;white-space:pre}
 .ad-inline{display:flex;gap:10px}
 .ad-inline input{flex:1}
 .ad-subtabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
