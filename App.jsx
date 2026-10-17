@@ -901,7 +901,7 @@ function CountUp({ to, prefix = "", suffix = "" }) {
 
 /* ------------------------------ logo ------------------------------ */
 function Logo({ id = "a", dark }) {
-  const c = dark ? "#fff" : "#0b1b2b";
+  const c = dark ? "#38bdf8" : "#0284c7";
   return (
     <span className="sw-logo">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -912,7 +912,7 @@ function Logo({ id = "a", dark }) {
       </svg>
       <span className="sw-logo-text" style={{ color: c }}>
         <b>Sawariya</b>
-        <i>Rentals</i>
+        <i style={{ color: "#38bdf8" }}>Rentals</i>
       </span>
     </span>
   );
