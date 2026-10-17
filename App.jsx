@@ -2159,7 +2159,7 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 html{scroll-behavior:smooth;background:#000}
-.sw{--bg2:#050b09;--panel:rgba(255,255,255,.045);--line:rgba(255,255,255,.12);--muted:rgba(255,255,255,.62);--em:#10b981;--em2:#047857;--em3:#34d399;
+.sw{--bg2:#030b14;--panel:rgba(255,255,255,.045);--line:rgba(255,255,255,.12);--muted:rgba(255,255,255,.62);--em:#0284c7;--em2:#0369a1;--em3:#38bdf8;
  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fff;background:#000;overflow-x:hidden;line-height:1.55;color-scheme:dark;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .sw *{box-sizing:border-box}
 .sw h1,.sw h2,.sw h3,.sw h4{font-family:'Plus Jakarta Sans','Inter',sans-serif;margin:0;letter-spacing:-.02em;line-height:1.1;font-weight:600}
