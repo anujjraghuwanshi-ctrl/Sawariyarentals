@@ -2158,7 +2158,9 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
 /* ------------------------------ storefront styles ------------------------------ */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
-html{scroll-behavior:smooth;background:#000}
+html{scroll-behavior:smooth;background:#140e08}
+.sw{--bg2:#1c130b;--panel:rgba(184,138,88,0.14);--line:rgba(253,237,220,0.18);--muted:#d4b394;--em:#d49755;--em2:#996530;--em3:#fdeddc;
+ font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fdeddc;background:#140e08;overflow-x:hidden;line-height:1.55;color-scheme:dark;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .sw{--bg2:#030b14;--panel:rgba(255,255,255,.045);--line:rgba(255,255,255,.12);--muted:rgba(255,255,255,.62);--em:#0284c7;--em2:#0369a1;--em3:#38bdf8;
  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#fff;background:#000;overflow-x:hidden;line-height:1.55;color-scheme:dark;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .sw *{box-sizing:border-box}
