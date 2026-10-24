@@ -622,7 +622,7 @@ function BookingModal({ car, onClose, onConfirm }) {
   const margin = subtotal * (Number(settings.marginPercent || 10) / 100);
   const total = Math.max(0, Math.round(subtotal + margin));
   const advance = Math.min(Number(settings.bookingAdvance || BOOKING_ADVANCE), total);
-  const paymentAmount = paymentType === "advance" ? advance : total;
+  const paymentAmount = paymentType === "advance" ? advance : paymentType === "cash" ? 0 : total;
   const remainingAmount = Math.max(0, total - paymentAmount);
 
   async function handleSubmit(e) {
@@ -669,6 +669,11 @@ function BookingModal({ car, onClose, onConfirm }) {
         paymentType,
         status: "Pending",
       };
+      if (paymentType === "cash") {
+        onConfirm({ ...pendingBooking, paidAmount: 0, advancePaid: 0, remainingAmount: total, paymentType: "cash", status: "Pending" });
+        setLoading(false);
+        return;
+      }
       localStorage.setItem("sawariya_pending_booking", JSON.stringify(pendingBooking));
 
       const paymentResponse = await fetch("/api/payu-create-payment", {
@@ -748,8 +753,8 @@ function BookingModal({ car, onClose, onConfirm }) {
             <div style={summaryRow}><span>Business margin</span><strong>{fmtINR(margin)}</strong></div>
             <div style={{ ...summaryRow, borderTop: `1px solid ${C.border}`, paddingTop: 10, fontSize: 18 }}><span>Total</span><strong style={{ color: C.blue }}>{fmtINR(total)}</strong></div>
           </div>
-          <div style={choiceGrid}><button type="button" onClick={() => setPaymentType("advance")} style={{ ...choiceButton, borderColor: paymentType === "advance" ? C.blue : C.border, background: paymentType === "advance" ? C.sky : C.white }}><strong>Pay {fmtINR(advance)}</strong><span>Booking advance</span></button><button type="button" onClick={() => setPaymentType("full")} style={{ ...choiceButton, borderColor: paymentType === "full" ? C.blue : C.border, background: paymentType === "full" ? C.sky : C.white }}><strong>Pay {fmtINR(total)}</strong><span>Full payment</span></button></div>
-          <button disabled={loading} style={{ ...primaryButton, width: "100%", opacity: loading ? 0.65 : 1 }}>{loading ? "Opening payment…" : `Continue to PayU · ${fmtINR(paymentAmount)}`}</button>
+          <div style={choiceGrid}><button type="button" onClick={() => setPaymentType("advance")} style={{ ...choiceButton, borderColor: paymentType === "advance" ? C.blue : C.border, background: paymentType === "advance" ? C.sky : C.white }}><strong>Pay {fmtINR(advance)}</strong><span>Booking advance</span></button><button type="button" onClick={() => setPaymentType("full")} style={{ ...choiceButton, borderColor: paymentType === "full" ? C.blue : C.border, background: paymentType === "full" ? C.sky : C.white }}><strong>Pay {fmtINR(total)}</strong><span>Full payment</span></button><button type="button" onClick={() => setPaymentType("cash")} style={{ ...choiceButton, borderColor: paymentType === "cash" ? C.blue : C.border, background: paymentType === "cash" ? C.sky : C.white }}><strong>Pay {fmtINR(total)} in cash</strong><span>At pickup, we call you to confirm</span></button></div>
+          <button disabled={loading} style={{ ...primaryButton, width: "100%", opacity: loading ? 0.65 : 1 }}>{loading ? (paymentType === "cash" ? "Sending…" : "Opening payment…") : paymentType === "cash" ? "Request booking, pay cash" : `Continue to PayU · ${fmtINR(paymentAmount)}`}</button>
           <div style={{ fontSize: 12, color: C.gray, textAlign: "center" }}>18+ only · Valid driving licence required · Security deposit depends on vehicle · Fuel, driver, route and recovery charges are shown before payment.</div>
         </div>
       </form>
@@ -1512,6 +1517,134 @@ function RequestSheet({ kind, item, cars, cities, onClose, onZoom }) {
   );
 }
 
+/* ------------------------------ document verification (after booking) ------------------------------ */
+function VerifySheet({ info, onClose, onDone }) {
+  const k = useContact();
+  const [dl, setDl] = useState("");
+  const [dlLink, setDlLink] = useState("");
+  const [idType, setIdType] = useState("Aadhaar (DigiLocker)");
+  const [idLink, setIdLink] = useState("");
+  const [state, setState] = useState("idle");
+  const [err, setErr] = useState("");
+  const isCashBooking = info.mode === "cash";
+  const waText = `Hi Sawariya Rentals, booking ${info.bookingId} (${info.carName}). I am sending my driving licence and ID proof here.\nName: ${info.name}\nMobile: ${info.phone}`;
+
+  async function submit(e) {
+    e.preventDefault();
+    const okLink = (v) => !v.trim() || /^https?:\/\//i.test(v.trim());
+    if (!dl.trim() && !dlLink.trim()) return setErr("Add your driving licence number or a DigiLocker link.");
+    if (!okLink(dlLink) || !okLink(idLink)) return setErr("DigiLocker links must start with https://");
+    setErr("");
+    setState("sending");
+    const lines = [
+      "DOCUMENT VERIFICATION",
+      `Booking: ${info.bookingId}`,
+      `Car: ${info.carName}`,
+      `Name: ${info.name}`,
+      dl.trim() ? `Driving licence no: ${dl.trim()}` : null,
+      dlLink.trim() ? `DigiLocker driving licence link: ${dlLink.trim()}` : null,
+      idLink.trim() ? `ID proof (${idType}) DigiLocker link: ${idLink.trim()}` : `ID proof type: ${idType}`,
+    ].filter(Boolean);
+    try {
+      await insertLead({
+        name: info.name,
+        phone: info.phone,
+        city: info.city || "Indore",
+        carName: info.carName,
+        message: lines.join("\n"),
+      });
+      setState("done");
+      onDone();
+    } catch (error) {
+      console.error(error);
+      setState("fail");
+    }
+  }
+
+  return (
+    <div className="sw-detail">
+      <div className="sw-detail-bar">
+        <button onClick={onClose}>
+          <ChevronLeft size={18} /> Later
+        </button>
+        <strong>Document verification</strong>
+        <a href={k.wa} target="_blank" rel="noreferrer">WhatsApp</a>
+      </div>
+      <div className="sw-wrap sw-detail-grid">
+        <div>
+          <div className="sw-sent">
+            <CheckCircle2 size={34} />
+            <h3>{isCashBooking ? "Booking request received" : "Payment received"}</h3>
+            <p>
+              {isCashBooking
+                ? `We will call you on ${info.phone} to confirm the booking. You pay ${info.total ? fmtINR(info.total) : "the amount"} in cash at pickup.`
+                : "Your booking is confirmed. Please verify your documents so the car is ready at pickup."}
+            </p>
+          </div>
+          <div className="sw-info">
+            <h3>Share from DigiLocker</h3>
+            <ol className="sw-steps">
+              <li>Open the DigiLocker app and sign in.</li>
+              <li>Go to Issued Documents and open your Driving Licence.</li>
+              <li>Tap Share and copy the link.</li>
+              <li>Paste the link in the form. Do the same for your ID proof.</li>
+            </ol>
+            <p>No DigiLocker? Send clear photos of your driving licence and ID on WhatsApp.</p>
+            <a className="sw-btn sw-btn-wa sw-wide" href={`${k.wa}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">
+              <MessageCircle size={17} /> Send documents on WhatsApp
+            </a>
+          </div>
+          <div className="sw-info">
+            <h3>Your privacy</h3>
+            <p>Only Sawariya Rentals staff see what you send. Please do not type your Aadhaar number anywhere on this site.</p>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="sw-detail-title">Verify your documents</h2>
+          <p className="sw-detail-sub">Booking reference {info.bookingId}</p>
+          {state === "done" ? (
+            <div className="sw-sent">
+              <CheckCircle2 size={34} />
+              <h3>Documents sent</h3>
+              <p>Thank you. We will check them and call you if anything is missing.</p>
+              <button className="sw-btn sw-btn-pea sw-wide" onClick={onClose}>Done</button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="sw-bookform">
+              <label className="sw-fld">
+                <span>Driving licence number</span>
+                <input className="sw-input" value={dl} onChange={(e) => setDl(e.target.value)} placeholder="MP09 20200012345" />
+              </label>
+              <label className="sw-fld">
+                <span>DigiLocker link for your driving licence</span>
+                <input className="sw-input" value={dlLink} onChange={(e) => setDlLink(e.target.value)} placeholder="https://" inputMode="url" />
+              </label>
+              <label className="sw-fld">
+                <span>Second ID proof</span>
+                <select className="sw-input" value={idType} onChange={(e) => setIdType(e.target.value)}>
+                  {["Aadhaar (DigiLocker)", "PAN card", "Voter ID", "Passport"].map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="sw-fld">
+                <span>DigiLocker link for your ID proof</span>
+                <input className="sw-input" value={idLink} onChange={(e) => setIdLink(e.target.value)} placeholder="https://" inputMode="url" />
+              </label>
+              {err && <p className="sw-err">{err}</p>}
+              {state === "fail" && <p className="sw-err">Could not send. Please use the WhatsApp button instead.</p>}
+              <button className="sw-btn sw-btn-pea sw-wide" disabled={state === "sending"}>
+                {state === "sending" ? "Sending" : "Submit for verification"}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------ cars ------------------------------ */
 function CarTile({ car, onOpen }) {
   const ref = useRef(null);
@@ -1819,7 +1952,8 @@ function Faqs({ s }) {
     ["Can I get a driver or a guide?", "Yes. Choose With driver, or Driver + guide for tours, and the cost appears in your summary."],
     ["Can I book a one-way trip?", "Yes. Select One-way, choose your destination, and the return and recovery cost is added automatically."],
     ["Do you deliver the car to my home?", "Yes, home delivery is available. Any extra charge is shown before you pay."],
-    ["How do I pay?", `Pay an advance of ${inr(s.bookingAdvance)} or the full amount online through PayU. The balance, if any, is shown in your summary.`],
+    ["How do I pay?", `Pay an advance of ${inr(s.bookingAdvance)} or the full amount online through PayU. The balance, if any, is shown in your summary. You can also choose to pay in cash at pickup, and we will call you to confirm the booking.`],
+    ["How do I verify my documents?", "After you book, you share your driving licence and one ID proof. You can share them through DigiLocker or send clear photos on WhatsApp."],
   ];
   return (
     <section className="sw-section sw-tint" id="faqs">
@@ -1990,6 +2124,26 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   const packages = content.packages;
   const decorations = content.decorations;
   const [sheet, setSheet] = useState(null);
+  const readVerify = () => {
+    try {
+      return JSON.parse(localStorage.getItem("sawariya_verify_pending") || "null");
+    } catch {
+      return null;
+    }
+  };
+  const [verify, setVerify] = useState(readVerify);
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  useEffect(() => {
+    const h = () => {
+      const v = readVerify();
+      if (v) {
+        setVerify(v);
+        setVerifyOpen(true);
+      }
+    };
+    window.addEventListener("sawariya-verify", h);
+    return () => window.removeEventListener("sawariya-verify", h);
+  }, []); // eslint-disable-line
 
   // newest saved website content from the database (when cloud saving is switched on)
   useEffect(() => {
@@ -2026,13 +2180,13 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   }, []);
 
   useEffect(() => {
-    if (!detailCar && !sheet) return;
+    if (!detailCar && !sheet && !verifyOpen) return;
     const prev = document.body.style.overflowY;
     document.body.style.overflowY = "hidden";
     return () => {
       document.body.style.overflowY = prev;
     };
-  }, [detailCar, sheet]);
+  }, [detailCar, sheet, verifyOpen]);
 
   function openLogin() {
     setLoginName(profile?.name || "");
@@ -2051,9 +2205,31 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     setLoginOpen(false);
   }
   function handleConfirmBooking(data) {
-    onBook(data);
+    const saved = onBook(data);
     setBookingCar(null);
     setDetailCar(null);
+    if (data && data.paymentType === "cash" && saved) {
+      const v = {
+        bookingId: saved.id,
+        name: data.name,
+        phone: data.phone,
+        carName: data.carName,
+        city: data.city,
+        total: data.total,
+        mode: "cash",
+      };
+      try {
+        localStorage.setItem("sawariya_verify_pending", JSON.stringify(v));
+      } catch {}
+      setVerify(v);
+      setVerifyOpen(true);
+    }
+  }
+  function finishVerify() {
+    try {
+      localStorage.removeItem("sawariya_verify_pending");
+    } catch {}
+    setVerify(null);
   }
 
   const contact = useMemo(() => buildContact(content.info), [content.info]);
@@ -2110,6 +2286,14 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
           onBook={setBookingCar}
           onZoom={setZoom}
         />
+      )}
+      {verifyOpen && verify && (
+        <VerifySheet info={verify} onClose={() => setVerifyOpen(false)} onDone={finishVerify} />
+      )}
+      {verify && !verifyOpen && (
+        <button className="sw-verify-pill" onClick={() => setVerifyOpen(true)}>
+          Verify documents
+        </button>
       )}
       {sheet && (
         <RequestSheet
@@ -2353,6 +2537,8 @@ html{scroll-behavior:smooth;background:#140e08}
 .sw-info h3{font-size:18px;font-weight:600;margin-bottom:8px}
 .sw-info p{margin:0;color:var(--muted);font-size:15px}
 .sw-info ul{margin:0;padding-left:20px;color:var(--muted);font-size:15px;display:grid;gap:4px}
+.sw-verify-pill{position:fixed;left:12px;bottom:18px;z-index:70;border:0;border-radius:999px;padding:12px 18px;background:#fff;color:#0a0a0a;font-weight:600;font-size:14px;box-shadow:0 10px 28px -8px rgba(0,0,0,.5)}
+.sw-steps{margin:0 0 14px;padding-left:20px;color:var(--muted);display:grid;gap:6px;font-size:15px}
 .sw-pk-desc{margin:0 0 18px;color:var(--muted);font-size:16px}
 .sw-bookform{display:grid;gap:14px}
 .sw-label{font-size:14px;font-weight:600;color:#fff}
@@ -2510,6 +2696,7 @@ const leadTag = (l) => {
   const m = String(val(l, "message"));
   if (m.startsWith("TRAVEL PACKAGE")) return "Travel package";
   if (m.startsWith("DECORATION")) return "Decoration";
+  if (m.startsWith("DOCUMENT VERIFICATION")) return "Documents";
   return "";
 };
 const ts = (o) => new Date(val(o, "createdAt") || 0).getTime() || 0;
@@ -2579,12 +2766,61 @@ function AdField({ label, hint, children, wide }) {
   );
 }
 
+/* ---------------- booking status and documents (saved separately from the booking) ---------------- */
+const STATUS_KEY = "sawariya_booking_status";
+const bookingId = (b) => String(val(b, "id") || "");
+const bStatus = (b, flags) => (flags[bookingId(b)] && flags[bookingId(b)].status) || val(b, "status") || "Pending";
+const isPending = (b, flags) => String(bStatus(b, flags)).toLowerCase().startsWith("pending");
+const isCash = (b) => String(val(b, "paymentType")).toLowerCase() === "cash";
+const docsOf = (b, flags, leads) => {
+  const f = flags[bookingId(b)];
+  if (f && f.docs) return f.docs;
+  const id = bookingId(b);
+  if (id && leads.some((l) => String(val(l, "message")).includes(id))) return "received";
+  return "none";
+};
+const DOC_LABEL = { none: "Documents not received", received: "Documents received", verified: "Documents verified", rejected: "Documents need resubmitting" };
+
+function BookingActions({ b, flags, leads, onFlag }) {
+  const status = bStatus(b, flags);
+  const docs = docsOf(b, flags, leads);
+  const id = bookingId(b);
+  if (!id) return null;
+  return (
+    <div className="ad-deal">
+      <div className="ad-deal-row">
+        <em className={`ad-status ${String(status).toLowerCase().startsWith("pending") ? "pending" : String(status).toLowerCase()}`}>{status}</em>
+        {isCash(b) && <em className="ad-status cash">Cash at pickup</em>}
+        <em className={`ad-status docs-${docs}`}>{DOC_LABEL[docs]}</em>
+      </div>
+      <div className="ad-deal-row">
+        {status !== "Confirmed" && (
+          <button className="ad-btn pri sm" onClick={() => onFlag(id, { status: "Confirmed" })}>Confirm deal</button>
+        )}
+        {status !== "Cancelled" && (
+          <button className="ad-btn danger sm" onClick={() => window.confirm("Cancel this booking?") && onFlag(id, { status: "Cancelled" })}>Cancel</button>
+        )}
+        {status !== "Pending" && (
+          <button className="ad-btn sm" onClick={() => onFlag(id, { status: "Pending" })}>Mark pending</button>
+        )}
+        {docs !== "verified" && (
+          <button className="ad-btn sm" onClick={() => onFlag(id, { docs: "verified" })}>Documents verified</button>
+        )}
+        {docs === "verified" && (
+          <button className="ad-btn sm" onClick={() => onFlag(id, { docs: "rejected" })}>Ask to resubmit</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- dashboard ---------------- */
-function DashboardTab({ cars, bookings, leads, go }) {
+function DashboardTab({ cars, bookings, leads, flags, onFlag, go }) {
   const free = cars.filter((c) => c.available).length;
   const revenue = bookings.reduce((a, b) => a + num(b, "paidAmount"), 0);
   const balance = bookings.reduce((a, b) => a + num(b, "remainingAmount"), 0);
   const recentB = [...bookings].sort((a, b) => ts(b) - ts(a)).slice(0, 5);
+  const needs = [...bookings].filter((b) => isPending(b, flags)).sort((a, b) => ts(b) - ts(a));
   const recentL = [...leads].sort((a, b) => ts(b) - ts(a)).slice(0, 5);
   const cards = [
     ["Cars", cars.length, `${free} available, ${cars.length - free} rented`, "cars"],
@@ -2595,6 +2831,31 @@ function DashboardTab({ cars, bookings, leads, go }) {
   ];
   return (
     <>
+      {needs.length > 0 && (
+        <section className="ad-box ad-call">
+          <h3>Needs a call ({needs.length})</h3>
+          {needs.map((b) => (
+            <div key={bookingId(b) || val(b, "phone")} className="ad-callrow">
+              <div>
+                <b>{val(b, "name") || "Customer"}</b>
+                <span>
+                  {val(b, "carName")}, pickup {val(b, "pickupDate")} {val(b, "pickupTime")}
+                </span>
+                <span>
+                  {isCash(b) ? `Cash, ${money(val(b, "total"))} to collect at pickup` : `Total ${money(val(b, "total"))}`}
+                </span>
+              </div>
+              <div className="ad-callbtns">
+                <a className="ad-btn pri sm" href={telLink(val(b, "phone"))}>Call {val(b, "phone")}</a>
+                <a className="ad-btn sm" href={waLink(val(b, "phone"))} target="_blank" rel="noreferrer">WhatsApp</a>
+                {bookingId(b) && (
+                  <button className="ad-btn sm" onClick={() => onFlag(bookingId(b), { status: "Confirmed" })}>Confirm deal</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
       <div className="ad-cards">
         {cards.map(([t, v, n, tab]) => (
           <button key={t} className="ad-card" onClick={() => go(tab)}>
@@ -2972,9 +3233,9 @@ function CarsTab({ cars, setCars, cities }) {
 }
 
 /* ---------------- bookings ---------------- */
-function BookingCard({ b }) {
+function BookingCard({ b, flags, leads, onFlag }) {
   const [open, setOpen] = useState(false);
-  const status = val(b, "status") || "Pending";
+  const status = bStatus(b, flags);
   const remaining = num(b, "remainingAmount");
   const phone = val(b, "phone");
   const duration = val(b, "rentalDuration");
@@ -3003,6 +3264,7 @@ function BookingCard({ b }) {
         {val(b, "email") && <a href={`mailto:${val(b, "email")}`}>Email</a>}
         <button onClick={() => setOpen((v) => !v)}>{open ? "Hide details" : "Full details"}</button>
       </div>
+      <BookingActions b={b} flags={flags} leads={leads} onFlag={onFlag} />
       {open && (
         <div className="ad-bk-detail">
           <Facts
@@ -3069,12 +3331,20 @@ function BookingCard({ b }) {
   );
 }
 
-function BookingsTab({ bookings, onRefresh }) {
+function BookingsTab({ bookings, leads, flags, onFlag, onRefresh }) {
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all");
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
     return [...bookings]
       .sort((a, b) => ts(b) - ts(a))
+      .filter((b) =>
+        filter === "all"
+          ? true
+          : filter === "pending"
+          ? isPending(b, flags)
+          : String(bStatus(b, flags)).toLowerCase() === filter
+      )
       .filter(
         (b) =>
           !t ||
@@ -3083,7 +3353,7 @@ function BookingsTab({ bookings, onRefresh }) {
             .toLowerCase()
             .includes(t)
       );
-  }, [bookings, q]);
+  }, [bookings, q, filter, flags]);
   function exportCSV() {
     downloadCSV(
       "bookings.csv",
@@ -3105,7 +3375,8 @@ function BookingsTab({ bookings, onRefresh }) {
         ["Remaining", (b) => val(b, "remainingAmount")],
         ["Payment type", (b) => val(b, "paymentType")],
         ["Payment ID", (b) => val(b, "paymentId")],
-        ["Status", (b) => val(b, "status")],
+        ["Status", (b) => bStatus(b, flags)],
+        ["Documents", (b) => DOC_LABEL[docsOf(b, flags, leads)]],
       ],
       list
     );
@@ -3123,12 +3394,19 @@ function BookingsTab({ bookings, onRefresh }) {
         <Search size={17} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, mobile, car or payment ID" />
       </div>
+      <div className="ad-subtabs">
+        {[["all", "All"], ["pending", "Needs a call"], ["confirmed", "Confirmed"], ["cancelled", "Cancelled"]].map(([id, t]) => (
+          <button key={id} className={filter === id ? "on" : ""} onClick={() => setFilter(id)}>
+            {t}
+          </button>
+        ))}
+      </div>
       {list.length === 0 ? (
         <div className="ad-empty"><p>No bookings to show.</p></div>
       ) : (
         <div className="ad-list">
           {list.map((b, i) => (
-            <BookingCard key={val(b, "id") || i} b={b} />
+            <BookingCard key={val(b, "id") || i} b={b} flags={flags} leads={leads} onFlag={onFlag} />
           ))}
         </div>
       )}
@@ -3562,8 +3840,32 @@ function ContentTab() {
 /* ---------------- panel + gate ---------------- */
 function AdminPanel({ cars, setCars, cities, setCities, bookings, leads, onRefresh, onExit, onLock }) {
   const [tab, setTab] = useState("dashboard");
+  const [flags, setFlags] = useState(() => {
+    const f = loadShared(STATUS_KEY, {});
+    return f && typeof f === "object" ? f : {};
+  });
+  const [notice, setNotice] = useState("");
+  async function refresh() {
+    await onRefresh();
+    const r = await cloudGet(STATUS_KEY);
+    if (r.ok && r.value && typeof r.value === "object") {
+      setFlags(r.value);
+      saveShared(STATUS_KEY, r.value);
+    }
+  }
+  async function onFlag(id, patch) {
+    const next = { ...flags, [id]: { ...(flags[id] || {}), ...patch, updatedAt: new Date().toISOString() } };
+    setFlags(next);
+    const res = await saveContent(STATUS_KEY, next);
+    setNotice(
+      res === "cloud"
+        ? "Saved."
+        : "Saved on this device only. Switch on cloud saving (Website content tab) to see it on every device."
+    );
+    setTimeout(() => setNotice(""), 5000);
+  }
   useEffect(() => {
-    onRefresh();
+    refresh();
     // eslint-disable-next-line
   }, []);
   const tabs = [
@@ -3591,16 +3893,17 @@ function AdminPanel({ cars, setCars, cities, setCities, bookings, leads, onRefre
             <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
               {t}
               {id === "leads" && leads.length > 0 && <i>{leads.length}</i>}
-              {id === "bookings" && bookings.length > 0 && <i>{bookings.length}</i>}
+              {id === "bookings" && bookings.filter((b) => isPending(b, flags)).length > 0 && <i>{bookings.filter((b) => isPending(b, flags)).length}</i>}
             </button>
           ))}
         </nav>
       </header>
       <main className="ad-main">
-        {tab === "dashboard" && <DashboardTab cars={cars} bookings={bookings} leads={leads} go={setTab} />}
+        {notice && <div className="ad-notice">{notice}</div>}
+        {tab === "dashboard" && <DashboardTab cars={cars} bookings={bookings} leads={leads} flags={flags} onFlag={onFlag} go={setTab} />}
         {tab === "cars" && <CarsTab cars={cars} setCars={setCars} cities={cities} />}
-        {tab === "bookings" && <BookingsTab bookings={bookings} onRefresh={onRefresh} />}
-        {tab === "leads" && <LeadsTab leads={leads} onRefresh={onRefresh} />}
+        {tab === "bookings" && <BookingsTab bookings={bookings} leads={leads} flags={flags} onFlag={onFlag} onRefresh={refresh} />}
+        {tab === "leads" && <LeadsTab leads={leads} onRefresh={refresh} />}
         {tab === "cities" && <CitiesTab cities={cities} setCities={setCities} />}
         {tab === "content" && <ContentTab />}
       </main>
@@ -3794,6 +4097,23 @@ const ADMIN_CSS = `
 .ad-cloud.checking{background:#fff;border:1px solid var(--line);color:var(--muted)}
 .ad-sql summary{cursor:pointer;font-weight:700;color:var(--pea)}
 .ad-sql pre{background:#0b1b2b;color:#d6f5ea;border-radius:12px;padding:14px;overflow-x:auto;font-size:13px;line-height:1.5;margin:10px 0 0;white-space:pre}
+.ad-status.pending{background:#fff3d6;color:#8a5a00}
+.ad-status.cancelled{background:#fdeceb;color:var(--bad)}
+.ad-status.cash{background:#e3f2f4;color:var(--pead)}
+.ad-status.docs-none{background:#f1f1f1;color:#666}
+.ad-status.docs-received{background:#e3f2f4;color:var(--pead)}
+.ad-status.docs-verified{background:#e3f6ec;color:var(--good)}
+.ad-status.docs-rejected{background:#fdeceb;color:var(--bad)}
+.ad-deal{padding:10px 16px;border-top:1px dashed var(--line);display:grid;gap:8px}
+.ad-deal-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ad-deal .ad-status{margin:0}
+.ad-btn.sm{min-height:36px;padding:0 12px;font-size:13.5px;margin-top:0}
+.ad-call{border-color:#f0c36a;background:#fffaf0}
+.ad-callrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px dashed var(--line)}
+.ad-callrow>div:first-child{display:flex;flex-direction:column}
+.ad-callrow span{font-size:13px;color:var(--muted)}
+.ad-callbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ad-notice{background:#0b1b2b;color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
 .ad-inline{display:flex;gap:10px}
 .ad-inline input{flex:1}
 .ad-subtabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
@@ -3936,6 +4256,7 @@ function App() {
               : car
         )
     );
+    return booking;
   }
   /* -----------------------------------------------
      PAYU PAYMENT RETURN
@@ -3986,7 +4307,7 @@ function App() {
         const mihpayid =
           params.get("mihpayid");
 
-        confirmBooking({
+        const savedBooking = confirmBooking({
           ...pendingBooking,
 
           paymentId:
@@ -3998,6 +4319,24 @@ function App() {
           status:
             "Confirmed",
         });
+
+        try {
+          localStorage.setItem(
+            "sawariya_verify_pending",
+            JSON.stringify({
+              bookingId: savedBooking.id,
+              name: pendingBooking.name,
+              phone: pendingBooking.phone,
+              carName: pendingBooking.carName,
+              city: pendingBooking.city,
+              total: pendingBooking.total,
+              mode: "paid",
+            })
+          );
+          window.dispatchEvent(new Event("sawariya-verify"));
+        } catch (e) {
+          console.error(e);
+        }
 
         localStorage.removeItem(
           "sawariya_pending_booking"
