@@ -1517,125 +1517,231 @@ function RequestSheet({ kind, item, cars, cities, onClose, onZoom }) {
   );
 }
 
-/* ------------------------------ document verification (after booking) ------------------------------ */
+/* ------------------------------ document upload page (after booking) ------------------------------ */
+async function apiPost(path, body) {
+  try {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok && data.success !== false, data, status: r.status };
+  } catch (e) {
+    return { ok: false, data: { message: "Could not reach the server." }, status: 0 };
+  }
+}
+const readAsDataURL = (file) =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+const MAX_DOC_FILES = 2;
+const DOC_TYPES = [
+  ["aadhaar", "Aadhaar card", "Photo or PDF. A masked Aadhaar (first 8 digits hidden) is fine."],
+  ["licence", "Driving licence", "Photo or PDF. Front and back if it is a card."],
+];
+
 function VerifySheet({ info, onClose, onDone }) {
   const k = useContact();
-  const [dl, setDl] = useState("");
-  const [dlLink, setDlLink] = useState("");
-  const [idType, setIdType] = useState("Aadhaar (DigiLocker)");
-  const [idLink, setIdLink] = useState("");
+  const [files, setFiles] = useState({ aadhaar: [], licence: [] });
+  const [name, setName] = useState(info.name || "");
+  const [phone, setPhone] = useState(info.phone || "");
+  const [agree, setAgree] = useState(false);
   const [state, setState] = useState("idle");
+  const [progress, setProgress] = useState("");
   const [err, setErr] = useState("");
   const isCashBooking = info.mode === "cash";
-  const waText = `Hi Sawariya Rentals, booking ${info.bookingId} (${info.carName}). I am sending my driving licence and ID proof here.\nName: ${info.name}\nMobile: ${info.phone}`;
+  const needContact = !info.phone;
+  const waText = `Hi Sawariya Rentals, booking ${info.bookingId}${info.carName ? ` (${info.carName})` : ""}. I am sending my Aadhaar and driving licence here.`;
+
+  async function addFiles(slot, list) {
+    setErr("");
+    const next = [...files[slot]];
+    for (const f of Array.from(list || [])) {
+      if (next.length >= MAX_DOC_FILES) {
+        setErr(`You can add up to ${MAX_DOC_FILES} files for each document.`);
+        break;
+      }
+      try {
+        if (f.type === "application/pdf") {
+          if (f.size > 3 * 1024 * 1024) {
+            setErr("A PDF is larger than 3 MB. Please choose a smaller one.");
+            continue;
+          }
+          next.push({ id: uid("f"), name: f.name, mime: "application/pdf", dataUrl: await readAsDataURL(f), done: false });
+        } else if (f.type.startsWith("image/")) {
+          next.push({ id: uid("f"), name: f.name, mime: "image/jpeg", dataUrl: await compressImage(f, 1800, 0.85), done: false });
+        } else {
+          setErr("Please choose a photo or a PDF.");
+        }
+      } catch (e) {
+        setErr("One of the files could not be read. Please try another.");
+      }
+    }
+    setFiles((p) => ({ ...p, [slot]: next }));
+  }
+  const removeFile = (slot, id) => setFiles((p) => ({ ...p, [slot]: p[slot].filter((x) => x.id !== id) }));
 
   async function submit(e) {
     e.preventDefault();
-    const okLink = (v) => !v.trim() || /^https?:\/\//i.test(v.trim());
-    if (!dl.trim() && !dlLink.trim()) return setErr("Add your driving licence number or a DigiLocker link.");
-    if (!okLink(dlLink) || !okLink(idLink)) return setErr("DigiLocker links must start with https://");
+    if (!files.aadhaar.length || !files.licence.length) return setErr("Please add your Aadhaar card and your driving licence.");
+    const clean = phone.replace(/\D/g, "");
+    if (needContact && (!name.trim() || !/^\d{10}$/.test(clean))) return setErr("Please enter your name and a 10-digit mobile number.");
+    if (!agree) return setErr("Please tick the box to agree.");
     setErr("");
-    setState("sending");
-    const lines = [
-      "DOCUMENT VERIFICATION",
-      `Booking: ${info.bookingId}`,
-      `Car: ${info.carName}`,
-      `Name: ${info.name}`,
-      dl.trim() ? `Driving licence no: ${dl.trim()}` : null,
-      dlLink.trim() ? `DigiLocker driving licence link: ${dlLink.trim()}` : null,
-      idLink.trim() ? `ID proof (${idType}) DigiLocker link: ${idLink.trim()}` : `ID proof type: ${idType}`,
-    ].filter(Boolean);
+    setState("uploading");
+    for (const slot of ["aadhaar", "licence"]) {
+      for (let i = 0; i < files[slot].length; i++) {
+        const f = files[slot][i];
+        if (f.done) continue;
+        setProgress(`Uploading ${slot === "aadhaar" ? "Aadhaar" : "driving licence"} file ${i + 1}`);
+        const res = await apiPost("/api/documents", {
+          action: "upload",
+          bookingId: info.bookingId,
+          slot: `${slot}-${i + 1}`,
+          filename: f.name,
+          data: f.dataUrl.split(",")[1],
+        });
+        if (!res.ok) {
+          setState(res.status === 503 ? "off" : "idle");
+          setProgress("");
+          setErr((res.data && res.data.message) || "Upload failed. Please try again.");
+          return;
+        }
+        setFiles((p) => ({ ...p, [slot]: p[slot].map((x) => (x.id === f.id ? { ...x, done: true } : x)) }));
+      }
+    }
     try {
       await insertLead({
-        name: info.name,
-        phone: info.phone,
+        name: (info.name || name).trim(),
+        phone: info.phone || clean,
         city: info.city || "Indore",
-        carName: info.carName,
-        message: lines.join("\n"),
+        carName: info.carName || "",
+        message: [
+          "DOCUMENTS UPLOADED",
+          `Booking: ${info.bookingId}`,
+          info.carName ? `Car: ${info.carName}` : null,
+          `Aadhaar files: ${files.aadhaar.length}`,
+          `Driving licence files: ${files.licence.length}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       });
-      setState("done");
-      onDone();
     } catch (error) {
       console.error(error);
-      setState("fail");
     }
+    setProgress("");
+    setState("done");
+    onDone();
   }
 
+  const busy = state === "uploading";
   return (
     <div className="sw-detail">
       <div className="sw-detail-bar">
         <button onClick={onClose}>
           <ChevronLeft size={18} /> Later
         </button>
-        <strong>Document verification</strong>
+        <strong>Upload documents</strong>
         <a href={k.wa} target="_blank" rel="noreferrer">WhatsApp</a>
       </div>
       <div className="sw-wrap sw-detail-grid">
         <div>
-          <div className="sw-sent">
-            <CheckCircle2 size={34} />
-            <h3>{isCashBooking ? "Booking request received" : "Payment received"}</h3>
-            <p>
-              {isCashBooking
-                ? `We will call you on ${info.phone} to confirm the booking. You pay ${info.total ? fmtINR(info.total) : "the amount"} in cash at pickup.`
-                : "Your booking is confirmed. Please verify your documents so the car is ready at pickup."}
-            </p>
-          </div>
+          {info.mode !== "link" && (
+            <div className="sw-sent">
+              <CheckCircle2 size={34} />
+              <h3>{isCashBooking ? "Booking request received" : "Payment received"}</h3>
+              <p>
+                {isCashBooking
+                  ? `We will call you on ${info.phone} to confirm the booking. You pay ${info.total ? fmtINR(info.total) : "the amount"} in cash at pickup.`
+                  : "Your booking is confirmed. Please upload your documents so the car is ready at pickup."}
+              </p>
+            </div>
+          )}
           <div className="sw-info">
-            <h3>Share from DigiLocker</h3>
-            <ol className="sw-steps">
-              <li>Open the DigiLocker app and sign in.</li>
-              <li>Go to Issued Documents and open your Driving Licence.</li>
-              <li>Tap Share and copy the link.</li>
-              <li>Paste the link in the form. Do the same for your ID proof.</li>
-            </ol>
-            <p>No DigiLocker? Send clear photos of your driving licence and ID on WhatsApp.</p>
-            <a className="sw-btn sw-btn-wa sw-wide" href={`${k.wa}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">
-              <MessageCircle size={17} /> Send documents on WhatsApp
-            </a>
+            <h3>What to upload</h3>
+            <ul>
+              <li>Your Aadhaar card, as a photo or a PDF</li>
+              <li>Your driving licence, as a photo or a PDF</li>
+              <li>Clear and readable, nothing cut off</li>
+            </ul>
+            <p>Hide the first 8 digits of your Aadhaar if you can. Use a masked Aadhaar from the UIDAI website or the mAadhaar app.</p>
           </div>
           <div className="sw-info">
             <h3>Your privacy</h3>
-            <p>Only Sawariya Rentals staff see what you send. Please do not type your Aadhaar number anywhere on this site.</p>
+            <p>Your files are stored privately. Only Sawariya Rentals staff can open them.</p>
+            <a className="sw-btn sw-btn-wa sw-wide" href={`${k.wa}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">
+              <MessageCircle size={17} /> Prefer WhatsApp? Send them there
+            </a>
           </div>
         </div>
 
         <div>
-          <h2 className="sw-detail-title">Verify your documents</h2>
+          <h2 className="sw-detail-title">Upload your documents</h2>
           <p className="sw-detail-sub">Booking reference {info.bookingId}</p>
           {state === "done" ? (
             <div className="sw-sent">
               <CheckCircle2 size={34} />
-              <h3>Documents sent</h3>
-              <p>Thank you. We will check them and call you if anything is missing.</p>
+              <h3>Documents received</h3>
+              <p>Thank you. Our team will check them and call you if anything is missing.</p>
               <button className="sw-btn sw-btn-pea sw-wide" onClick={onClose}>Done</button>
             </div>
           ) : (
             <form onSubmit={submit} className="sw-bookform">
-              <label className="sw-fld">
-                <span>Driving licence number</span>
-                <input className="sw-input" value={dl} onChange={(e) => setDl(e.target.value)} placeholder="MP09 20200012345" />
+              {DOC_TYPES.map(([slot, title, hint]) => (
+                <div key={slot} className="sw-doc">
+                  <div className="sw-label">{title}</div>
+                  <p className="sw-doc-hint">{hint}</p>
+                  <div className="sw-doc-files">
+                    {files[slot].map((f) => (
+                      <div key={f.id} className="sw-doc-file">
+                        {f.mime === "application/pdf" ? <span className="sw-doc-pdf">PDF</span> : <img src={f.dataUrl} alt="" />}
+                        <span className="sw-doc-name">{f.name}</span>
+                        {f.done ? <em>Uploaded</em> : (
+                          <button type="button" disabled={busy} onClick={() => removeFile(slot, f.id)}>Remove</button>
+                        )}
+                      </div>
+                    ))}
+                    {files[slot].length < MAX_DOC_FILES && (
+                      <label className="sw-doc-add">
+                        <ImagePlus size={20} />
+                        <span>{files[slot].length ? "Add another file" : "Choose photo or PDF"}</span>
+                        <input type="file" accept="image/*,application/pdf" multiple hidden disabled={busy} onChange={(e) => { addFiles(slot, e.target.files); e.target.value = ""; }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {needContact && (
+                <div className="sw-two-col">
+                  <label className="sw-fld">
+                    <span>Your name</span>
+                    <input className="sw-input" value={name} onChange={(e) => setName(e.target.value)} />
+                  </label>
+                  <label className="sw-fld">
+                    <span>Mobile number</span>
+                    <input className="sw-input" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  </label>
+                </div>
+              )}
+
+              <label className="sw-check">
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <span>I agree that Sawariya Rentals may store these documents to verify my booking.</span>
               </label>
-              <label className="sw-fld">
-                <span>DigiLocker link for your driving licence</span>
-                <input className="sw-input" value={dlLink} onChange={(e) => setDlLink(e.target.value)} placeholder="https://" inputMode="url" />
-              </label>
-              <label className="sw-fld">
-                <span>Second ID proof</span>
-                <select className="sw-input" value={idType} onChange={(e) => setIdType(e.target.value)}>
-                  {["Aadhaar (DigiLocker)", "PAN card", "Voter ID", "Passport"].map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="sw-fld">
-                <span>DigiLocker link for your ID proof</span>
-                <input className="sw-input" value={idLink} onChange={(e) => setIdLink(e.target.value)} placeholder="https://" inputMode="url" />
-              </label>
+
               {err && <p className="sw-err">{err}</p>}
-              {state === "fail" && <p className="sw-err">Could not send. Please use the WhatsApp button instead.</p>}
-              <button className="sw-btn sw-btn-pea sw-wide" disabled={state === "sending"}>
-                {state === "sending" ? "Sending" : "Submit for verification"}
+              {state === "off" && (
+                <a className="sw-btn sw-btn-wa sw-wide" href={`${k.wa}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">
+                  <MessageCircle size={17} /> Send documents on WhatsApp instead
+                </a>
+              )}
+              <button className="sw-btn sw-btn-pea sw-wide" disabled={busy}>
+                {busy ? progress || "Uploading" : "Upload documents"}
               </button>
             </form>
           )}
@@ -1953,7 +2059,7 @@ function Faqs({ s }) {
     ["Can I book a one-way trip?", "Yes. Select One-way, choose your destination, and the return and recovery cost is added automatically."],
     ["Do you deliver the car to my home?", "Yes, home delivery is available. Any extra charge is shown before you pay."],
     ["How do I pay?", `Pay an advance of ${inr(s.bookingAdvance)} or the full amount online through PayU. The balance, if any, is shown in your summary. You can also choose to pay in cash at pickup, and we will call you to confirm the booking.`],
-    ["How do I verify my documents?", "After you book, you share your driving licence and one ID proof. You can share them through DigiLocker or send clear photos on WhatsApp."],
+    ["How do I verify my documents?", "After you book, you upload photos or PDFs of your Aadhaar card and driving licence on a private page. Only our staff can open them. You can also send them on WhatsApp."],
   ];
   return (
     <section className="sw-section sw-tint" id="faqs">
@@ -2133,6 +2239,13 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   };
   const [verify, setVerify] = useState(readVerify);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [docsLink, setDocsLink] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get("documents") || "";
+    } catch {
+      return "";
+    }
+  });
   useEffect(() => {
     const h = () => {
       const v = readVerify();
@@ -2180,13 +2293,13 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
   }, []);
 
   useEffect(() => {
-    if (!detailCar && !sheet && !verifyOpen) return;
+    if (!detailCar && !sheet && !verifyOpen && !docsLink) return;
     const prev = document.body.style.overflowY;
     document.body.style.overflowY = "hidden";
     return () => {
       document.body.style.overflowY = prev;
     };
-  }, [detailCar, sheet, verifyOpen]);
+  }, [detailCar, sheet, verifyOpen, docsLink]);
 
   function openLogin() {
     setLoginName(profile?.name || "");
@@ -2287,10 +2400,22 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
           onZoom={setZoom}
         />
       )}
+      {docsLink && (
+        <VerifySheet
+          info={{ bookingId: docsLink, mode: "link" }}
+          onClose={() => {
+            setDocsLink("");
+            try {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch {}
+          }}
+          onDone={() => {}}
+        />
+      )}
       {verifyOpen && verify && (
         <VerifySheet info={verify} onClose={() => setVerifyOpen(false)} onDone={finishVerify} />
       )}
-      {verify && !verifyOpen && (
+      {verify && !verifyOpen && !docsLink && (
         <button className="sw-verify-pill" onClick={() => setVerifyOpen(true)}>
           Verify documents
         </button>
@@ -2538,6 +2663,19 @@ html{scroll-behavior:smooth;background:#140e08}
 .sw-info p{margin:0;color:var(--muted);font-size:15px}
 .sw-info ul{margin:0;padding-left:20px;color:var(--muted);font-size:15px;display:grid;gap:4px}
 .sw-verify-pill{position:fixed;left:12px;bottom:18px;z-index:70;border:0;border-radius:999px;padding:12px 18px;background:#fff;color:#0a0a0a;font-weight:600;font-size:14px;box-shadow:0 10px 28px -8px rgba(0,0,0,.5)}
+.sw-doc{display:grid;gap:8px;padding:16px;border-radius:18px;border:1px solid var(--line);background:var(--panel)}
+.sw-doc-hint{margin:0;color:var(--muted);font-size:13.5px}
+.sw-doc-files{display:grid;gap:8px}
+.sw-doc-file{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.sw-doc-file img{width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0}
+.sw-doc-pdf{display:grid;place-items:center;width:48px;height:48px;border-radius:8px;background:rgba(212,151,85,.2);color:#f3c98b;font-weight:700;font-size:13px;flex-shrink:0}
+.sw-doc-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.sw-doc-file button{background:none;border:0;color:#f87171;font-weight:600;font-size:13px}
+.sw-doc-file em{font-style:normal;color:#86efac;font-size:13px;font-weight:600}
+.sw-doc-add{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:12px;border:1.5px dashed var(--line);color:var(--em3);font-weight:600;font-size:14px;cursor:pointer}
+.sw-doc-add:hover{border-color:var(--em)}
+.sw-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted);cursor:pointer}
+.sw-check input{margin-top:3px;width:18px;height:18px;accent-color:#d49755;flex-shrink:0}
 .sw-steps{margin:0 0 14px;padding-left:20px;color:var(--muted);display:grid;gap:6px;font-size:15px}
 .sw-pk-desc{margin:0 0 18px;color:var(--muted);font-size:16px}
 .sw-bookform{display:grid;gap:14px}
@@ -2696,7 +2834,7 @@ const leadTag = (l) => {
   const m = String(val(l, "message"));
   if (m.startsWith("TRAVEL PACKAGE")) return "Travel package";
   if (m.startsWith("DECORATION")) return "Decoration";
-  if (m.startsWith("DOCUMENT VERIFICATION")) return "Documents";
+  if (m.startsWith("DOCUMENT VERIFICATION") || m.startsWith("DOCUMENTS UPLOADED")) return "Documents";
   return "";
 };
 const ts = (o) => new Date(val(o, "createdAt") || 0).getTime() || 0;
@@ -2810,6 +2948,117 @@ function BookingActions({ b, flags, leads, onFlag }) {
           <button className="ad-btn sm" onClick={() => onFlag(id, { docs: "rejected" })}>Ask to resubmit</button>
         )}
       </div>
+      <DocumentsPanel id={id} />
+    </div>
+  );
+}
+
+/* ---------------- customer documents (private, staff only) ---------------- */
+const DOCS_CODE_KEY = "sawariya_docs_code";
+const slotLabel = (s) => {
+  const [t, n] = String(s).split("-");
+  return `${t === "aadhaar" ? "Aadhaar" : "Driving licence"} ${n || ""}`.trim();
+};
+
+function DocumentsPanel({ id }) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState(() => {
+    try {
+      return sessionStorage.getItem(DOCS_CODE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [state, setState] = useState("idle");
+  const [files, setFiles] = useState([]);
+  const [msg, setMsg] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  async function load(c = code) {
+    setState("loading");
+    setMsg("");
+    const r = await apiPost("/api/documents", { action: "list", bookingId: id, code: c });
+    if (!r.ok) {
+      setState("error");
+      setMsg((r.data && r.data.message) || "Could not load the documents.");
+      if (r.status === 401) {
+        try {
+          sessionStorage.removeItem(DOCS_CODE_KEY);
+        } catch {}
+      }
+      return;
+    }
+    try {
+      sessionStorage.setItem(DOCS_CODE_KEY, c);
+    } catch {}
+    setFiles(r.data.files || []);
+    setState("ready");
+  }
+  async function wipe() {
+    if (!window.confirm("Delete all documents for this booking? This cannot be undone.")) return;
+    const r = await apiPost("/api/documents", { action: "delete", bookingId: id, code });
+    if (!r.ok) return setMsg((r.data && r.data.message) || "Could not delete.");
+    setFiles([]);
+    setMsg(`Deleted ${r.data.deleted} file(s).`);
+  }
+  async function copyLink() {
+    const link = `${window.location.origin}/?documents=${encodeURIComponent(id)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.prompt("Copy this link and send it to the customer:", link);
+    }
+  }
+
+  return (
+    <div className="ad-docs">
+      <div className="ad-deal-row">
+        <button
+          className="ad-btn sm"
+          onClick={() => {
+            setOpen((v) => !v);
+            if (!open && code && state === "idle") load();
+          }}
+        >
+          {open ? "Hide documents" : "View documents"}
+        </button>
+        <button className="ad-btn sm" onClick={copyLink}>{copied ? "Link copied" : "Copy upload link"}</button>
+      </div>
+      {open && (
+        <div className="ad-docs-box">
+          {(state === "idle" || state === "error") && !(state === "idle" && code) && (
+            <form
+              className="ad-inline"
+              onSubmit={(e) => {
+                e.preventDefault();
+                load(code);
+              }}
+            >
+              <input type="password" placeholder="Documents code" value={code} onChange={(e) => setCode(e.target.value)} />
+              <button className="ad-btn pri sm">Open</button>
+            </form>
+          )}
+          {state === "loading" && <span className="ad-muted">Loading</span>}
+          {msg && <span className="ad-err">{msg}</span>}
+          {state === "ready" && files.length === 0 && <span className="ad-muted">No documents uploaded yet.</span>}
+          {state === "ready" && files.length > 0 && (
+            <>
+              <div className="ad-docs-grid">
+                {files.map((f) => (
+                  <a key={f.name} className="ad-docs-item" href={f.url} target="_blank" rel="noreferrer">
+                    {f.type === "application/pdf" ? <span className="ad-docs-pdf">PDF</span> : <img src={f.url} alt={slotLabel(f.slot)} />}
+                    <span>{slotLabel(f.slot)}</span>
+                  </a>
+                ))}
+              </div>
+              <span className="ad-muted">Links stop working after 10 minutes. Tap View documents again for fresh ones.</span>
+              <button className="ad-btn danger sm" onClick={wipe}>Delete all documents</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -4114,6 +4363,13 @@ const ADMIN_CSS = `
 .ad-callrow span{font-size:13px;color:var(--muted)}
 .ad-callbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .ad-notice{background:#0b1b2b;color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.ad-docs{padding:0 16px 12px;display:grid;gap:8px}
+.ad-docs-box{display:grid;gap:10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:#fff}
+.ad-docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.ad-docs-item{display:grid;gap:4px;text-align:center;font-size:12.5px;font-weight:700}
+.ad-docs-item img{width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:10px;background:#eef4f5;border:1px solid var(--line)}
+.ad-docs-pdf{display:grid;place-items:center;aspect-ratio:4/3;border-radius:10px;background:#fdeceb;color:var(--bad);font-weight:800;border:1px solid var(--line)}
+.ad-err{color:var(--bad);font-weight:700;font-size:13px}
 .ad-inline{display:flex;gap:10px}
 .ad-inline input{flex:1}
 .ad-subtabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
