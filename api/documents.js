@@ -14,6 +14,16 @@ const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_FILES_PER_BOOKING = 8;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// A short, safe description of an error for debugging (never includes keys).
+function safeDetail(error) {
+  const text = String((error && (error.message || error.error_description || error.error)) || error || "")
+    .replace(/sb_(secret|publishable)_[A-Za-z0-9_-]+/g, "[key]")
+    .replace(/eyJ[A-Za-z0-9._-]+/g, "[key]")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, 160);
+}
+
 let bucketReady = false;
 
 async function defaultClient() {
@@ -88,13 +98,17 @@ export function makeHandler(getClient = defaultClient) {
     if (!ID_RE.test(bookingId)) {
       return res.status(400).json({ success: false, message: "Booking reference is not valid." });
     }
+    let stage = "start";
     try {
+      stage = "connect";
       const client = await getClient();
       if (!client) {
         return res.status(503).json({ success: false, message: "Document upload is not switched on yet." });
       }
+      stage = "storage";
       await ensureBucket(client);
       const store = client.storage.from(BUCKET);
+      stage = action || "request";
 
       if (action === "upload") {
         const slot = String(body.slot || "");
@@ -153,8 +167,13 @@ export function makeHandler(getClient = defaultClient) {
 
       return res.status(400).json({ success: false, message: "Unknown action." });
     } catch (error) {
-      console.error("documents endpoint error", error);
-      return res.status(500).json({ success: false, message: "Something went wrong. Please try again." });
+      console.error("documents endpoint error", stage, error);
+      return res.status(500).json({
+        success: false,
+        message: "Something went wrong. Please try again.",
+        stage,
+        detail: safeDetail(error),
+      });
     }
   };
 }
