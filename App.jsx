@@ -4240,7 +4240,7 @@ function AdminGate(props) {
 const ADMIN_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap');
 .ad{--ink:#0b1b2b;--pea:#0e7c86;--pead:#0a5f67;--saf:#f59e0b;--mist:#f2f7f8;--line:#e0e9ec;--muted:#566774;--bad:#b42318;--good:#117a4a;
- font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--mist);min-height:100vh;line-height:1.5}
+ font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--mist);min-height:100vh;min-height:100dvh;width:100%;max-width:100%;overflow-x:clip;line-height:1.5}
 .ad *{box-sizing:border-box}
 .ad h2,.ad h3,.ad h4{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0;letter-spacing:-.02em}
 .ad a{color:var(--pea);font-weight:700;text-decoration:none}
@@ -4290,7 +4290,7 @@ const ADMIN_CSS = `
 .ad-f.wide{grid-column:1/-1}
 .ad-f span{font-size:13px;font-weight:700;color:var(--muted)}
 .ad-f em{font-style:normal;font-size:12px;color:var(--muted)}
-.ad input,.ad select,.ad textarea{width:100%;font:inherit;font-size:15px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;min-height:44px}
+.ad input,.ad select,.ad textarea{width:100%;max-width:100%;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;min-height:44px}
 .ad textarea{resize:vertical}
 .ad input:focus,.ad select:focus,.ad textarea:focus{outline:0;border-color:var(--pea);box-shadow:0 0 0 4px rgba(14,124,134,.14)}
 .ad-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
@@ -4380,19 +4380,46 @@ const ADMIN_CSS = `
 .ad-subtabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
 .ad-subtabs button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px;white-space:nowrap;color:var(--ink)}
 .ad-subtabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.ad-gate{display:grid;place-items:center;padding:20px}
+.ad-gate{display:grid;place-items:center;align-content:safe center;padding:20px 16px;min-height:100dvh}
 .ad-gate-card{width:100%;max-width:380px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:28px;display:grid;gap:12px;box-shadow:0 30px 60px -30px rgba(11,27,43,.35)}
 .ad-gate-card h2{font-size:26px;margin-top:8px}
 .ad-gate-card p{margin:0;color:var(--muted);font-size:15px}
-.ad-gate-card input{text-align:center;font-size:22px;letter-spacing:.4em}
+.ad-gate-card input{text-align:center;font-size:20px;letter-spacing:.18em}
 .ad-gate-card small{color:var(--bad);font-weight:700}
 @media (max-width:760px){
- .ad-two{grid-template-columns:1fr}
- .ad-row{flex-wrap:wrap}
+ .ad-top-in{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 12px;gap:8px}
+ .ad-top-actions{grid-column:1 / -1;margin-left:0;width:100%}
+ .ad-top-actions .ad-btn{flex:1;min-width:0;padding:0 10px}
+ .ad-tabs{padding:0 8px}
+ .ad-tabs button{padding:10px 12px;font-size:14px}
+ .ad-main{padding:16px 12px 72px}
+ .ad-head h2{font-size:22px}
+ .ad-cards{grid-template-columns:1fr 1fr}
+ .ad-card{padding:12px}
+ .ad-card strong{font-size:22px}
+ .ad-two,.ad-grid,.ad-facts dl{grid-template-columns:1fr}
+ .ad-box{padding:14px}
+ .ad-row{flex-wrap:wrap;align-items:flex-start}
+ .ad-thumb{width:72px;height:52px}
  .ad-row-actions{width:100%;justify-content:flex-start}
- .ad-bk-top{flex-direction:column}
+ .ad-bk-top{flex-direction:column;gap:8px}
  .ad-bk-money{align-items:flex-start;text-align:left}
+ .ad-bk-actions{gap:10px}
+ .ad-bk-actions button{margin-left:0}
+ .ad-deal-row,.ad-callbtns,.ad-actions{width:100%}
+ .ad-deal-row .ad-btn,.ad-callbtns .ad-btn,.ad-actions .ad-btn{flex:1 1 auto}
  .ad-inline{flex-direction:column}
+ .ad-inline .ad-btn{width:100%}
+ .ad-raw th{white-space:normal}
+ .ad-all,.ad-sql pre{max-width:100%}
+ .ad-gate{padding:16px 12px;align-content:start}
+ .ad-gate-card{padding:20px 16px;border-radius:18px}
+ .ad-gate-card h2{font-size:22px}
+ .ad-gate-card input{font-size:18px;letter-spacing:.12em}
+}
+@media (max-width:380px){
+ .ad-cards{grid-template-columns:1fr}
+ .ad-badge{display:none}
 }
 `;
 
