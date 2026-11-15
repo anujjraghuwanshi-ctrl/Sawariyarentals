@@ -1660,7 +1660,7 @@ function VerifySheet({ info, onClose, onDone }) {
               <p>
                 {isCashBooking
                   ? `We will call you on ${info.phone} to confirm the booking. You pay ${info.total ? fmtINR(info.total) : "the amount"} in cash at pickup.`
-                  : "Your booking is confirmed. Please upload your documents so the car is ready at pickup."}
+                  : "Payment is done. Upload your Aadhaar card and driving licence below so the car is ready at pickup."}
               </p>
             </div>
           )}
@@ -2250,8 +2250,8 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     }
   });
   useEffect(() => {
-    const h = () => {
-      const v = readVerify();
+    const h = (e) => {
+      const v = (e && e.detail) || readVerify();
       if (v) {
         setVerify(v);
         setVerifyOpen(true);
@@ -2320,8 +2320,8 @@ function CustomerView({ cars: carsProp, cities: citiesProp, onBook }) {
     setProfile(p);
     setLoginOpen(false);
   }
-  function handleConfirmBooking(data) {
-    const saved = onBook(data);
+  async function handleConfirmBooking(data) {
+    const saved = await onBook(data);
     setBookingCar(null);
     setDetailCar(null);
     if (data && data.paymentType === "cash" && saved) {
@@ -4480,42 +4480,25 @@ function App() {
      CONFIRM BOOKING
   ------------------------------------------------ */
 
-  function confirmBooking(
-    data
-  ) {
+  async function confirmBooking(data) {
     const booking = {
-      id: uid("booking"),
-
-      createdAt:
-        new Date().toISOString(),
-
+      id: data.id || uid("booking"),
+      createdAt: new Date().toISOString(),
       ...data,
     };
 
-    insertBooking(booking).catch((err) =>
-      console.error(err)
-    );
+    try {
+      const cloudId = await insertBooking(booking);
+      if (cloudId) booking.id = cloudId;
+    } catch (err) {
+      console.error(err);
+    }
 
-    setBookings(
-      (prev) => [
-        ...prev,
-        booking,
-      ]
-    );
-
-    setCars(
-      (prev) =>
-        prev.map(
-          (car) =>
-            car.id ===
-            data.carId
-              ? {
-                  ...car,
-                  available:
-                    false,
-                }
-              : car
-        )
+    setBookings((prev) => [...prev, booking]);
+    setCars((prev) =>
+      prev.map((car) =>
+        car.id === data.carId ? { ...car, available: false } : car
+      )
     );
     return booking;
   }
@@ -4524,137 +4507,69 @@ function App() {
   ------------------------------------------------ */
 
   useEffect(() => {
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
+    const params = new URLSearchParams(window.location.search);
+    const payuStatus = params.get("payu");
+    if (!payuStatus) return;
 
-    const payuStatus =
-      params.get("payu");
-
-    if (!payuStatus) {
-      return;
-    }
-
-    const pendingRaw =
-      localStorage.getItem(
-        "sawariya_pending_booking"
-      );
+    const finishUrl = () => {
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch {}
+    };
 
     if (payuStatus === "success") {
-      if (!pendingRaw) {
-        alert(
-          "Payment was successful, but the booking information was not found. Please contact Sawariya Rentals."
-        );
-
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        return;
-      }
-
-      try {
-        const pendingBooking =
-          JSON.parse(
-            pendingRaw
-          );
-
-        const txnid =
-          params.get("txnid");
-
-        const mihpayid =
-          params.get("mihpayid");
-
-        const savedBooking = confirmBooking({
-          ...pendingBooking,
-
-          paymentId:
-            mihpayid || null,
-
-          orderId:
-            txnid || null,
-
-          status:
-            "Confirmed",
-        });
-
+      (async () => {
+        let pendingBooking = null;
         try {
-          localStorage.setItem(
-            "sawariya_verify_pending",
-            JSON.stringify({
-              bookingId: savedBooking.id,
-              name: pendingBooking.name,
-              phone: pendingBooking.phone,
-              carName: pendingBooking.carName,
-              city: pendingBooking.city,
-              total: pendingBooking.total,
-              mode: "paid",
-            })
-          );
-          window.dispatchEvent(new Event("sawariya-verify"));
-        } catch (e) {
-          console.error(e);
+          pendingBooking = JSON.parse(localStorage.getItem("sawariya_pending_booking") || "null");
+        } catch {}
+
+        const txnid = params.get("txnid") || "";
+        const mihpayid = params.get("mihpayid") || "";
+        let saved = null;
+
+        if (pendingBooking) {
+          saved = await confirmBooking({
+            ...pendingBooking,
+            id: txnid || pendingBooking.id,
+            paymentId: mihpayid || null,
+            orderId: txnid || null,
+            status: "Confirmed",
+            payment_status: "paid",
+          });
+          try {
+            localStorage.removeItem("sawariya_pending_booking");
+          } catch {}
         }
 
-        localStorage.removeItem(
-          "sawariya_pending_booking"
-        );
-
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        alert(
-          pendingBooking.paymentType ===
-            "advance"
-            ? `Booking confirmed!\n\n₹${Number(
-                pendingBooking.paidAmount || 0
-              ).toLocaleString(
-                "en-IN"
-              )} advance paid.\nRemaining ${fmtINR(
-                pendingBooking.remainingAmount
-              )} payable later.`
-            : `Booking confirmed!\n\nFull payment of ${fmtINR(
-                pendingBooking.total
-              )} received.`
-        );
-      } catch (error) {
-        console.error(
-          "PayU booking confirmation error:",
-          error
-        );
-
-        alert(
-          "Payment was successful, but we could not confirm the booking. Please contact Sawariya Rentals."
-        );
-      }
-
+        const bookingId = (saved && saved.id) || txnid;
+        if (bookingId) {
+          const verifyInfo = {
+            bookingId,
+            name: (pendingBooking && pendingBooking.name) || params.get("firstname") || "",
+            phone: (pendingBooking && pendingBooking.phone) || (params.get("phone") || "").replace(/\D/g, "").slice(-10),
+            carName: (pendingBooking && pendingBooking.carName) || String(params.get("productinfo") || "").replace(/^(Booking Advance|Full Payment)\s*-\s*/i, ""),
+            city: (pendingBooking && pendingBooking.city) || "",
+            total: (pendingBooking && pendingBooking.total) || params.get("amount") || "",
+            mode: "paid",
+          };
+          try {
+            localStorage.setItem("sawariya_verify_pending", JSON.stringify(verifyInfo));
+          } catch {}
+          window.dispatchEvent(new CustomEvent("sawariya-verify", { detail: verifyInfo }));
+        }
+        finishUrl();
+      })();
       return;
     }
 
     if (payuStatus === "failure") {
-      localStorage.removeItem(
-        "sawariya_pending_booking"
-      );
-
-      const message =
-        params.get("message") ||
-        "Payment failed or was cancelled.";
-
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-      alert(
-        `Payment failed.\n\n${message}`
-      );
+      try {
+        localStorage.removeItem("sawariya_pending_booking");
+      } catch {}
+      const message = params.get("message") || "Payment failed or was cancelled.";
+      finishUrl();
+      alert(`Payment failed.\n\n${message}`);
     }
   }, []);
   

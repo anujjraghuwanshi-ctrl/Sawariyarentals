@@ -86,37 +86,11 @@ function getReverseHash(data, salt) {
 
 function redirectToSite(res, status, data) {
   const url = new URL(SITE_URL);
-
-  url.searchParams.set(
-    "payu",
-    status
-  );
-
-  if (data.txnid) {
-    url.searchParams.set(
-      "txnid",
-      String(data.txnid)
-    );
+  url.searchParams.set("payu", status);
+  for (const key of ["txnid", "mihpayid", "message", "firstname", "phone", "email", "productinfo", "amount"]) {
+    if (data[key]) url.searchParams.set(key, String(data[key]).slice(0, 180));
   }
-
-  if (data.mihpayid) {
-    url.searchParams.set(
-      "mihpayid",
-      String(data.mihpayid)
-    );
-  }
-
-  if (data.message) {
-    url.searchParams.set(
-      "message",
-      String(data.message)
-    );
-  }
-
-  return res.redirect(
-    303,
-    url.toString()
-  );
+  return res.redirect(303, url.toString());
 }
 
 export default async function handler(
@@ -198,15 +172,15 @@ export default async function handler(
         .toLowerCase();
 
     if (status === "success") {
-      return redirectToSite(
-        res,
-        "success",
-        {
-          txnid: data.txnid,
-          mihpayid:
-            data.mihpayid,
-        }
-      );
+      return redirectToSite(res, "success", {
+        txnid: data.txnid,
+        mihpayid: data.mihpayid,
+        firstname: data.firstname,
+        phone: data.phone,
+        email: data.email,
+        productinfo: data.productinfo,
+        amount: data.amount,
+      });
     }
 
     return redirectToSite(

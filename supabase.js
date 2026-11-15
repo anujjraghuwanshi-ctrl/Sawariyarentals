@@ -114,8 +114,9 @@ export async function insertBooking(b) {
   };
   if (isUuid(b.id)) row.id = b.id;
   if (isUuid(b.carId || b.vehicle_id)) row.vehicle_id = b.carId || b.vehicle_id;
-  const { error } = await supabase.from("bookings").insert(row);
+  const { data, error } = await supabase.from("bookings").insert(row).select("id").single();
   if (error) throw error;
+  return data?.id || null;
 }
 
 export async function uploadPhoto(fileOrDataUrl) {
