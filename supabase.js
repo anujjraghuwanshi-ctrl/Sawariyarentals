@@ -1,12 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const configured =
-  typeof url === "string" &&
-  /^https?:\/\//.test(url) &&
-  typeof key === "string" &&
-  key.length > 0;
+function readEnv(name) {
+  let value = String(import.meta.env[name] || "").trim().replace(/^['"]|['"]$/g, "");
+  const prefix = name + "=";
+  if (value.startsWith(prefix)) value = value.slice(prefix.length).trim();
+  return value;
+}
+
+const url = readEnv("VITE_SUPABASE_URL").replace(/\/$/, "");
+const key = readEnv("VITE_SUPABASE_ANON_KEY");
+const configured = /^https?:\/\//.test(url) && key.length > 0;
 
 export const supabase = configured ? createClient(url, key) : null;
 
