@@ -1,9 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+const url = import.meta.env.VITE_SUPABASE_URL;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const configured =
+  typeof url === "string" &&
+  /^https?:\/\//.test(url) &&
+  typeof key === "string" &&
+  key.length > 0;
+
+export const supabase = configured ? createClient(url, key) : null;
+
+function needClient() {
+  if (!supabase) throw new Error("Supabase is not configured");
+  return supabase;
+}
 
 const BUCKET = "Cars";
 
@@ -49,13 +59,15 @@ function toRow(car) {
 }
 
 export async function fetchCars() {
-  const { data, error } = await supabase.from("vehicles").select("*");
+  const client = needClient();
+  const { data, error } = await client.from("vehicles").select("*");
   if (error) throw error;
   return (data || []).map(fromRow);
 }
 
 export async function upsertCar(car) {
-  const { data, error } = await supabase
+  const client = needClient();
+  const { data, error } = await client
     .from("vehicles")
     .upsert(toRow(car))
     .select("id")
@@ -65,28 +77,32 @@ export async function upsertCar(car) {
 }
 
 export async function deleteCar(id) {
-  const { error } = await supabase.from("vehicles").delete().eq("id", id);
+  const client = needClient();
+  const { error } = await client.from("vehicles").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function fetchCities() {
-  const { data, error } = await supabase.from("cities").select("*");
+  const client = needClient();
+  const { data, error } = await client.from("cities").select("*");
   if (error) throw error;
   return data || [];
 }
 
 export async function upsertCity(city) {
+  const client = needClient();
   const row = {
     name: city.name,
     active: city.active !== false,
   };
   if (isUuid(city.id)) row.id = city.id;
-  const { error } = await supabase.from("cities").upsert(row);
+  const { error } = await client.from("cities").upsert(row);
   if (error) throw error;
 }
 
 export async function fetchBookings() {
-  const { data, error } = await supabase.from("bookings").select("*");
+  const client = needClient();
+  const { data, error } = await client.from("bookings").select("*");
   if (error) throw error;
   return (data || []).map((row) => ({
     id: row.id,
@@ -105,6 +121,7 @@ export async function fetchBookings() {
 }
 
 export async function insertBooking(b) {
+  const client = needClient();
   const row = {
     customer_name: b.name || b.customer_name,
     phone: b.phone,
@@ -114,12 +131,13 @@ export async function insertBooking(b) {
   };
   if (isUuid(b.id)) row.id = b.id;
   if (isUuid(b.carId || b.vehicle_id)) row.vehicle_id = b.carId || b.vehicle_id;
-  const { data, error } = await supabase.from("bookings").insert(row).select("id").single();
+  const { data, error } = await client.from("bookings").insert(row).select("id").single();
   if (error) throw error;
   return data?.id || null;
 }
 
 export async function uploadPhoto(fileOrDataUrl) {
+  const client = needClient();
   let file = fileOrDataUrl;
   let name = `car-${Date.now()}.jpg`;
 
@@ -131,18 +149,19 @@ export async function uploadPhoto(fileOrDataUrl) {
     name = `${Date.now()}-${fileOrDataUrl.name.replace(/\s+/g, "-")}`;
   }
 
-  const { error } = await supabase.storage.from(BUCKET).upload(name, file, {
+  const { error } = await client.storage.from(BUCKET).upload(name, file, {
     contentType: "image/jpeg",
     upsert: true,
   });
   if (error) throw error;
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(name);
+  const { data } = client.storage.from(BUCKET).getPublicUrl(name);
   return data.publicUrl;
 }
 
 export async function insertLead(lead) {
-  const { error } = await supabase.from("leads").insert({
+  const client = needClient();
+  const { error } = await client.from("leads").insert({
     name: lead.name || "",
     phone: lead.phone,
     city: lead.city || "",
@@ -153,7 +172,8 @@ export async function insertLead(lead) {
 }
 
 export async function fetchLeads() {
-  const { data, error } = await supabase.from("leads").select("*");
+  const client = needClient();
+  const { data, error } = await client.from("leads").select("*");
   if (error) {
     console.error(error);
     return [];
