@@ -981,8 +981,10 @@ const INSTAGRAM_PATH =
 /* ------------------------------ page-wide background video ------------------------------ */
 function BgVideo() {
   const vref = useRef(null);
+  const [playing, setPlaying] = useState(false);
   // Start the video by itself. React does not write the "muted" attribute,
   // and iPhones need it, so set everything by hand and keep retrying.
+  // Stay invisible until it is actually playing, so the browser play button never shows.
   useEffect(() => {
     const v = vref.current;
     if (!v) return;
@@ -1000,7 +1002,10 @@ function BgVideo() {
     function kick() {
       tryPlay();
     }
-    const onPlaying = () => off();
+    const onPlaying = () => {
+      setPlaying(true);
+      off();
+    };
     const onVisible = () => {
       if (!document.hidden && v.paused) tryPlay();
     };
@@ -1028,7 +1033,7 @@ function BgVideo() {
     <div className="sw-bg" aria-hidden="true">
       <video
         ref={vref}
-        className="sw-bg-video"
+        className={playing ? "sw-bg-video is-on" : "sw-bg-video"}
         src={HERO_VIDEO}
         autoPlay
         muted
@@ -2532,7 +2537,7 @@ html{scroll-behavior:smooth;background:#140e08}
 .sw-hero{position:relative;width:100%;height:100vh;min-height:620px;overflow:hidden}
 @supports (height:100svh){.sw-hero{height:100svh}}
 .sw-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#140e08}
-.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:0;background:transparent}.sw-bg-video.is-on{opacity:1}
 .sw-bg-shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,8,3,.18) 0%,rgba(14,8,3,.34) 100%)}
 .sw-bg-video::-webkit-media-controls,.sw-bg-video::-webkit-media-controls-panel,.sw-bg-video::-webkit-media-controls-play-button,.sw-bg-video::-webkit-media-controls-start-playback-button,.sw-bg-video::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none;opacity:0;pointer-events:none}
 .sw-ov{position:absolute;inset:0;pointer-events:none}
