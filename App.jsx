@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Car,
   MapPin,
@@ -973,7 +973,7 @@ function SiteHeader({ profile, onLogin }) {
 
 /* ------------------------------ hero ------------------------------ */
 // To use your own video: upload it to the "public" folder as hero.mp4 and change this to "/hero.mp4"
-const HERO_VIDEO = "https://pub-1e5b4001b36b47e28e6a2fb775966a79.r2.dev/templates/aurora/hero.mp4";
+const HERO_VIDEO = "/hero.mp4";
 const INSTAGRAM = "https://www.instagram.com/sawariyarentals/";
 const INSTAGRAM_PATH =
   "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM12 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z";
@@ -981,18 +981,18 @@ const INSTAGRAM_PATH =
 /* ------------------------------ page-wide background video ------------------------------ */
 function BgVideo() {
   const vref = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  // Start the video by itself. React does not write the "muted" attribute,
-  // and iPhones need it, so set everything by hand and keep retrying.
-  // Stay invisible until it is actually playing, so the browser play button never shows.
-  useEffect(() => {
+  // Mute before the first paint. iPhone blocks a video that still has sound
+  // until the visitor taps, which left the page blank.
+  useLayoutEffect(() => {
     const v = vref.current;
     if (!v) return;
     v.muted = true;
     v.defaultMuted = true;
+    v.playsInline = true;
     v.setAttribute("muted", "");
     v.setAttribute("playsinline", "");
     v.setAttribute("webkit-playsinline", "");
+    v.src = HERO_VIDEO;
     const tryPlay = () => {
       const r = v.play();
       if (r && r.catch) r.catch(() => {});
@@ -1002,15 +1002,12 @@ function BgVideo() {
     function kick() {
       tryPlay();
     }
-    const onPlaying = () => {
-      setPlaying(true);
-      off();
-    };
+    const onPlaying = () => off();
     const onVisible = () => {
       if (!document.hidden && v.paused) tryPlay();
     };
     tryPlay();
-    v.addEventListener("loadedmetadata", tryPlay);
+    v.addEventListener("loadeddata", tryPlay);
     v.addEventListener("canplay", tryPlay);
     v.addEventListener("playing", onPlaying);
     document.addEventListener("visibilitychange", onVisible);
@@ -1018,11 +1015,11 @@ function BgVideo() {
     const retry = setInterval(() => {
       if (v.paused) tryPlay();
       else clearInterval(retry);
-    }, 1500);
+    }, 800);
     return () => {
       off();
       clearInterval(retry);
-      v.removeEventListener("loadedmetadata", tryPlay);
+      v.removeEventListener("loadeddata", tryPlay);
       v.removeEventListener("canplay", tryPlay);
       v.removeEventListener("playing", onPlaying);
       document.removeEventListener("visibilitychange", onVisible);
@@ -1033,13 +1030,13 @@ function BgVideo() {
     <div className="sw-bg" aria-hidden="true">
       <video
         ref={vref}
-        className={playing ? "sw-bg-video is-on" : "sw-bg-video"}
-        src={HERO_VIDEO}
+        className="sw-bg-video"
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
+        poster="/hero-poster.jpg"
         controls={false}
         disablePictureInPicture
         onError={(e) => {
@@ -2536,8 +2533,8 @@ html{scroll-behavior:smooth;background:#140e08}
 
 .sw-hero{position:relative;width:100%;height:100vh;min-height:620px;overflow:hidden}
 @supports (height:100svh){.sw-hero{height:100svh}}
-.sw-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#140e08}
-.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:0;background:transparent}.sw-bg-video.is-on{opacity:1}
+.sw-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#140e08 url("/hero-poster.jpg") center/cover no-repeat}
+.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:1;background:transparent}
 .sw-bg-shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,8,3,.18) 0%,rgba(14,8,3,.34) 100%)}
 .sw-bg-video::-webkit-media-controls,.sw-bg-video::-webkit-media-controls-panel,.sw-bg-video::-webkit-media-controls-play-button,.sw-bg-video::-webkit-media-controls-start-playback-button,.sw-bg-video::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none;opacity:0;pointer-events:none}
 .sw-ov{position:absolute;inset:0;pointer-events:none}
