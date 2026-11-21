@@ -4242,7 +4242,7 @@ function AdminGate(props) {
 const ADMIN_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap');
 .ad{--ink:#0b1b2b;--pea:#0e7c86;--pead:#0a5f67;--saf:#f59e0b;--mist:#f2f7f8;--line:#e0e9ec;--muted:#566774;--bad:#b42318;--good:#117a4a;
- font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--mist);min-height:100vh;min-height:100dvh;width:100%;max-width:100%;overflow-x:clip;line-height:1.5}
+ font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--mist);position:fixed;inset:0;z-index:80;width:100%;max-width:100vw;height:100dvh;overflow-x:hidden;overflow-y:auto;line-height:1.5}
 .ad *{box-sizing:border-box}
 .ad h2,.ad h3,.ad h4{font-family:'Bricolage Grotesque','Instrument Sans',sans-serif;margin:0;letter-spacing:-.02em}
 .ad a{color:var(--pea);font-weight:700;text-decoration:none}
@@ -4260,7 +4260,8 @@ const ADMIN_CSS = `
 .ad-tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px;font-weight:700;font-size:15px;color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
 .ad-tabs button.on{color:var(--ink);border-color:var(--saf)}
 .ad-tabs i{font-style:normal;font-size:12px;background:var(--pea);color:#fff;border-radius:999px;padding:1px 8px}
-.ad-main{max-width:1100px;margin:0 auto;padding:22px 16px 80px}
+.ad-main{position:static;top:auto;left:auto;width:100%;max-width:1100px;margin:0 auto;padding:22px 16px 80px;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;border-radius:0}
+.ad-main-tag{position:absolute;top:8px;left:8px;background:var(--saf);color:var(--ink);font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px}
 .ad-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .ad-head h2{font-size:26px;font-weight:800}
 .ad-muted{color:var(--muted);font-size:14px;margin:0 0 14px}
@@ -4301,7 +4302,6 @@ const ADMIN_CSS = `
 .ad-photo div{display:flex;justify-content:space-between;gap:4px;padding:6px 8px}
 .ad-photo button{background:none;border:0;color:var(--pea);font-weight:700;font-size:12.5px;padding:2px}
 .ad-photo button:last-child{color:var(--bad);margin-left:auto}
-.ad-main-tag,.ad-main{position:absolute;top:8px;left:8px;background:var(--saf);color:var(--ink);font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px}
 .ad-add-photo{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--line);border-radius:14px;min-height:120px;color:var(--pea);font-weight:700;font-size:14px;cursor:pointer;transition:border-color .2s,background .2s}
 .ad-add-photo:hover{border-color:var(--pea);background:#f6fbfb}
 .ad-list{display:grid;gap:10px}
@@ -4392,10 +4392,13 @@ const ADMIN_CSS = `
  .ad-top-in{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;padding:10px 12px;gap:8px}
  .ad-top-actions{grid-column:1 / -1;margin-left:0;width:100%}
  .ad-top-actions .ad-btn{flex:1;min-width:0;padding:0 10px}
- .ad-tabs{padding:0 8px}
- .ad-tabs button{padding:10px 12px;font-size:14px}
- .ad-main{padding:16px 12px 72px}
+ .ad-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible;padding:8px 12px 10px}
+ .ad-tabs button{border:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:999px;padding:8px 6px;font-size:13px;justify-content:center;white-space:normal;text-align:center;line-height:1.2}
+ .ad-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+ .ad-main{padding:14px 12px 40px}
+ .ad-head{align-items:stretch}
  .ad-head h2{font-size:22px}
+ .ad-head .ad-btn{width:100%}
  .ad-cards{grid-template-columns:1fr 1fr}
  .ad-card{padding:12px}
  .ad-card strong{font-size:22px}
@@ -4404,12 +4407,15 @@ const ADMIN_CSS = `
  .ad-row{flex-wrap:wrap;align-items:flex-start}
  .ad-thumb{width:72px;height:52px}
  .ad-row-actions{width:100%;justify-content:flex-start}
+ .ad-bk,.ad-box,.ad-search,.ad-row{max-width:100%}
  .ad-bk-top{flex-direction:column;gap:8px}
  .ad-bk-money{align-items:flex-start;text-align:left}
  .ad-bk-actions{gap:10px}
  .ad-bk-actions button{margin-left:0}
+ .ad-subtabs{flex-wrap:wrap;overflow:visible}
+ .ad-subtabs button{flex:1 1 auto}
  .ad-deal-row,.ad-callbtns,.ad-actions{width:100%}
- .ad-deal-row .ad-btn,.ad-callbtns .ad-btn,.ad-actions .ad-btn{flex:1 1 auto}
+ .ad-deal-row .ad-btn,.ad-callbtns .ad-btn,.ad-actions .ad-btn{flex:1 1 calc(50% - 8px)}
  .ad-inline{flex-direction:column}
  .ad-inline .ad-btn{width:100%}
  .ad-raw th{white-space:normal}
@@ -4453,8 +4459,14 @@ function App() {
 
   const [leads, setLeads] = useState([]);
 
-  const [isAdmin, setIsAdmin] =
-    useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      return q.get("admin") === "1" || window.location.hash === "#admin";
+    } catch {
+      return false;
+    }
+  });
 
   /* -----------------------------------------------
      MOBILE / BODY FIX
@@ -4616,7 +4628,15 @@ function App() {
         bookings={Array.isArray(bookings) ? bookings : []}
         leads={Array.isArray(leads) ? leads : []}
         onRefresh={loadAdminData}
-        onExit={() => setIsAdmin(false)}
+        onExit={() => {
+          setIsAdmin(false);
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("admin");
+            if (url.hash === "#admin") url.hash = "";
+            window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+          } catch {}
+        }}
       />
     );
   }
@@ -4639,51 +4659,6 @@ function App() {
           confirmBooking
         }
       />
-
-      {/* SECRET / ADMIN BUTTON */}
-
-      <button
-        type="button"
-        onClick={() =>
-          setIsAdmin(
-            true
-          )
-        }
-        title="Admin"
-        style={{
-          position:
-            "fixed",
-          right: 12,
-          bottom: 12,
-          width: 42,
-          height: 42,
-          borderRadius:
-            999,
-          border:
-            `1px solid ${C.border}`,
-          background:
-            "rgba(255,255,255,.94)",
-          color:
-            C.gray,
-          display:
-            "flex",
-          alignItems:
-            "center",
-          justifyContent:
-            "center",
-          cursor:
-            "pointer",
-          boxShadow:
-            "0 8px 25px rgba(15,23,42,.12)",
-          zIndex: 100,
-        }}
-      >
-        <Settings
-          size={
-            18
-          }
-        />
-      </button>
     </div>
   );
 }
