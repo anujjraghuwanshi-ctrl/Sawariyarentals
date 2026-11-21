@@ -981,17 +981,20 @@ const INSTAGRAM_PATH =
 /* ------------------------------ page-wide background video ------------------------------ */
 function BgVideo() {
   const vref = useRef(null);
-  // Mute before the first paint. iPhone blocks a video that still has sound
-  // until the visitor taps, which left the page blank.
+  const [playing, setPlaying] = useState(false);
+  // The still picture is the background. The video stays hidden until it
+  // is actually playing, so iPhone never draws a play button on top.
   useLayoutEffect(() => {
     const v = vref.current;
     if (!v) return;
     v.muted = true;
     v.defaultMuted = true;
     v.playsInline = true;
+    v.controls = false;
     v.setAttribute("muted", "");
     v.setAttribute("playsinline", "");
     v.setAttribute("webkit-playsinline", "");
+    v.removeAttribute("poster");
     v.src = HERO_VIDEO;
     const tryPlay = () => {
       const r = v.play();
@@ -1002,7 +1005,10 @@ function BgVideo() {
     function kick() {
       tryPlay();
     }
-    const onPlaying = () => off();
+    const onPlaying = () => {
+      setPlaying(true);
+      off();
+    };
     const onVisible = () => {
       if (!document.hidden && v.paused) tryPlay();
     };
@@ -1030,13 +1036,12 @@ function BgVideo() {
     <div className="sw-bg" aria-hidden="true">
       <video
         ref={vref}
-        className="sw-bg-video"
+        className={playing ? "sw-bg-video is-on" : "sw-bg-video"}
         autoPlay
         muted
         loop
         playsInline
         preload="auto"
-        poster="/hero-poster.jpg"
         controls={false}
         disablePictureInPicture
         onError={(e) => {
@@ -2534,7 +2539,7 @@ html{scroll-behavior:smooth;background:#140e08}
 .sw-hero{position:relative;width:100%;height:100vh;min-height:620px;overflow:hidden}
 @supports (height:100svh){.sw-hero{height:100svh}}
 .sw-bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:#140e08 url("/hero-poster.jpg") center/cover no-repeat}
-.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:1;background:transparent}
+.sw-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:0;visibility:hidden;background:transparent}.sw-bg-video.is-on{opacity:1;visibility:visible}
 .sw-bg-shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,8,3,.18) 0%,rgba(14,8,3,.34) 100%)}
 .sw-bg-video::-webkit-media-controls,.sw-bg-video::-webkit-media-controls-panel,.sw-bg-video::-webkit-media-controls-play-button,.sw-bg-video::-webkit-media-controls-start-playback-button,.sw-bg-video::-webkit-media-controls-overlay-play-button{display:none!important;-webkit-appearance:none;opacity:0;pointer-events:none}
 .sw-ov{position:absolute;inset:0;pointer-events:none}
@@ -2763,7 +2768,7 @@ textarea.sw-input{resize:vertical}
 .sw-footer p{margin:14px 0 0;font-size:15px}
 .sw-copy{margin-top:34px;padding-top:20px;border-top:1px solid var(--line);font-size:13px}
 
-.sw-wa{position:fixed;right:12px;bottom:66px;z-index:70;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff!important;display:grid;place-items:center;box-shadow:0 12px 28px -8px rgba(37,211,102,.55)}
+.sw-wa{position:fixed;right:12px;bottom:16px;z-index:70;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff!important;display:grid;place-items:center;box-shadow:0 12px 28px -8px rgba(37,211,102,.55)}
 .sw-wa::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid #25d366;animation:swping 2.4s ease-out infinite}
 @keyframes swping{to{transform:scale(1.7);opacity:0}}
 
